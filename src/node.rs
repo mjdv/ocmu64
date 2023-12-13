@@ -1,13 +1,13 @@
 use std::{
-    fmt::Display,
+    fmt::{Debug, Display},
     iter::Step,
     ops::{Deref, DerefMut, Index, IndexMut},
 };
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct NodeA(pub usize);
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct NodeB(pub usize);
 
 impl Display for NodeA {
@@ -19,6 +19,18 @@ impl Display for NodeA {
 impl Display for NodeB {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}B", self.0)
+    }
+}
+
+impl Debug for NodeA {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(self, f)
+    }
+}
+
+impl Debug for NodeB {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(self, f)
     }
 }
 
