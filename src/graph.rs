@@ -21,11 +21,11 @@ impl Graph {
     pub fn new(mut connections_a: VecA<Vec<NodeB>>, mut connections_b: VecB<Vec<NodeA>>) -> Graph {
         let a = connections_a.len();
         let b = connections_b.len();
-        for l in connections_a {
+        for l in connections_a.iter_mut() {
             l.sort();
         }
 
-        for l in connections_b {
+        for l in connections_b.iter_mut() {
             l.sort();
         }
 
@@ -61,7 +61,6 @@ impl Graph {
 
     fn from_stream<T: BufRead>(stream: T) -> Result<Self, std::io::Error> {
         let mut a = NodeA::default();
-        let mut b = NodeB::default();
         let mut connections_a: VecA<Vec<NodeB>> = VecA::default();
         let mut connections_b: VecB<Vec<NodeA>> = VecB::default();
 
@@ -72,7 +71,7 @@ impl Graph {
             } else if line.starts_with('p') {
                 let words = line.split(' ').collect::<Vec<&str>>();
                 a = NodeA(words[2].parse().unwrap());
-                b = NodeB(words[3].parse().unwrap());
+                let b = NodeB(words[3].parse().unwrap());
                 connections_a = VecA {
                     v: vec![vec![]; a.0],
                 };
