@@ -21,12 +21,12 @@ impl Graph {
     pub fn new(mut connections_a: VecA<Vec<NodeB>>, mut connections_b: VecB<Vec<NodeA>>) -> Graph {
         let a = connections_a.len();
         let b = connections_b.len();
-        for i in NodeA(0)..a {
-            connections_a[i].sort();
+        for l in connections_a {
+            l.sort();
         }
 
-        for i in NodeB(0)..b {
-            connections_b[i].sort();
+        for l in connections_b {
+            l.sort();
         }
 
         Self {
