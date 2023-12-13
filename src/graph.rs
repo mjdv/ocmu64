@@ -1,12 +1,12 @@
 use std::{
     cmp::{max, min},
     fs::File,
-    io::{stdin, BufRead, BufReader},
+    io::{stdin, stdout, BufRead, BufReader, BufWriter, Write},
     iter::Step,
     ops::{Index, IndexMut},
 };
 
-use crate::node::{self, NodeA, NodeB, VecA, VecB};
+use crate::node::*;
 
 #[derive(Debug)]
 pub struct Graph {
@@ -18,7 +18,7 @@ pub struct Graph {
 }
 
 impl Graph {
-    fn new(mut connections_a: VecA<Vec<NodeB>>, mut connections_b: VecB<Vec<NodeA>>) -> Graph {
+    pub fn new(mut connections_a: VecA<Vec<NodeB>>, mut connections_b: VecB<Vec<NodeA>>) -> Graph {
         let a = connections_a.len();
         let b = connections_b.len();
         for i in NodeA(0)..a {
@@ -36,6 +36,27 @@ impl Graph {
             connections_b,
             crossings: None,
         }
+    }
+
+    fn to_stream<W: Write>(&self, writer: W) -> Result<(), std::io::Error> {
+        let mut writer = BufWriter::new(writer);
+        let edges = self.connections_a.iter().map(|x| x.len()).sum::<usize>();
+        writeln!(writer, "p ocr {} {} {}", self.a.0, self.b.0, edges)?;
+        for i in NodeA(0)..self.a {
+            for j in &self.connections_a[i] {
+                writeln!(writer, "{} {}", i.0 + 1, j.0 + self.a.0 + 1)?;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn to_file(&self, file_path: &str) -> Result<(), std::io::Error> {
+        let file = File::create(file_path)?;
+        self.to_stream(file)
+    }
+
+    pub fn to_stdout(&self) -> Result<(), std::io::Error> {
+        self.to_stream(stdout().lock())
     }
 
     fn from_stream<T: BufRead>(stream: T) -> Result<Self, std::io::Error> {
@@ -59,9 +80,9 @@ impl Graph {
                     v: vec![vec![]; b.0],
                 };
             } else {
-                let words = line.split(' ').collect::<Vec<&str>>();
-                let x: NodeA = NodeA(words[0].parse::<usize>().unwrap() - 1);
-                let y: NodeB = NodeB(words[1].parse::<usize>().unwrap() - a.0 - 1);
+                let mut words = line.split_ascii_whitespace();
+                let x = NodeA(words.next().unwrap().parse::<usize>().unwrap() - 1);
+                let y = NodeB(words.next().unwrap().parse::<usize>().unwrap() - a.0 - 1);
                 connections_a[x].push(y);
                 connections_b[y].push(x);
             }

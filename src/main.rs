@@ -1,7 +1,7 @@
 #![feature(step_trait)]
-mod generate;
-mod graph;
-mod node;
+pub mod generate;
+pub mod graph;
+pub mod node;
 
 use std::env;
 

@@ -5,7 +5,7 @@ use rand::Rng;
 use crate::{graph::*, node::*};
 
 /// Add edges on either side at random, for total of n vertices.
-fn fan_graph(n: usize) -> Graph {
+pub fn fan_graph(n: usize) -> Graph {
     let mut a = NodeA(0);
     let mut b = NodeB(0);
     let mut ca = VecA { v: vec![vec![b]] };
@@ -24,11 +24,5 @@ fn fan_graph(n: usize) -> Graph {
         cb[b].push(a);
     }
 
-    Graph {
-        a,
-        b,
-        connections_a: ca,
-        connections_b: cb,
-        crossings: todo!(),
-    }
+    Graph::new(ca, cb)
 }
