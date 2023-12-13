@@ -4,34 +4,23 @@ mod node;
 
 use std::env;
 
-use crate::{graph::one_sided_crossing_minimization, node::NodeB};
+use crate::graph::one_sided_crossing_minimization;
 
 fn main() {
     println!("Hello, world!");
     let args: Vec<String> = env::args().collect();
     let g = if args.len() == 1 {
-        graph::Graph::from_stdin().expect("Did not get a graph in the correct format on stdin.")
+        let mut g = graph::Graph::from_stdin()
+            .expect("Did not get a graph in the correct format on stdin.");
+        g.create_crossings();
+        g
     } else {
         let file_path = &args[1];
-        graph::Graph::from_file(file_path).expect("Unable to read graph from file.")
+        let mut g = graph::Graph::from_file(file_path).expect("Unable to read graph from file.");
+        g.create_crossings();
+        g
     };
     println!("Read a graph: ({:?}).", g);
-    let _sol: graph::Solution = vec![];
-    for i in NodeB(0)..g.b {
-        for j in NodeB(0)..g.b {
-            for k in NodeB(0)..g.b {
-                if g.crossings[i][j] > g.crossings[j][i]
-                    && g.crossings[j][k] > g.crossings[k][j]
-                    && g.crossings[k][i] > g.crossings[i][k]
-                {
-                    println!("Found triple ({i:?}, {j:?}, {k:?})");
-                    println!("Degrees: ({} {} {})", g[i].len(), g[j].len(), g[k].len(),);
-                    println!("Adjacency lists: ({:?} {:?} {:?})", g[i], g[j], g[k],);
-                }
-            }
-        }
-    }
-
     println!("Branch and bound...");
     let bb_output = one_sided_crossing_minimization(&g);
     if let Some((bb_solution, bb_score)) = bb_output {

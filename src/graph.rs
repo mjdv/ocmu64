@@ -14,7 +14,7 @@ pub struct Graph {
     pub b: node::NodeB,
     pub connections_a: node::VecA<Vec<node::NodeB>>,
     pub connections_b: node::VecB<Vec<node::NodeA>>,
-    pub crossings: node::VecB<node::VecB<u64>>,
+    pub crossings: Option<node::VecB<node::VecB<u64>>>,
 }
 
 impl Graph {
@@ -55,13 +55,28 @@ impl Graph {
             connections_b[i].sort();
         }
 
+        Ok(Self {
+            a,
+            b,
+            connections_a,
+            connections_b,
+            crossings: None,
+        })
+    }
+
+    pub fn create_crossings(self: &mut Self) {
         let mut crossings: node::VecB<node::VecB<u64>> = node::VecB {
-            v: vec![node::VecB { v: vec![0; b.0] }; b.0],
+            v: vec![
+                node::VecB {
+                    v: vec![0; self.b.0]
+                };
+                self.b.0
+            ],
         };
-        for node_i in node::NodeB(0)..b {
-            for node_j in Step::forward(node_i, 1)..b {
-                for edge_i in &connections_b[node_i] {
-                    for edge_j in &connections_b[node_j] {
+        for node_i in node::NodeB(0)..self.b {
+            for node_j in Step::forward(node_i, 1)..self.b {
+                for edge_i in &self.connections_b[node_i] {
+                    for edge_j in &self.connections_b[node_j] {
                         if edge_i > edge_j {
                             crossings[node_i][node_j] += 1;
                         }
@@ -72,14 +87,7 @@ impl Graph {
                 }
             }
         }
-
-        Ok(Self {
-            a,
-            b,
-            connections_a,
-            connections_b,
-            crossings,
-        })
+        self.crossings = Some(crossings);
     }
 
     /* Reads a graph from a file (in PACE format).
@@ -99,7 +107,19 @@ impl Graph {
 
 // Crossings by having b1 before b2.
 fn node_score(g: &Graph, b1: node::NodeB, b2: node::NodeB) -> u64 {
-    g.crossings[b1][b2]
+    if let Some(crossings) = &g.crossings {
+        crossings[b1][b2]
+    } else {
+        let mut count = 0;
+        for edge_i in &g.connections_b[b1] {
+            for edge_j in &g.connections_b[b2] {
+                if edge_i > edge_j {
+                    count += 1;
+                }
+            }
+        }
+        count
+    }
 }
 
 pub type Solution = Vec<node::NodeB>;
@@ -142,7 +162,7 @@ fn commute_adjacent(g: &Graph, vec: &mut Vec<node::NodeB>) {
     while changed {
         changed = false;
         for i in 1..vec.len() {
-            if g.crossings[vec[i - 1]][vec[i]] > g.crossings[vec[i]][vec[i - 1]] {
+            if node_score(g, vec[i - 1], vec[i]) > node_score(g, vec[i], vec[i - 1]) {
                 (vec[i - 1], vec[i]) = (vec[i], vec[i - 1]);
                 changed = true;
             }
@@ -224,7 +244,7 @@ pub fn branch_and_bound(
     let mut best_solution = None;
     for new_node in remaining_nodes {
         if let Some(last_node) = partial_solution.last() {
-            if g.crossings[*last_node][new_node] > g.crossings[new_node][*last_node]
+            if node_score(g, *last_node, new_node) > node_score(g, new_node, *last_node)
                 && upper_bound < 90000
             {
                 continue;
