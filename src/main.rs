@@ -1,12 +1,10 @@
 #![feature(step_trait)]
+mod graph;
+mod node;
 
 use std::env;
 
-use crate::graph::{
-    branch_and_bound, extend_solution_recursive, one_sided_crossing_minimization, NodeB, Solution,
-};
-
-mod graph;
+use crate::{graph::one_sided_crossing_minimization, node::NodeB};
 
 fn main() {
     println!("Hello, world!");
@@ -18,11 +16,7 @@ fn main() {
         graph::Graph::from_file(file_path).expect("Unable to read graph from file.")
     };
     println!("Read a graph: ({:?}).", g);
-    let mut sol = graph::Solution {
-        g: &g,
-        solution: vec![],
-    };
-
+    let sol: graph::Solution = vec![];
     for i in NodeB(0)..g.b {
         for j in NodeB(0)..g.b {
             for k in NodeB(0)..g.b {
@@ -50,7 +44,7 @@ fn main() {
     let bb_output = one_sided_crossing_minimization(&g);
     if let Some((bb_solution, bb_score)) = bb_output {
         println!("Score of our beautiful solution: {bb_score}");
-        println!("Our beautiful solution: {:?}", bb_solution.solution);
+        println!("Our beautiful solution: {:?}", bb_solution);
     } else {
         println!("No solution found?!");
     }
