@@ -1,7 +1,7 @@
 use std::{
     fmt::Display,
     iter::Step,
-    ops::{Deref, Index, IndexMut},
+    ops::{Deref, DerefMut, Index, IndexMut},
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Default)]
@@ -68,11 +68,23 @@ impl<T> Deref for VecA<T> {
     }
 }
 
+impl<T> DerefMut for VecA<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.v
+    }
+}
+
 impl<T> Deref for VecB<T> {
     type Target = Vec<T>;
 
     fn deref(&self) -> &Self::Target {
         &self.v
+    }
+}
+
+impl<T> DerefMut for VecB<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.v
     }
 }
 

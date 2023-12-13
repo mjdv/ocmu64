@@ -1,4 +1,5 @@
 #![feature(step_trait)]
+mod generate;
 mod graph;
 mod node;
 
