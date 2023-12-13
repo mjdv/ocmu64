@@ -72,6 +72,18 @@ pub struct VecB<T> {
     pub(crate) v: Vec<T>,
 }
 
+impl<T> VecA<T> {
+    pub fn len(&self) -> NodeA {
+        NodeA(self.v.len())
+    }
+}
+
+impl<T> VecB<T> {
+    pub fn len(&self) -> NodeB {
+        NodeB(self.v.len())
+    }
+}
+
 impl<T> Deref for VecA<T> {
     type Target = Vec<T>;
 

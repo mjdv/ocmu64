@@ -6,23 +6,43 @@ use std::{
     ops::{Index, IndexMut},
 };
 
-use crate::node::{self, NodeA, NodeB};
+use crate::node::{self, NodeA, NodeB, VecA, VecB};
 
 #[derive(Debug)]
 pub struct Graph {
-    pub a: node::NodeA,
-    pub b: node::NodeB,
-    pub connections_a: node::VecA<Vec<node::NodeB>>,
-    pub connections_b: node::VecB<Vec<node::NodeA>>,
-    pub crossings: Option<node::VecB<node::VecB<u64>>>,
+    pub a: NodeA,
+    pub b: NodeB,
+    pub connections_a: VecA<Vec<NodeB>>,
+    pub connections_b: VecB<Vec<NodeA>>,
+    pub crossings: Option<VecB<VecB<u64>>>,
 }
 
 impl Graph {
+    fn new(mut connections_a: VecA<Vec<NodeB>>, mut connections_b: VecB<Vec<NodeA>>) -> Graph {
+        let a = connections_a.len();
+        let b = connections_b.len();
+        for i in NodeA(0)..a {
+            connections_a[i].sort();
+        }
+
+        for i in NodeB(0)..b {
+            connections_b[i].sort();
+        }
+
+        Self {
+            a,
+            b,
+            connections_a,
+            connections_b,
+            crossings: None,
+        }
+    }
+
     fn from_stream<T: BufRead>(stream: T) -> Result<Self, std::io::Error> {
-        let mut a = node::NodeA::default();
-        let mut b = node::NodeB::default();
-        let mut connections_a: node::VecA<Vec<node::NodeB>> = node::VecA::default();
-        let mut connections_b: node::VecB<Vec<node::NodeA>> = node::VecB::default();
+        let mut a = NodeA::default();
+        let mut b = NodeB::default();
+        let mut connections_a: VecA<Vec<NodeB>> = VecA::default();
+        let mut connections_b: VecB<Vec<NodeA>> = VecB::default();
 
         for line in stream.lines() {
             let line = line?;
@@ -30,50 +50,37 @@ impl Graph {
                 continue;
             } else if line.starts_with('p') {
                 let words = line.split(' ').collect::<Vec<&str>>();
-                a = node::NodeA(words[2].parse().unwrap());
-                b = node::NodeB(words[3].parse().unwrap());
-                connections_a = node::VecA {
+                a = NodeA(words[2].parse().unwrap());
+                b = NodeB(words[3].parse().unwrap());
+                connections_a = VecA {
                     v: vec![vec![]; a.0],
                 };
-                connections_b = node::VecB {
+                connections_b = VecB {
                     v: vec![vec![]; b.0],
                 };
             } else {
                 let words = line.split(' ').collect::<Vec<&str>>();
-                let x: node::NodeA = node::NodeA(words[0].parse::<usize>().unwrap() - 1);
-                let y: node::NodeB = node::NodeB(words[1].parse::<usize>().unwrap() - a.0 - 1);
+                let x: NodeA = NodeA(words[0].parse::<usize>().unwrap() - 1);
+                let y: NodeB = NodeB(words[1].parse::<usize>().unwrap() - a.0 - 1);
                 connections_a[x].push(y);
                 connections_b[y].push(x);
             }
         }
 
-        for i in node::NodeA(0)..a {
-            connections_a[i].sort();
-        }
-
-        for i in node::NodeB(0)..b {
-            connections_b[i].sort();
-        }
-
-        Ok(Self {
-            a,
-            b,
-            connections_a,
-            connections_b,
-            crossings: None,
-        })
+        let graph = Graph::new(connections_a, connections_b);
+        Ok(graph)
     }
 
-    pub fn create_crossings(self: &mut Self) {
-        let mut crossings: node::VecB<node::VecB<u64>> = node::VecB {
+    pub fn create_crossings(&mut self) {
+        let mut crossings: VecB<VecB<u64>> = VecB {
             v: vec![
-                node::VecB {
+                VecB {
                     v: vec![0; self.b.0]
                 };
                 self.b.0
             ],
         };
-        for node_i in node::NodeB(0)..self.b {
+        for node_i in NodeB(0)..self.b {
             for node_j in Step::forward(node_i, 1)..self.b {
                 for edge_i in &self.connections_b[node_i] {
                     for edge_j in &self.connections_b[node_j] {
@@ -106,7 +113,7 @@ impl Graph {
 }
 
 // Crossings by having b1 before b2.
-fn node_score(g: &Graph, b1: node::NodeB, b2: node::NodeB) -> u64 {
+fn node_score(g: &Graph, b1: NodeB, b2: NodeB) -> u64 {
     if let Some(crossings) = &g.crossings {
         crossings[b1][b2]
     } else {
@@ -122,7 +129,7 @@ fn node_score(g: &Graph, b1: node::NodeB, b2: node::NodeB) -> u64 {
     }
 }
 
-pub type Solution = Vec<node::NodeB>;
+pub type Solution = Vec<NodeB>;
 
 pub fn score(g: &Graph, solution: &Solution) -> u64 {
     let mut score = 0;
@@ -135,14 +142,14 @@ pub fn score(g: &Graph, solution: &Solution) -> u64 {
 }
 
 #[allow(unused)]
-pub fn extend_solution_recursive(g: &Graph, solution: &mut Solution) -> (u64, Vec<node::NodeB>) {
+pub fn extend_solution_recursive(g: &Graph, solution: &mut Solution) -> (u64, Vec<NodeB>) {
     if solution.len() == g.b.0 {
         return (score(g, solution), vec![]);
     }
-    let mut best_score: u64 = std::u64::MAX;
-    let mut best_extension: Vec<node::NodeB> = vec![];
+    let mut best_score: u64 = u64::MAX;
+    let mut best_extension: Vec<NodeB> = vec![];
     for new_node in 0..g.b.0 {
-        let new_node = node::NodeB(new_node);
+        let new_node = NodeB(new_node);
         if !solution.contains(&new_node) {
             solution.push(new_node);
             let (new_score, new_extension) = extend_solution_recursive(g, solution);
@@ -157,7 +164,7 @@ pub fn extend_solution_recursive(g: &Graph, solution: &mut Solution) -> (u64, Ve
     (best_score, best_extension)
 }
 
-fn commute_adjacent(g: &Graph, vec: &mut Vec<node::NodeB>) {
+fn commute_adjacent(g: &Graph, vec: &mut Vec<NodeB>) {
     let mut changed = true;
     while changed {
         changed = false;
@@ -171,7 +178,7 @@ fn commute_adjacent(g: &Graph, vec: &mut Vec<node::NodeB>) {
 }
 
 pub fn one_sided_crossing_minimization(g: &Graph) -> Option<(Solution, u64)> {
-    let mut initial_solution = (node::NodeB(0)..g.b).collect::<Vec<node::NodeB>>();
+    let mut initial_solution = (NodeB(0)..g.b).collect::<Vec<_>>();
     let get_median = |x: NodeB| g[x][g[x].len() / 2];
     initial_solution.sort_by_key(|x| get_median(*x));
     commute_adjacent(g, &mut initial_solution);
@@ -211,7 +218,7 @@ pub fn branch_and_bound(
     }
 
     let mut remaining_nodes = vec![];
-    for i in node::NodeB(0)..g.b {
+    for i in NodeB(0)..g.b {
         if !partial_solution.contains(&i) {
             remaining_nodes.push(i);
         }
@@ -270,7 +277,7 @@ pub fn branch_and_bound(
 }
 
 impl Index<NodeA> for Graph {
-    type Output = Vec<node::NodeB>;
+    type Output = Vec<NodeB>;
 
     fn index(&self, index: NodeA) -> &Self::Output {
         &self.connections_a[index]
@@ -284,7 +291,7 @@ impl IndexMut<NodeA> for Graph {
 }
 
 impl Index<NodeB> for Graph {
-    type Output = Vec<node::NodeA>;
+    type Output = Vec<NodeA>;
 
     fn index(&self, index: NodeB) -> &Self::Output {
         &self.connections_b[index]

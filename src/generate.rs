@@ -12,7 +12,7 @@ fn fan_graph(n: usize) -> Graph {
     let mut cb = VecB { v: vec![vec![a]] };
     let mut rng = rand::thread_rng();
 
-    while ca.len() + cb.len() < n {
+    while ca.len().0 + cb.len().0 < n {
         if rng.gen_bool(0.5) {
             a = Step::forward(a, 1);
             ca.push(vec![]);
