@@ -3,9 +3,10 @@ use std::{
     fs::File,
     io::{stdin, BufRead, BufReader},
     iter::Step,
+    ops::{Index, IndexMut},
 };
 
-use crate::node;
+use crate::node::{self, NodeA, NodeB};
 
 #[derive(Debug)]
 pub struct Graph {
@@ -28,7 +29,7 @@ impl Graph {
             if line.starts_with('c') {
                 continue;
             } else if line.starts_with('p') {
-                let words = line.split(" ").collect::<Vec<&str>>();
+                let words = line.split(' ').collect::<Vec<&str>>();
                 a = node::NodeA(words[2].parse().unwrap());
                 b = node::NodeB(words[3].parse().unwrap());
                 connections_a = node::VecA {
@@ -38,7 +39,7 @@ impl Graph {
                     v: vec![vec![]; b.0],
                 };
             } else {
-                let words = line.split(" ").collect::<Vec<&str>>();
+                let words = line.split(' ').collect::<Vec<&str>>();
                 let x: node::NodeA = node::NodeA(words[0].parse::<usize>().unwrap() - 1);
                 let y: node::NodeB = node::NodeB(words[1].parse::<usize>().unwrap() - a.0 - 1);
                 connections_a[x].push(y);
@@ -63,7 +64,8 @@ impl Graph {
                     for edge_j in &connections_b[node_j] {
                         if edge_i > edge_j {
                             crossings[node_i][node_j] += 1;
-                        } else if edge_i < edge_j {
+                        }
+                        if edge_i < edge_j {
                             crossings[node_j][node_i] += 1;
                         }
                     }
@@ -85,13 +87,13 @@ impl Graph {
     pub fn from_file(file_path: &str) -> Result<Self, std::io::Error> {
         let file = File::open(file_path)?;
         let reader = BufReader::new(file);
-        return Self::from_stream(reader);
+        Self::from_stream(reader)
     }
 
     /* Reads a graph from stdin (in PACE format).
      */
     pub fn from_stdin() -> Result<Self, std::io::Error> {
-        return Self::from_stream(stdin().lock());
+        Self::from_stream(stdin().lock())
     }
 }
 
@@ -112,6 +114,7 @@ pub fn score(g: &Graph, solution: &Solution) -> u64 {
     score
 }
 
+#[allow(unused)]
 pub fn extend_solution_recursive(g: &Graph, solution: &mut Solution) -> (u64, Vec<node::NodeB>) {
     if solution.len() == g.b.0 {
         return (score(g, solution), vec![]);
@@ -149,8 +152,8 @@ fn commute_adjacent(g: &Graph, vec: &mut Vec<node::NodeB>) {
 
 pub fn one_sided_crossing_minimization(g: &Graph) -> Option<(Solution, u64)> {
     let mut initial_solution = (node::NodeB(0)..g.b).collect::<Vec<node::NodeB>>();
-    let get_median = |x| g.connections_b[x][g.connections_b[x].len() / 2];
-    initial_solution.sort_by(|x, y| get_median(*x).cmp(&get_median(*y)));
+    let get_median = |x: NodeB| g[x][g[x].len() / 2];
+    initial_solution.sort_by_key(|x| get_median(*x));
     commute_adjacent(g, &mut initial_solution);
     let initial_score = score(g, &initial_solution);
     println!("Initial solution found, with score {initial_score}.");
@@ -215,7 +218,7 @@ pub fn branch_and_bound(
 
     // To do: use some heuristics to choose an ordering for trying nodes.
     let get_median = |x| g.connections_b[x][g.connections_b[x].len() / 2];
-    remaining_nodes.sort_by(|x, y| get_median(*x).cmp(&get_median(*y)));
+    remaining_nodes.sort_by_key(|x| get_median(*x));
     commute_adjacent(g, &mut remaining_nodes);
 
     let mut best_solution = None;
@@ -244,4 +247,32 @@ pub fn branch_and_bound(
     }*/
 
     best_solution
+}
+
+impl Index<NodeA> for Graph {
+    type Output = Vec<node::NodeB>;
+
+    fn index(&self, index: NodeA) -> &Self::Output {
+        &self.connections_a[index]
+    }
+}
+
+impl IndexMut<NodeA> for Graph {
+    fn index_mut(&mut self, index: NodeA) -> &mut Self::Output {
+        &mut self.connections_a[index]
+    }
+}
+
+impl Index<NodeB> for Graph {
+    type Output = Vec<node::NodeA>;
+
+    fn index(&self, index: NodeB) -> &Self::Output {
+        &self.connections_b[index]
+    }
+}
+
+impl IndexMut<NodeB> for Graph {
+    fn index_mut(&mut self, index: NodeB) -> &mut Self::Output {
+        &mut self.connections_b[index]
+    }
 }

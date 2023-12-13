@@ -16,7 +16,7 @@ fn main() {
         graph::Graph::from_file(file_path).expect("Unable to read graph from file.")
     };
     println!("Read a graph: ({:?}).", g);
-    let sol: graph::Solution = vec![];
+    let _sol: graph::Solution = vec![];
     for i in NodeB(0)..g.b {
         for j in NodeB(0)..g.b {
             for k in NodeB(0)..g.b {
@@ -25,16 +25,8 @@ fn main() {
                     && g.crossings[k][i] > g.crossings[i][k]
                 {
                     println!("Found triple ({i:?}, {j:?}, {k:?})");
-                    println!(
-                        "Degrees: ({} {} {})",
-                        g.connections_b[i].len(),
-                        g.connections_b[j].len(),
-                        g.connections_b[k].len(),
-                    );
-                    println!(
-                        "Adjacency lists: ({:?} {:?} {:?})",
-                        g.connections_b[i], g.connections_b[j], g.connections_b[k],
-                    );
+                    println!("Degrees: ({} {} {})", g[i].len(), g[j].len(), g[k].len(),);
+                    println!("Adjacency lists: ({:?} {:?} {:?})", g[i], g[j], g[k],);
                 }
             }
         }

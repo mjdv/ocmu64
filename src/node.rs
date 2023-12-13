@@ -28,11 +28,11 @@ impl Step for NodeA {
     }
 
     fn forward_checked(start: Self, count: usize) -> Option<Self> {
-        usize::forward_checked(start.0, count).map(|x| NodeA(x))
+        usize::forward_checked(start.0, count).map(NodeA)
     }
 
     fn backward_checked(start: Self, count: usize) -> Option<Self> {
-        Step::backward_checked(start.0, count).map(|x| NodeA(x))
+        Step::backward_checked(start.0, count).map(NodeA)
     }
 }
 
@@ -42,11 +42,11 @@ impl Step for NodeB {
     }
 
     fn forward_checked(start: Self, count: usize) -> Option<Self> {
-        usize::forward_checked(start.0, count).map(|x| NodeB(x))
+        usize::forward_checked(start.0, count).map(NodeB)
     }
 
     fn backward_checked(start: Self, count: usize) -> Option<Self> {
-        Step::backward_checked(start.0, count).map(|x| NodeB(x))
+        Step::backward_checked(start.0, count).map(NodeB)
     }
 }
 
