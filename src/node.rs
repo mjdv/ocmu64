@@ -1,4 +1,5 @@
 use std::{
+    fmt::Display,
     iter::Step,
     ops::{Deref, Index, IndexMut},
 };
@@ -9,14 +10,16 @@ pub struct NodeA(pub usize);
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct NodeB(pub usize);
 
-#[derive(Default, Debug)]
-pub struct VecA<T> {
-    pub(crate) v: Vec<T>,
+impl Display for NodeA {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}A", self.0)
+    }
 }
 
-#[derive(Default, Debug, Clone)]
-pub struct VecB<T> {
-    pub(crate) v: Vec<T>,
+impl Display for NodeB {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}B", self.0)
+    }
 }
 
 impl Step for NodeA {
@@ -45,6 +48,16 @@ impl Step for NodeB {
     fn backward_checked(start: Self, count: usize) -> Option<Self> {
         Step::backward_checked(start.0, count).map(|x| NodeB(x))
     }
+}
+
+#[derive(Default, Debug)]
+pub struct VecA<T> {
+    pub(crate) v: Vec<T>,
+}
+
+#[derive(Default, Debug, Clone)]
+pub struct VecB<T> {
+    pub(crate) v: Vec<T>,
 }
 
 impl<T> Deref for VecA<T> {
