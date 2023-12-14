@@ -1,6 +1,7 @@
 use crate::{graph::*, node::*};
 use rand::{seq::SliceRandom, Rng};
 
+#[derive(clap::Parser)]
 pub enum GraphType {
     /// A graph with 0 crossing, with some random extra edges.
     Fan { n: usize, extra: usize },
