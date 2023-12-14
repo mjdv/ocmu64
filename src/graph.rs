@@ -18,6 +18,15 @@ pub struct Graph {
 }
 
 impl Graph {
+    pub fn with_sizes(a: NodeA, b: NodeB) -> Self {
+        Self {
+            a,
+            b,
+            connections_a: VecA::new(a),
+            connections_b: VecB::new(b),
+            crossings: None,
+        }
+    }
     pub fn new(mut connections_a: VecA<Vec<NodeB>>, mut connections_b: VecB<Vec<NodeA>>) -> Graph {
         let a = connections_a.len();
         let b = connections_b.len();
@@ -72,12 +81,8 @@ impl Graph {
                 let words = line.split(' ').collect::<Vec<&str>>();
                 a = NodeA(words[2].parse().unwrap());
                 let b = NodeB(words[3].parse().unwrap());
-                connections_a = VecA {
-                    v: vec![vec![]; a.0],
-                };
-                connections_b = VecB {
-                    v: vec![vec![]; b.0],
-                };
+                connections_a = VecA::new(a);
+                connections_b = VecB::new(b);
             } else {
                 let mut words = line.split_ascii_whitespace();
                 let x = NodeA(words.next().unwrap().parse::<usize>().unwrap() - 1);
