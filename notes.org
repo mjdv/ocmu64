@@ -1,0 +1,44 @@
+
+* Lemmas
+- If $c_{uv} = 0$, then we may assume $u\preceq v$.
+- If all $B$ nodes have degree at most $2$, the average heuristic provides an
+  **exact solution**.
+- Set $L = \sum_{uv} \min(c_{uv}, c_{vu})$. Then $opt \leq 1.47\cdot  L$.
+
+* Heuristics
+- Average :: Sort by average nb positions (aka barycenter algorithm/heuristic)
+  - $\sqrt(b)$-approximation.
+  - Multiple times reported as better than median heuristic.
+- Median :: Sort by median nb position
+  - In even case, could use average of middle points, or the average over all points.
+  - $3$-approximation.
+  - For dense graphs, sorting by median is a $1+\epsilon$-approximation.
+  - For $a=b=n$ and $cn^2$ edges, the approximation factor is $(3-c^2)/(1+c^2)+\epsilon$.
+  - In practice, the average heuristic is sometimes slightly better for random graphs.
+- Splitting (SP) :: Fix $u$. Partition all $v$ into $v\prec u$ and $u\prec v$ by
+  minimizing $c_{uv}$ or $c_{vu}$. Recurse on partitions.
+  - Can use a heuristic ordering as
+- Greedy Swe :: Swap adjacent pairs as long as things improve.
+- GRASP ::
+  - Construction: Insert vertices one by one by decreasing degree (in partial subgraph).
+  - Improvement: Move a vertex to its barycenter (average of nbs), or one position above or below.
+- Tabu search :: Switches between three phases. Also does simulated annealing,
+  allowing non-improving moves. Uses move-to-center and swapping adjacent
+  positions. Also aggresively moves away from the optimum sometimes.
+
+* LP
+Here's a classic linear programming approach:
+1. Solve the relaxed linear program.
+2. Find redundant $3$-cycle constraints and remove them.
+2. Find violated $3$-cycle constraints and add them.
+3. Take a fractional variable, and set it to both $0$ and $1$.
+4. Recurse on both options.
+
+* Ideas
+- Slowly increase the upper bound for B&B, starting at an infeasible value. This
+  may work well when time spent on impossible values is exponentially small.
+- B&B both from the top and bottom (or possibly also from the middle?) so we can
+  use larger partial lower bounds?
+  - For example, most likely the points in the top thirds will just never occur
+    in the bottom third and similar in reverse. So B&B good partial solutions
+    for the top and bottom third and find good combinations of those.
