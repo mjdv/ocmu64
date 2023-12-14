@@ -72,13 +72,23 @@ pub struct VecB<T> {
     pub(crate) v: Vec<T>,
 }
 
-impl<T> VecA<T> {
+impl<T: Default + Clone> VecA<T> {
+    pub fn new(a: NodeA) -> Self {
+        VecA {
+            v: vec![T::default(); a.0],
+        }
+    }
     pub fn len(&self) -> NodeA {
         NodeA(self.v.len())
     }
 }
 
-impl<T> VecB<T> {
+impl<T: Default + Clone> VecB<T> {
+    pub fn new(b: NodeB) -> Self {
+        VecB {
+            v: vec![T::default(); b.0],
+        }
+    }
     pub fn len(&self) -> NodeB {
         NodeB(self.v.len())
     }
