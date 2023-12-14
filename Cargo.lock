@@ -131,6 +131,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "rand",
+ "rand_chacha",
 ]
 
 [[package]]

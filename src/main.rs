@@ -10,6 +10,7 @@ struct Args {
     /// Optionally generate a graph instead of reading one.
     #[clap(subcommand)]
     generate: Option<GraphType>,
+    seed: Option<u64>,
 }
 
 fn main() {
@@ -17,7 +18,7 @@ fn main() {
     let mut g = match args.generate {
         Some(gt) => {
             assert!(args.input.is_none());
-            gt.generate()
+            gt.generate(args.seed)
         }
         None => match args.input {
             Some(f) => Graph::from_file(&f).expect("Unable to read graph from file."),
