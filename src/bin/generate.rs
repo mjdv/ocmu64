@@ -16,7 +16,7 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
-    let g = args.graph_type.generate();
+    let g = args.graph_type.generate(None);
     match args.output {
         None => g.to_stdout(),
         Some(f) => g.to_file(&f),
