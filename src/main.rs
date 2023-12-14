@@ -10,7 +10,10 @@ struct Args {
     /// Optionally generate a graph instead of reading one.
     #[clap(subcommand)]
     generate: Option<GraphType>,
+    #[clap(short, long)]
     seed: Option<u64>,
+    #[clap(short, long)]
+    upper_bound: Option<u64>,
 }
 
 fn main() {
@@ -31,7 +34,9 @@ fn main() {
 
     println!("Read a graph: ({:?}).", g);
     println!("Branch and bound...");
-    let bb_output = one_sided_crossing_minimization(&g);
+    let start = std::time::Instant::now();
+    let bb_output = one_sided_crossing_minimization(&g, args.upper_bound);
+    eprintln!("Branch and bound took {:?}", start.elapsed());
     if let Some((bb_solution, bb_score)) = bb_output {
         println!("Score of our beautiful solution: {bb_score}");
         println!("Our beautiful solution: {:?}", bb_solution);
