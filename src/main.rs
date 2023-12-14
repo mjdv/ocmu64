@@ -1,19 +1,30 @@
 use std::path::PathBuf;
 
 use clap::Parser;
-use ocmu64::graph::*;
+use ocmu64::{generate::GraphType, graph::*};
 
 #[derive(clap::Parser)]
 struct Args {
     /// Optional path to input file, or stdin by default.
     input: Option<PathBuf>,
+    /// Optionally generate a graph instead of reading one.
+    #[clap(subcommand)]
+    generate: Option<GraphType>,
 }
 
 fn main() {
     let args = Args::parse();
-    let mut g = match args.input {
-        Some(f) => Graph::from_file(&f).expect("Unable to read graph from file."),
-        None => Graph::from_stdin().expect("Did not get a graph in the correct format on stdin."),
+    let mut g = match args.generate {
+        Some(gt) => {
+            assert!(args.input.is_none());
+            gt.generate()
+        }
+        None => match args.input {
+            Some(f) => Graph::from_file(&f).expect("Unable to read graph from file."),
+            None => {
+                Graph::from_stdin().expect("Did not get a graph in the correct format on stdin.")
+            }
+        },
     };
     g.create_crossings();
 
