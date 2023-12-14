@@ -1,20 +1,22 @@
-use std::{env, path::PathBuf};
+use std::path::PathBuf;
 
+use clap::Parser;
 use ocmu64::graph::*;
 
+#[derive(clap::Parser)]
+struct Args {
+    /// Optional path to input file, or stdin by default.
+    input: Option<PathBuf>,
+}
+
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    let g = if args.len() == 1 {
-        let mut g =
-            Graph::from_stdin().expect("Did not get a graph in the correct format on stdin.");
-        g.create_crossings();
-        g
-    } else {
-        let file_path = PathBuf::from(&args[1]);
-        let mut g = Graph::from_file(&file_path).expect("Unable to read graph from file.");
-        g.create_crossings();
-        g
+    let args = Args::parse();
+    let mut g = match args.input {
+        Some(f) => Graph::from_file(&f).expect("Unable to read graph from file."),
+        None => Graph::from_stdin().expect("Did not get a graph in the correct format on stdin."),
     };
+    g.create_crossings();
+
     println!("Read a graph: ({:?}).", g);
     println!("Branch and bound...");
     let bb_output = one_sided_crossing_minimization(&g);
