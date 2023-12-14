@@ -1,23 +1,17 @@
-#![feature(step_trait)]
-pub mod generate;
-pub mod graph;
-pub mod node;
+use std::{env, path::PathBuf};
 
-use std::env;
-
-use crate::graph::one_sided_crossing_minimization;
+use ocmu64::graph::*;
 
 fn main() {
-    println!("Hello, world!");
     let args: Vec<String> = env::args().collect();
     let g = if args.len() == 1 {
-        let mut g = graph::Graph::from_stdin()
-            .expect("Did not get a graph in the correct format on stdin.");
+        let mut g =
+            Graph::from_stdin().expect("Did not get a graph in the correct format on stdin.");
         g.create_crossings();
         g
     } else {
-        let file_path = &args[1];
-        let mut g = graph::Graph::from_file(file_path).expect("Unable to read graph from file.");
+        let file_path = PathBuf::from(&args[1]);
+        let mut g = Graph::from_file(&file_path).expect("Unable to read graph from file.");
         g.create_crossings();
         g
     };

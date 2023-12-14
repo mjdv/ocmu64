@@ -79,7 +79,7 @@ impl Graph {
         Ok(())
     }
 
-    pub fn to_file(&self, file_path: &str) -> Result<(), std::io::Error> {
+    pub fn to_file(&self, file_path: &Path) -> Result<(), std::io::Error> {
         let file = File::create(file_path)?;
         self.to_stream(file)
     }
@@ -144,7 +144,7 @@ impl Graph {
 
     /* Reads a graph from a file (in PACE format).
      */
-    pub fn from_file(file_path: &str) -> Result<Self, std::io::Error> {
+    pub fn from_file(file_path: &Path) -> Result<Self, std::io::Error> {
         let file = File::open(file_path)?;
         let reader = BufReader::new(file);
         Self::from_stream(reader)
