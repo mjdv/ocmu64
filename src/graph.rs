@@ -222,13 +222,19 @@ fn commute_adjacent(g: &Graph, vec: &mut Vec<NodeB>) {
     }
 }
 
-pub fn one_sided_crossing_minimization(g: &Graph) -> Option<(Solution, u64)> {
+pub fn one_sided_crossing_minimization(g: &Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
     let mut initial_solution = (NodeB(0)..g.b).collect::<Vec<_>>();
     let get_median = |x: NodeB| g[x][g[x].len() / 2];
     initial_solution.sort_by_key(|x| get_median(*x));
     commute_adjacent(g, &mut initial_solution);
-    let initial_score = score(g, &initial_solution);
+    let mut initial_score = score(g, &initial_solution);
     println!("Initial solution found, with score {initial_score}.");
+    if let Some(bound) = bound {
+        if bound < initial_score {
+            initial_score = bound;
+            println!("Set bound to {initial_score}.");
+        }
+    }
     branch_and_bound(g, vec![], 0, initial_score)
 }
 
