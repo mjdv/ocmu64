@@ -1,6 +1,21 @@
 use crate::{graph::*, node::*};
 use rand::{seq::SliceRandom, Rng};
 
+pub enum GraphType {
+    /// A graph with 0 crossing, with some random extra edges.
+    Fan { n: usize, extra: usize },
+    /// A graph with star graphs with k edges each, and n nodes total.
+    Star { n: usize, k: usize },
+}
+
+impl GraphType {
+    pub fn generate(&self) -> Graph {
+        match *self {
+            GraphType::Fan { n, extra } => fan_graph_with_random_edges(n, extra),
+            GraphType::Star { n, k } => stars(n, k),
+        }
+    }
+}
 
 /// Add edges on either side at random, for total of n vertices.
 // TODO: Different distributions of fan sizes.
