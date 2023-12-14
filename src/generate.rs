@@ -26,3 +26,15 @@ pub fn fan_graph(n: usize) -> Graph {
 
     Graph::new(ca, cb)
 }
+
+pub fn fan_graph_with_random_edges(n: usize, extra_edges: usize) -> Graph {
+    let mut g = fan_graph(n);
+    let mut rng = rand::thread_rng();
+    for _ in 0..extra_edges {
+        let a = NodeA(rng.gen_range(0..g.a.0));
+        let b = NodeB(rng.gen_range(0..g.b.0));
+        g[a].push(b);
+        g[b].push(a);
+    }
+    g
+}
