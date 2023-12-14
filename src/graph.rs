@@ -4,11 +4,12 @@ use std::{
     io::{stdin, stdout, BufRead, BufReader, BufWriter, Write},
     iter::Step,
     ops::{Index, IndexMut},
+    path::Path,
 };
 
 use crate::node::*;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Graph {
     pub a: NodeA,
     pub b: NodeB,
@@ -45,6 +46,25 @@ impl Graph {
             connections_b,
             crossings: None,
         }
+    }
+
+    /// Returns the id of the pushed node (not the length).
+    pub fn push_node_a(&mut self) -> NodeA {
+        let id = self.connections_a.push();
+        self.a = self.connections_a.len();
+        id
+    }
+
+    /// Returns the id of the pushed node (not the length).
+    pub fn push_node_b(&mut self) -> NodeB {
+        let id = self.connections_b.push();
+        self.b = self.connections_b.len();
+        id
+    }
+
+    pub fn push_edge(&mut self, a: NodeA, b: NodeB) {
+        self[a].push(b);
+        self[b].push(a);
     }
 
     fn to_stream<W: Write>(&self, writer: W) -> Result<(), std::io::Error> {

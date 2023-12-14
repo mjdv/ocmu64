@@ -81,6 +81,11 @@ impl<T: Default + Clone> VecA<T> {
     pub fn len(&self) -> NodeA {
         NodeA(self.v.len())
     }
+    pub fn push(&mut self) -> NodeA {
+        let id = self.len();
+        self.v.push(T::default());
+        id
+    }
 }
 
 impl<T: Default + Clone> VecB<T> {
@@ -91,6 +96,11 @@ impl<T: Default + Clone> VecB<T> {
     }
     pub fn len(&self) -> NodeB {
         NodeB(self.v.len())
+    }
+    pub fn push(&mut self) -> NodeB {
+        let id = self.len();
+        self.v.push(T::default());
+        id
     }
 }
 
