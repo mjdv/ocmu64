@@ -8,6 +8,9 @@ link: https://pacechallenge.org/2024/
 - We can split on /1$1$-layer cut vertex/: a vertex in $a\in A$ such that we can
   partition $B = B_1\cup B_2$ such that all neighbours of $B_1$ are left of $a$,
   and all neighbours of $B_2$ are right of $a$.
+- If there are $k$ crossings, $|E| \leq |V|-1+k$.
+- Precomputing $c_{uv}$ for non-trivial pairs can be done in $O(n+k)$ time when there are at most $k$
+  crossings. fs
 
 * Heuristics
 - Average :: Sort by average nb positions (aka barycenter algorithm/heuristic)
@@ -48,7 +51,9 @@ Here's a classic linear programming approach:
     for the top and bottom third and find good combinations of those.
 - B&B on partial order of nodes. Binary choices are supposedly better and more elementary.
 
-* FPT algoritm
+* FPT algoritms
+** A first FPT: $\phi ^k$
+[[file:papers/fpt.pdf]]
 $\phi^k \cdot n^2$ fixed-parameter tractable branch and bound algorithm when at most $k$ crossings are allowed:
 1. Start with the partial order of /suited/ pairs with $c_{uv}=0$ or $c_{vu}=0$.
 2. Start with upper bound $B = k$.
@@ -58,7 +63,8 @@ $\phi^k \cdot n^2$ fixed-parameter tractable branch and bound algorithm when at 
    added inefficiencies in the partial order.
 4. The worst case is a Fibonacci tree with $\phi^k$ nodes.
 
-** Improvements (fpt-2)
+** Improvements: $1.465^k$
+[[file:papers/fpt-2.pdf]]
 - Arbitrarily commit pairs with identical neighbours.
 - Greedily commit pairs that would create $>k$ crossings otherwise.
 - If $v$ is completely ordered with respect to all others, drop it and split the
@@ -73,3 +79,23 @@ It also improves the order in which decisions are made:
 2. Else branch on a $2/1$ pattern.
 3. Else commit a $1/1$ pattern.
 4. Else return YES.
+** Subexponential $O(k 2^{\sqrt{2k}} +n)$
+[[file:papers/fpt-subexponential-2.pdf]]
+
+Also runs in $2^c\cdot poly(n,c)$ for max cut-width $c$.
+
+1. Build intervals $[l_b, r_b)$ for each $b\in B$ of the leftmost and rightmost
+   neighbour of $b$ in $A$.
+2. Go over $a\in A$ from left to right. Drop the $b$ with $r_b=a$ from the
+   /active set/ $M$ (and add them to /left set/ $L$). Add the $b$ with $l_b=a$ to the
+   active set $M$ (and remove them from /right set/ $R$).
+3. For each $S\subseteq M$, keep track of the best partial solution on $L\cup S$
+   using DP:
+   - When dropping $b$, forget the $S$ not containing $B$ and remove $b$ from
+     the $S$ that do contain it.
+   - When adding $b$, Compute the score of $S$ containing $B$ using DP by
+     partitioning on the last element of $S$:
+     $$opt(L\cup S) = \min_{x\in S} opt(L\cup (S-x)) + c(L, x) + c(S-x, x)$$
+     where $c(L, x)$ and $c(S-x, x)$ can be precomputed. Compute these in order
+     of increasing size of $S$, so that $opt(L\cup (S-x))$ term will be
+     computed before $opt(L\cup S)$.
