@@ -57,3 +57,19 @@ $\phi^k \cdot n^2$ fixed-parameter tractable branch and bound algorithm when at 
    decisions already made. Decrease $B$ by $c_{uv}$ or $c_{vu}$ and other newly
    added inefficiencies in the partial order.
 4. The worst case is a Fibonacci tree with $\phi^k$ nodes.
+
+** Improvements (fpt-2)
+- Arbitrarily commit pairs with identical neighbours.
+- Greedily commit pairs that would create $>k$ crossings otherwise.
+- If $v$ is completely ordered with respect to all others, drop it and split the
+  problem into two parts (one of which possibly empty).
+- If $(u,v)$ are forced to be neighbours and completely ordered with respect to
+  all others, order them greedily.
+This results in an instance with $|A| \leq 3k^2$, $|B| \leq 3/2 \cdot k$, and
+$|E| \leq 3k^2$.
+
+It also improves the order in which decisions are made:
+1. Branch on $c_{uv} + c_{vu}\geq 4$ if possible.
+2. Else branch on a $2/1$ pattern.
+3. Else commit a $1/1$ pattern.
+4. Else return YES.
