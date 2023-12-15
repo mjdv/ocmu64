@@ -4,6 +4,9 @@
 - If all $B$ nodes have degree at most $2$, the average heuristic provides an
   **exact solution**.
 - Set $L = \sum_{uv} \min(c_{uv}, c_{vu})$. Then $opt \leq 1.47\cdot  L$.
+- We can split on /1$1$-layer cut vertex/: a vertex in $a\in A$ such that we can
+  partition $B = B_1\cup B_2$ such that all neighbours of $B_1$ are left of $a$,
+  and all neighbours of $B_2$ are right of $a$.
 
 * Heuristics
 - Average :: Sort by average nb positions (aka barycenter algorithm/heuristic)
@@ -42,3 +45,14 @@ Here's a classic linear programming approach:
   - For example, most likely the points in the top thirds will just never occur
     in the bottom third and similar in reverse. So B&B good partial solutions
     for the top and bottom third and find good combinations of those.
+- B&B on partial order of nodes. Binary choices are supposedly better and more elementary.
+
+* FPT algoritm
+$\phi^k \cdot n^2$ fixed-parameter tractable branch and bound algorithm when at most $k$ crossings are allowed:
+1. Start with the partial order of /suited/ pairs with $c_{uv}=0$ or $c_{vu}=0$.
+2. Start with upper bound $B = k$.
+3. Choose a random pair with $c_{uv}\neq c_{vu}$ and both $>0$ that is not yet
+   ordered. Try both orderings, and take the transitive closure with the order
+   decisions already made. Decrease $B$ by $c_{uv}$ or $c_{vu}$ and other newly
+   added inefficiencies in the partial order.
+4. The worst case is a Fibonacci tree with $\phi^k$ nodes.
