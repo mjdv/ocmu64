@@ -1,3 +1,4 @@
+link: https://pacechallenge.org/2024/
 
 * Lemmas
 - If $c_{uv} = 0$, then we may assume $u\preceq v$.
