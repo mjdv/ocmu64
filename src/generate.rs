@@ -100,9 +100,7 @@ pub fn low_crossing(n: usize, crossings: u64, rng: &mut impl Rng) -> Graph {
             let mut new_crossings: i64 = 0;
             for other_b in NodeB(0)..g.b {
                 for other_a in &g[other_b] {
-                    if other_b < b && *other_a > a {
-                        new_crossings += 1;
-                    } else if other_b > b && *other_a < a {
+                    if (other_b < b && *other_a > a) || (other_b > b && *other_a < a) {
                         new_crossings += 1;
                     }
                 }
