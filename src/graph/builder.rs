@@ -46,54 +46,75 @@ impl GraphBuilder {
         }
     }
 
-    // Permute the vertices of the graph so that B is roughly increasing.
-    pub fn build(self) -> Graph {
-        let mut g = Graph {
-            a: self.connections_a.len(),
-            b: self.connections_b.len(),
+    fn to_graph(&self) -> Graph {
+        Graph {
+            a: self.a,
+            b: self.b,
             m: self.connections_a.iter().map(|x| x.len()).sum::<usize>(),
             b_permutation: Default::default(),
-            connections_a: self.connections_a,
-            connections_b: self.connections_b,
+            connections_a: self.connections_a.clone(),
+            connections_b: self.connections_b.clone(),
             crossings: None,
             reduced_crossings: None,
-        };
+        }
+    }
 
-        for l in g.connections_a.iter_mut() {
+    // Permute the vertices of the graph so that B is roughly increasing.
+    pub fn build(mut self) -> Graph {
+        self.drop_singletons();
+        self.sort_edges();
+        self.permute(initial_solution(&self.to_graph()));
+        self.sort_edges();
+        self.to_graph()
+    }
+}
+
+impl GraphBuilder {
+    fn sort_edges(&mut self) {
+        for l in self.connections_a.iter_mut() {
             l.sort();
         }
-        for l in g.connections_b.iter_mut() {
+        for l in self.connections_b.iter_mut() {
             l.sort();
         }
-        let perm = VecB {
-            v: initial_solution(&g),
-        };
-        let mut inv_perm = VecB {
-            v: vec![NodeB(0); g.b.0],
-        };
-        for (i, &b) in perm.iter().enumerate() {
-            inv_perm[b] = NodeB(i);
-        }
-
-        // A nbs are modified in-place.
-        for b_nbs in g.connections_a.iter_mut() {
-            for b in b_nbs {
-                *b = inv_perm[*b];
+    }
+    /// Drop all nodes of degree 0.
+    fn drop_singletons(&mut self) {
+        self.connections_b.retain(|b| !b.is_empty());
+        self.reconstruct_a();
+        self.connections_a.retain(|a| !a.is_empty());
+        self.reconstruct_b();
+        self.sort_edges();
+    }
+    /// Reconstruct `connections_a`, given `connections_b`.
+    fn reconstruct_a(&mut self) {
+        // Reconstruct A.
+        self.connections_a = VecA::new(self.a);
+        for b in NodeB(0)..self.b {
+            for &a in self.connections_b[b].iter() {
+                self.connections_a[a].push(b);
             }
         }
-        // B nbs are copied.
-        let connections_b = VecB {
-            v: perm
+    }
+    /// Reconstruct `connections_b`, given `connections_a`.
+    fn reconstruct_b(&mut self) {
+        self.connections_b = VecB::new(self.b);
+        for a in NodeA(0)..self.a {
+            for &b in self.connections_a[a].iter() {
+                self.connections_b[b].push(a);
+            }
+        }
+    }
+
+    /// Permute the nodes of B such that the given solution is simply 0..b.
+    fn permute(&mut self, solution: Solution) {
+        self.connections_b = VecB {
+            v: solution
                 .iter()
-                .map(|&b| std::mem::take(&mut g.connections_b[b]))
+                .map(|&b| std::mem::take(&mut self.connections_b[b]))
                 .collect(),
         };
-
-        for l in g.connections_a.iter_mut() {
-            l.sort();
-        }
-
-        Graph { connections_b, ..g }
+        self.reconstruct_a();
     }
 }
 
