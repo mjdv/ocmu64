@@ -1,5 +1,5 @@
 use super::*;
-use std::{self, iter::Step, ops::Range};
+use std::{self, ops::Range};
 
 #[derive(Debug, Default)]
 pub struct GraphBuilder {
@@ -35,6 +35,15 @@ impl GraphBuilder {
     pub fn push_edge(&mut self, a: NodeA, b: NodeB) {
         self[a].push(b);
         self[b].push(a);
+    }
+
+    pub fn try_push_edge(&mut self, a: NodeA, b: NodeB) -> bool {
+        if self[a].contains(&b) {
+            false
+        } else {
+            self.push_edge(a, b);
+            true
+        }
     }
 
     pub fn new(connections_a: VecA<Vec<NodeB>>, connections_b: VecB<Vec<NodeA>>) -> GraphBuilder {
@@ -93,7 +102,7 @@ impl GraphBuilder {
     }
 
     /// Reconstruct `connections_a`, given `connections_b`.
-    fn reconstruct_a(&mut self) {
+    pub fn reconstruct_a(&mut self) {
         // Reconstruct A.
         self.connections_a = VecA::new(self.a);
         for b in NodeB(0)..self.b {
@@ -134,22 +143,28 @@ impl GraphBuilder {
         }
     }
 
+    pub fn one_node_crossings(&self, i: NodeB, j: NodeB) -> u64 {
+        let mut result: u64 = 0;
+        for edge_i in &self[i] {
+            for edge_j in &self[j] {
+                if i > j && edge_j > edge_i {
+                    result += 1;
+                }
+                if j > i && edge_i > edge_j {
+                    result += 1;
+                }
+            }
+        }
+        result
+    }
+
     fn crossings(&self) -> (VecB<VecB<u64>>, VecB<VecB<u64>>) {
         let mut crossings: VecB<VecB<u64>> = VecB {
             v: vec![VecB::new(self.b); self.b.0],
         };
         for node_i in NodeB(0)..self.b {
-            for node_j in Step::forward(node_i, 1)..self.b {
-                for edge_i in &self.connections_b[node_i] {
-                    for edge_j in &self.connections_b[node_j] {
-                        if edge_i > edge_j {
-                            crossings[node_i][node_j] += 1;
-                        }
-                        if edge_i < edge_j {
-                            crossings[node_j][node_i] += 1;
-                        }
-                    }
-                }
+            for node_j in NodeB(0)..self.b {
+                crossings[node_i][node_j] = self.one_node_crossings(node_i, node_j);
             }
         }
         let mut reduced_crossings = VecB {
