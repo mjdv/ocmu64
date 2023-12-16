@@ -1,12 +1,12 @@
 use crate::node::*;
 use std::{
     cmp::min,
-    collections::hash_map::Entry,
-    ops::{Index, IndexMut, Range},
+    collections::{hash_map::Entry, HashMap},
+    ops::{Deref, DerefMut, Index, IndexMut, Range},
 };
 
+use bitvec::prelude::*;
 pub use builder::GraphBuilder;
-use fxhash::FxHashMap;
 
 mod builder;
 mod io;
@@ -150,6 +150,7 @@ pub struct Bb<'a> {
     /// The first `solution_len` elements are fixed (the 'head').
     /// The remainder ('tail') is sorted in the initial order.
     solution: Solution,
+    tail_mask: MyBitVec,
     /// Partial score of the head.
     /// Includes:
     /// - Crossings within the fixed prefix.
@@ -169,7 +170,7 @@ pub struct Bb<'a> {
     /// The bitmask only has to be as wide as the cutwidth of the graph.
     /// It could be a template parameter to use the smallest width that is sufficiently large.
     /// TODO: Make the score a u32 here?
-    lower_bound_for_tail: FxHashMap<Vec<NodeB>, u64>,
+    lower_bound_for_tail: HashMap<MyBitVec, u64>,
 
     /// The number of states explored.
     states: u64,
@@ -193,11 +194,12 @@ impl<'a> Bb<'a> {
             g,
             solution_len: 0,
             solution: initial_solution.clone(),
+            tail_mask: MyBitVec::new(true, g.b.0),
             score,
             upper_bound: min(upper_bound, initial_score),
             best_solution: initial_solution,
             best_score: initial_score,
-            lower_bound_for_tail: FxHashMap::default(),
+            lower_bound_for_tail: HashMap::default(),
             states: 0,
         }
     }
@@ -223,16 +225,16 @@ impl<'a> Bb<'a> {
     ///
     pub fn branch_and_bound(&mut self) -> bool {
         self.states += 1;
+        debug_assert_eq!(self.tail_mask.count_zeros(), self.solution_len);
 
-        let tail = &self.solution[self.solution_len..];
         // TODO(ragnar): Figure out why tail isn't always sorted.
-        let mut tail_copy = tail.to_vec();
-        tail_copy.sort();
+        let tail = &self.solution[self.solution_len..];
 
         if self.solution_len == self.solution.len() {
             debug_assert_eq!(self.score, self.g.score(&self.solution));
             let score = self.score;
             if score < self.upper_bound {
+                eprint!("Best score: {score:>9}\r");
                 assert!(score < self.best_score);
                 self.best_score = score;
                 self.best_solution = self.solution.clone();
@@ -254,7 +256,7 @@ impl<'a> Bb<'a> {
         // Additionally, if we already have a lower bound on how much the score of the tail exceeds the trivial lower bound, use that.
         let tail_excess = self
             .lower_bound_for_tail
-            .get(&tail_copy)
+            .get(&self.tail_mask)
             .copied()
             .unwrap_or_default();
         let my_lower_bound = self.score + tail_excess;
@@ -271,8 +273,6 @@ impl<'a> Bb<'a> {
         let old_solution_len = self.solution_len;
         let old_score = self.score;
 
-        let tail = &mut self.solution[self.solution_len..];
-
         // TODO(ragnar): Test whether re-optimizing the tail actually improves performance.
         // Results seem mixed.
         //
@@ -281,6 +281,7 @@ impl<'a> Bb<'a> {
         // let get_median = |x| self.g.connections_b[x][self.g.connections_b[x].len() / 2];
         // tail.sort_by_key(|x| get_median(*x));
         // TODO: First check if we can swap the elements that were around the new leading element.
+        let tail = &mut self.solution[self.solution_len..];
         commute_adjacent(self.g, tail);
 
         let mut solution = false;
@@ -290,8 +291,8 @@ impl<'a> Bb<'a> {
         for i in self.solution_len..self.solution.len() {
             // Swap the next tail node to the front of the tail.
             self.solution.swap(self.solution_len, i);
-
             let u = self.solution[self.solution_len];
+
             // Do not yet try vertices that start after some other vertex ends.
             // TODO: Think about the equality case.
             if self.g.intervals[u].start > least_end {
@@ -316,6 +317,8 @@ impl<'a> Bb<'a> {
 
             self.score = old_score;
             self.solution_len += 1;
+            debug_assert!(self.tail_mask[u.0]);
+            unsafe { self.tail_mask.set_unchecked(u.0, false) };
 
             // Increment score for the new node, and decrement tail_lower_bound.
             self.score += self.g.partial_score(
@@ -333,8 +336,8 @@ states {}
 ",
                     self.best_score,
                     my_lower_bound,
-                    tail_copy,
-                    self.lower_bound_for_tail[&tail_copy],
+                    &self.solution[self.solution_len - 1..],
+                    self.lower_bound_for_tail[&self.tail_mask],
                     self.states
                 );
                 assert_eq!(self.upper_bound, self.best_score);
@@ -343,6 +346,8 @@ states {}
                 if my_lower_bound == self.best_score {
                     // Restore the tail.
                     self.solution_len -= 1;
+                    debug_assert!(!self.tail_mask[u.0]);
+                    unsafe { self.tail_mask.set_unchecked(u.0, true) };
                     assert_eq!(self.solution_len, old_solution_len);
                     // self.solution[self.solution_len..=i].rotate_left(1);
                     self.solution[self.solution_len..].copy_from_slice(&old_tail);
@@ -350,14 +355,19 @@ states {}
                 }
             }
             self.solution_len -= 1;
+            debug_assert!(!self.tail_mask[u.0]);
+            unsafe { self.tail_mask.set_unchecked(u.0, true) };
         }
+
         // Restore the tail.
         assert_eq!(self.solution_len, old_solution_len);
+        debug_assert_eq!(self.tail_mask.count_zeros(), self.solution_len);
         // self.solution[self.solution_len..].rotate_left(1);
         self.solution[self.solution_len..].copy_from_slice(&old_tail);
         let tail_excess = self.upper_bound - old_score;
         if !skips {
-            match self.lower_bound_for_tail.entry(tail_copy) {
+            // TODO: Count updates and sets.
+            match self.lower_bound_for_tail.entry(self.tail_mask.clone()) {
                 Entry::Occupied(mut e) => {
                     // We did a search without success so the value must grow.
                     assert!(tail_excess > *e.get());
@@ -397,6 +407,34 @@ impl Index<NodeB> for Graph {
 impl IndexMut<NodeB> for Graph {
     fn index_mut(&mut self, index: NodeB) -> &mut Self::Output {
         &mut self.connections_b[index]
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone)]
+struct MyBitVec(BitVec);
+impl std::hash::Hash for MyBitVec {
+    #[inline(always)]
+    fn hash<H: std::hash::Hasher>(&self, hasher: &mut H) {
+        self.0.as_raw_slice().iter().for_each(|word| {
+            word.hash(hasher);
+        });
+    }
+}
+impl MyBitVec {
+    fn new(v: bool, n: usize) -> Self {
+        let n = n.next_multiple_of(usize::BITS as _);
+        MyBitVec(bitvec!(if v { 1 } else { 0 }; n))
+    }
+}
+impl Deref for MyBitVec {
+    type Target = BitVec;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl DerefMut for MyBitVec {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 
