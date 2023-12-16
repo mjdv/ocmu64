@@ -103,3 +103,12 @@ Also runs in $2^c\cdot poly(n,c)$ for max cut-width $c$.
 - Is B&B with memoization of tail lowerbounds the same as doing the DP? This is
   also similar to meet-in-the-middle B&B from both sides?
 - Permute B nodes to be in roughly the right order in memory.
+- Partition the problem on C-cuts.
+  - Does this help when B&B already has memoization?
+- Identify equivalent vertices and merge them.
+- Fix the order of vertices where possible:
+  - If $r_u \leq l_v$.
+  - If for all $w$: If $v$ goes before $u$, than $u$ also, and if $u$ goes after
+    $w$, than also $v$.
+    I.e. $cvw < cwv$ implies $cuv \leq cwv$ and $cwu > cuw$ implies $cwu \geq cvw$.
+  - If they are identical.
