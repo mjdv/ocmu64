@@ -5,6 +5,17 @@ edition = "2021"
 default-run = "ocmu64"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[profile.release]
+# 2x smaller file size when 'true', but that takes longer
+lto = "thin"
+incremental = true
+opt-level = 3
+# Debug symbols for profiling.
+# TODO: Turn off in the final release.
+debug = true
+# TODO: Strip symbols to shrink binary size.
+# strip = false
+
 
 [dependencies]
 clap = { version = "4.4.11", features = ["derive"] }
