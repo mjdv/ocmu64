@@ -4,7 +4,6 @@ use clap::Parser;
 use ocmu64::generate::GraphType;
 
 #[derive(Parser)]
-#[clap(disable_help_flag = true)]
 struct Args {
     /// The type of graph to generate.
     #[clap(subcommand)]
