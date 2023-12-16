@@ -250,17 +250,14 @@ impl<'a> Bb<'a> {
     pub fn branch_and_bound(&mut self) -> bool {
         self.states += 1;
 
+        let tail = &self.solution[self.solution_len..];
         // TODO(ragnar): Figure out why tail isn't always sorted.
-        let mut tail_copy = self.solution[self.solution_len..].to_vec();
+        let mut tail_copy = tail.to_vec();
         tail_copy.sort();
 
         if self.solution_len == self.solution.len() {
             debug_assert_eq!(self.score, score(self.g, &self.solution));
             let score = self.score;
-            eprint!(
-                "Found a solution with score {} after {:>9} steps.\r",
-                score, self.states
-            );
             if score < self.upper_bound {
                 assert!(score < self.best_score);
                 self.best_score = score;
@@ -281,12 +278,12 @@ impl<'a> Bb<'a> {
         // 2. Crossings between the head and tail.
         // 3. A lower bound on the score of the tail.
         // Additionally, if we already have a lower bound on how much the score of the tail exceeds the trivial lower bound, use that.
-        let my_lower_bound = self.score
-            + self
-                .lower_bound_for_tail
-                .get(&tail_copy)
-                .copied()
-                .unwrap_or_default();
+        let tail_excess = self
+            .lower_bound_for_tail
+            .get(&tail_copy)
+            .copied()
+            .unwrap_or_default();
+        let my_lower_bound = self.score + tail_excess;
 
         // We can not find a solution of score < upper_bound.
         if self.upper_bound <= my_lower_bound {
@@ -294,17 +291,16 @@ impl<'a> Bb<'a> {
         }
         assert!(my_lower_bound <= self.best_score);
 
-        // TODO(ragnar): Test whether re-optimizing the tail actually improves performance.
-        // Results seem mixed.
-        //
-        // TODO(mees): use some heuristics to choose an ordering for trying nodes.
-        let tail = &self.solution[self.solution_len..];
-
         let old_tail = tail.to_vec();
         let old_solution_len = self.solution_len;
         let old_score = self.score;
 
         let tail = &mut self.solution[self.solution_len..];
+
+        // TODO(ragnar): Test whether re-optimizing the tail actually improves performance.
+        // Results seem mixed.
+        //
+        // TODO(mees): use some heuristics to choose an ordering for trying nodes.
         // Sorting takes 20% of time and doesn't do much. Maybe add back later.
         // let get_median = |x| self.g.connections_b[x][self.g.connections_b[x].len() / 2];
         // tail.sort_by_key(|x| get_median(*x));
@@ -312,20 +308,27 @@ impl<'a> Bb<'a> {
         commute_adjacent(self.g, tail);
 
         let mut solution = false;
+        // If we skipped some children because of local pruning, do not update the lower bound for this tail.
+        let mut skips = false;
         // Try each of the tail nodes as next node.
         for i in self.solution_len..self.solution.len() {
             // Swap the next tail node to the front of the tail.
             self.solution.swap(self.solution_len, i);
-            let u = self.solution[self.solution_len];
 
-            // If this node commutes with the last one, fix their ordering.
-            if let Some(&last) = self.solution.get(self.solution_len.wrapping_sub(1)) {
-                if node_score(self.g, last, u)
+            // NOTE: It's faster to not skip local inefficiencies, because then
+            // we are guaranteed to have a valid lower bound on the tail.
+            if false {
+                // If this node commutes with the last one, fix their ordering.
+                let u = self.solution[self.solution_len];
+                if let Some(&last) = self.solution.get(self.solution_len.wrapping_sub(1)) {
+                    if node_score(self.g, last, u)
                     > node_score(self.g, u, last)
                     // NOTE(ragnar): What is this check doing?
                     && self.upper_bound < 90000
-                {
-                    continue;
+                    {
+                        skips = true;
+                        continue;
+                    }
                 }
             }
 
@@ -338,9 +341,16 @@ impl<'a> Bb<'a> {
             if self.branch_and_bound() {
                 assert!(
                     my_lower_bound <= self.best_score,
-                    "Found a solution with score {} but lower bound is {}",
+                    "Found a solution with score {} but lower bound is {}
+tail  {:?}
+bound  {}
+states {}
+",
                     self.best_score,
-                    my_lower_bound
+                    my_lower_bound,
+                    tail_copy,
+                    self.lower_bound_for_tail[&tail_copy],
+                    self.states
                 );
                 assert_eq!(self.upper_bound, self.best_score);
                 solution = true;
@@ -361,14 +371,16 @@ impl<'a> Bb<'a> {
         // self.solution[self.solution_len..].rotate_left(1);
         self.solution[self.solution_len..].copy_from_slice(&old_tail);
         let tail_excess = self.upper_bound - old_score;
-        match self.lower_bound_for_tail.entry(tail_copy) {
-            Entry::Occupied(mut e) => {
-                // We did a search without success so the value must grow.
-                assert!(tail_excess > *e.get());
-                *e.get_mut() = tail_excess;
-            }
-            Entry::Vacant(e) => {
-                e.insert(tail_excess);
+        if !skips {
+            match self.lower_bound_for_tail.entry(tail_copy) {
+                Entry::Occupied(mut e) => {
+                    // We did a search without success so the value must grow.
+                    assert!(tail_excess > *e.get());
+                    *e.get_mut() = tail_excess;
+                }
+                Entry::Vacant(e) => {
+                    e.insert(tail_excess);
+                }
             }
         }
         solution
@@ -409,17 +421,14 @@ mod test {
 
     use super::one_sided_crossing_minimization;
 
-    /// Crashes
-    /// ```txt
-    /// Read graph: 66A 34B, 100 nodes, 199 edges
-    /// Branch and bound...
-    /// Initial solution found, with score 4972.
-    /// thread 'main' panicked at src/graph.rs:339:17:24 steps.
-    /// Found a solution with score 4913 but lower bound is 4914
-    /// ```
+    /// Detects when we prune local states but then incorrectly update the lower bound.
     #[test]
-    fn bug() {
-        let mut g = GraphType::Fan { n: 100, extra: 100 }.generate(Some(11));
+    fn valid_lower_bound() {
+        let n = 23;
+        let extra = 14;
+        let seed = 8546;
+        eprintln!("{n} {extra} {seed}");
+        let mut g = GraphType::Fan { n, extra }.generate(Some(seed));
         g.create_crossings();
         one_sided_crossing_minimization(&g, None);
     }
