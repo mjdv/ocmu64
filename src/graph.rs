@@ -17,6 +17,8 @@ pub struct Graph {
     pub connections_a: VecA<Vec<NodeB>>,
     pub connections_b: VecB<Vec<NodeA>>,
     pub crossings: Option<VecB<VecB<u64>>>,
+    /// Stores max(cuv - cvu, 0).
+    pub reduced_crossings: Option<VecB<VecB<u64>>>,
 }
 
 impl Graph {
@@ -28,6 +30,7 @@ impl Graph {
             connections_a: VecA::new(a),
             connections_b: VecB::new(b),
             crossings: None,
+            reduced_crossings: None,
         }
     }
     pub fn new(mut connections_a: VecA<Vec<NodeB>>, mut connections_b: VecB<Vec<NodeA>>) -> Graph {
@@ -48,6 +51,7 @@ impl Graph {
             connections_a,
             connections_b,
             crossings: None,
+            reduced_crossings: None,
         }
     }
 
@@ -122,12 +126,7 @@ impl Graph {
 
     pub fn create_crossings(&mut self) {
         let mut crossings: VecB<VecB<u64>> = VecB {
-            v: vec![
-                VecB {
-                    v: vec![0; self.b.0]
-                };
-                self.b.0
-            ],
+            v: vec![VecB::new(self.b); self.b.0],
         };
         for node_i in NodeB(0)..self.b {
             for node_j in Step::forward(node_i, 1)..self.b {
@@ -143,7 +142,16 @@ impl Graph {
                 }
             }
         }
+        let mut reduced_crossings = VecB {
+            v: vec![VecB::new(self.b); self.b.0],
+        };
+        for i in NodeB(0)..self.b {
+            for j in NodeB(0)..self.b {
+                reduced_crossings[i][j] = crossings[i][j].saturating_sub(crossings[j][i]);
+            }
+        }
         self.crossings = Some(crossings);
+        self.reduced_crossings = Some(reduced_crossings);
     }
 
     /* Reads a graph from a file (in PACE format).
@@ -180,13 +188,11 @@ fn node_score(g: &Graph, b1: NodeB, b2: NodeB) -> u64 {
 
 /// Compute the increase of score from fixing solution[0] before the tail.
 fn partial_score(g: &Graph, solution: &[NodeB]) -> u64 {
-    let c = g.crossings.as_ref().expect("Must have crossings.");
+    let rc = g.reduced_crossings.as_ref().expect("Must have crossings.");
     let mut score = 0;
     let u = solution[0];
     for &v in &solution[1..] {
-        let cuv = c[u][v];
-        let cvu = c[v][u];
-        score += cuv.saturating_sub(cvu);
+        score += rc[u][v];
     }
     score
 }
