@@ -138,8 +138,13 @@ pub fn one_sided_crossing_minimization(g: &Graph, bound: Option<u64>) -> Option<
     };
     // Clear the \r line.
     eprintln!();
+    eprintln!("Sols found    : {:>9}", bb.sols_found);
     eprintln!("B&B States    : {:>9}", bb.states);
+    eprintln!("LB exceeded 1 : {:>9}", bb.lb_exceeded_1);
+    eprintln!("LB exceeded 2 : {:>9}", bb.lb_exceeded_2);
+    eprintln!("LB updates    : {:>9}", bb.lb_updates);
     eprintln!("Unique subsets: {:>9}", bb.lower_bound_for_tail.len());
+    eprintln!("LB matching   : {:>9}", bb.lb_hit);
     sol
 }
 
@@ -174,6 +179,14 @@ pub struct Bb<'a> {
 
     /// The number of states explored.
     states: u64,
+    /// The number of distinct solutions found.
+    sols_found: u64,
+    /// The number of times a lower bound was updated in the hashmap.
+    lb_updates: u64,
+    /// The number of times we return early because we found a solution with the same score as the lower bound.
+    lb_hit: u64,
+    lb_exceeded_1: u64,
+    lb_exceeded_2: u64,
 }
 
 impl<'a> Bb<'a> {
@@ -201,6 +214,11 @@ impl<'a> Bb<'a> {
             best_score: initial_score,
             lower_bound_for_tail: HashMap::default(),
             states: 0,
+            sols_found: 0,
+            lb_exceeded_1: 0,
+            lb_exceeded_2: 0,
+            lb_updates: 0,
+            lb_hit: 0,
         }
     }
 
@@ -225,12 +243,19 @@ impl<'a> Bb<'a> {
     ///
     pub fn branch_and_bound(&mut self) -> bool {
         self.states += 1;
+
+        if self.score >= self.upper_bound {
+            self.lb_exceeded_1 += 1;
+            return false;
+        }
+
         debug_assert_eq!(self.tail_mask.count_zeros(), self.solution_len);
 
         // TODO(ragnar): Figure out why tail isn't always sorted.
         let tail = &self.solution[self.solution_len..];
 
         if self.solution_len == self.solution.len() {
+            self.sols_found += 1;
             debug_assert_eq!(self.score, self.g.score(&self.solution));
             let score = self.score;
             if score < self.upper_bound {
@@ -253,7 +278,10 @@ impl<'a> Bb<'a> {
         // 1. The true score of the head part.
         // 2. Crossings between the head and tail.
         // 3. A lower bound on the score of the tail.
-        // Additionally, if we already have a lower bound on how much the score of the tail exceeds the trivial lower bound, use that.
+        // Additionally, if we already have a lower bound on how much the score
+        // of the tail exceeds the trivial lower bound, use that.
+        // TODO: Find the largest suffix of `tail` that is a subset of tail_mask
+        // and use that if no bound is available for `tail_mask`.
         let tail_excess = self
             .lower_bound_for_tail
             .get(&self.tail_mask)
@@ -263,6 +291,7 @@ impl<'a> Bb<'a> {
 
         // We can not find a solution of score < upper_bound.
         if self.upper_bound <= my_lower_bound {
+            self.lb_exceeded_2 += 1;
             return false;
         }
         assert!(my_lower_bound <= self.best_score);
@@ -318,15 +347,17 @@ impl<'a> Bb<'a> {
             }
 
             self.score = old_score;
+
+            // Increment score for the new node, and decrement tail_lower_bound.
+            // TODO: Early break once the upper_bound is hit.
+            self.score += self.g.partial_score(
+                self.solution[self.solution_len],
+                &self.solution[self.solution_len + 1..],
+            );
+
             self.solution_len += 1;
             debug_assert!(self.tail_mask[u.0]);
             unsafe { self.tail_mask.set_unchecked(u.0, false) };
-
-            // Increment score for the new node, and decrement tail_lower_bound.
-            self.score += self.g.partial_score(
-                self.solution[self.solution_len - 1],
-                &self.solution[self.solution_len..],
-            );
 
             if self.branch_and_bound() {
                 assert!(
@@ -353,6 +384,7 @@ states {}
                     assert_eq!(self.solution_len, old_solution_len);
                     // self.solution[self.solution_len..=i].rotate_left(1);
                     self.solution[self.solution_len..].copy_from_slice(&old_tail);
+                    self.lb_hit += 1;
                     return true;
                 }
             }
@@ -373,6 +405,7 @@ states {}
                 Entry::Occupied(mut e) => {
                     // We did a search without success so the value must grow.
                     assert!(tail_excess > *e.get());
+                    self.lb_updates += 1;
                     *e.get_mut() = tail_excess;
                 }
                 Entry::Vacant(e) => {

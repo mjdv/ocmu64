@@ -69,6 +69,7 @@ It also improves the order in which decisions are made:
 2. Else branch on a $2/1$ pattern.
 3. Else commit a $1/1$ pattern.
 4. Else return YES.
+
 ** Subexponential $O(k 2^{\sqrt{2k}} +n)$
 [[file:papers/fpt-subexponential-2.pdf]]
 
