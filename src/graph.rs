@@ -190,7 +190,11 @@ pub struct Bb<'a> {
     /// The best solution score found so far.
     best_score: u64,
 
-    /// The best lower bound so far corresponding to each tail.
+    /// This value is a lower bound on the score of the tail minus the trivial min(cuv,cvu) lower bound.
+    /// TODO: Replace the key by a bitmask instead.
+    /// The bitmask only has to be as wide as the cutwidth of the graph.
+    /// It could be a template parameter to use the smallest width that is sufficiently large.
+    /// TODO: Make the score a u32 here?
     lower_bound_for_tail: HashMap<Vec<NodeB>, u64>,
 
     /// The number of states explored.
@@ -396,5 +400,27 @@ impl Index<NodeB> for Graph {
 impl IndexMut<NodeB> for Graph {
     fn index_mut(&mut self, index: NodeB) -> &mut Self::Output {
         &mut self.connections_b[index]
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::generate::GraphType;
+
+    use super::one_sided_crossing_minimization;
+
+    /// Crashes
+    /// ```txt
+    /// Read graph: 66A 34B, 100 nodes, 199 edges
+    /// Branch and bound...
+    /// Initial solution found, with score 4972.
+    /// thread 'main' panicked at src/graph.rs:339:17:24 steps.
+    /// Found a solution with score 4913 but lower bound is 4914
+    /// ```
+    #[test]
+    fn bug() {
+        let mut g = GraphType::Fan { n: 100, extra: 100 }.generate(Some(11));
+        g.create_crossings();
+        one_sided_crossing_minimization(&g, None);
     }
 }
