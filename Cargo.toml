@@ -19,5 +19,6 @@ debug = true
 
 [dependencies]
 clap = { version = "4.4.11", features = ["derive"] }
+fxhash = "0.2.1"
 rand = "0.8.5"
 rand_chacha = "0.3.1"
