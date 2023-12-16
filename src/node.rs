@@ -140,14 +140,24 @@ impl<T> DerefMut for VecB<T> {
 impl<T> Index<NodeA> for VecA<T> {
     type Output = T;
     fn index(&self, index: NodeA) -> &Self::Output {
-        unsafe { self.v.get_unchecked(index.0) }
+        #[cfg(release)]
+        unsafe {
+            self.v.get_unchecked(index.0)
+        }
+        #[cfg(not(release))]
+        &self.v[index.0]
     }
 }
 
 /// Unchecked indexing.
 impl<T> IndexMut<NodeA> for VecA<T> {
     fn index_mut(&mut self, index: NodeA) -> &mut Self::Output {
-        unsafe { self.v.get_unchecked_mut(index.0) }
+        #[cfg(release)]
+        unsafe {
+            self.v.get_unchecked_mut(index.0)
+        }
+        #[cfg(not(release))]
+        &mut self.v[index.0]
     }
 }
 
@@ -155,13 +165,23 @@ impl<T> IndexMut<NodeA> for VecA<T> {
 impl<T> Index<NodeB> for VecB<T> {
     type Output = T;
     fn index(&self, index: NodeB) -> &Self::Output {
-        unsafe { self.v.get_unchecked(index.0) }
+        #[cfg(release)]
+        unsafe {
+            self.v.get_unchecked(index.0)
+        }
+        #[cfg(not(release))]
+        &self.v[index.0]
     }
 }
 
 /// Unchecked indexing.
 impl<T> IndexMut<NodeB> for VecB<T> {
     fn index_mut(&mut self, index: NodeB) -> &mut Self::Output {
-        unsafe { self.v.get_unchecked_mut(index.0) }
+        #[cfg(release)]
+        unsafe {
+            self.v.get_unchecked_mut(index.0)
+        }
+        #[cfg(not(release))]
+        &mut self.v[index.0]
     }
 }
