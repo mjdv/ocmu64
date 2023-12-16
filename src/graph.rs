@@ -392,9 +392,11 @@ impl<'a> Bb<'a> {
         let old_solution_len = self.solution_len;
         let old_score = self.score;
 
-        let get_median = |x| self.g.connections_b[x][self.g.connections_b[x].len() / 2];
         let tail = &mut self.solution[self.solution_len..];
-        tail.sort_by_key(|x| get_median(*x));
+        // Sorting takes 20% of time and doesn't do much. Maybe add back later.
+        // let get_median = |x| self.g.connections_b[x][self.g.connections_b[x].len() / 2];
+        // tail.sort_by_key(|x| get_median(*x));
+        // TODO: First check if we can swap the elements that were around the new leading element.
         commute_adjacent(self.g, tail);
 
         let mut solution = false;
