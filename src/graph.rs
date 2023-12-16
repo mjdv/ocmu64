@@ -9,15 +9,6 @@ use std::{
 
 use crate::node::*;
 
-#[derive(Debug, Default)]
-pub struct GraphBuilder {
-    pub a: NodeA,
-    pub b: NodeB,
-    pub m: usize,
-    pub connections_a: VecA<Vec<NodeB>>,
-    pub connections_b: VecB<Vec<NodeA>>,
-}
-
 #[derive(Debug)]
 pub struct Graph {
     pub a: NodeA,
@@ -25,9 +16,18 @@ pub struct Graph {
     pub m: usize,
     pub connections_a: VecA<Vec<NodeB>>,
     pub connections_b: VecB<Vec<NodeA>>,
+    pub b_permutation: VecB<NodeB>,
     pub crossings: Option<VecB<VecB<u64>>>,
     /// Stores max(cuv - cvu, 0).
     pub reduced_crossings: Option<VecB<VecB<u64>>>,
+}
+
+#[derive(Debug, Default)]
+pub struct GraphBuilder {
+    pub a: NodeA,
+    pub b: NodeB,
+    pub connections_a: VecA<Vec<NodeB>>,
+    pub connections_b: VecB<Vec<NodeA>>,
 }
 
 impl GraphBuilder {
@@ -35,7 +35,6 @@ impl GraphBuilder {
         Self {
             a,
             b,
-            m: 0,
             connections_a: VecA::new(a),
             connections_b: VecB::new(b),
         }
@@ -57,45 +56,69 @@ impl GraphBuilder {
     pub fn push_edge(&mut self, a: NodeA, b: NodeB) {
         self[a].push(b);
         self[b].push(a);
-        self.m += 1;
     }
 
+    pub fn new(connections_a: VecA<Vec<NodeB>>, connections_b: VecB<Vec<NodeA>>) -> GraphBuilder {
+        Self {
+            a: connections_a.len(),
+            b: connections_b.len(),
+            connections_a,
+            connections_b,
+        }
+    }
+
+    // Permute the vertices of the graph so that B is roughly increasing.
     pub fn build(self) -> Graph {
-        Graph {
-            a: self.a,
-            b: self.b,
-            m: self.m,
+        let mut g = Graph {
+            a: self.connections_a.len(),
+            b: self.connections_b.len(),
+            m: self.connections_a.iter().map(|x| x.len()).sum::<usize>(),
+            b_permutation: Default::default(),
             connections_a: self.connections_a,
             connections_b: self.connections_b,
             crossings: None,
             reduced_crossings: None,
+        };
+
+        for l in g.connections_a.iter_mut() {
+            l.sort();
         }
+        for l in g.connections_b.iter_mut() {
+            l.sort();
+        }
+        let perm = VecB {
+            v: initial_solution(&g),
+        };
+        let mut inv_perm = VecB {
+            v: vec![NodeB(0); g.b.0],
+        };
+        for (i, &b) in perm.iter().enumerate() {
+            inv_perm[b] = NodeB(i);
+        }
+
+        // A nbs are modified in-place.
+        for b_nbs in g.connections_a.iter_mut() {
+            for b in b_nbs {
+                *b = inv_perm[*b];
+            }
+        }
+        // B nbs are copied.
+        let connections_b = VecB {
+            v: perm
+                .iter()
+                .map(|&b| std::mem::take(&mut g.connections_b[b]))
+                .collect(),
+        };
+
+        for l in g.connections_a.iter_mut() {
+            l.sort();
+        }
+
+        Graph { connections_b, ..g }
     }
 }
 
 impl Graph {
-    pub fn new(mut connections_a: VecA<Vec<NodeB>>, mut connections_b: VecB<Vec<NodeA>>) -> Graph {
-        let a = connections_a.len();
-        let b = connections_b.len();
-        for l in connections_a.iter_mut() {
-            l.sort();
-        }
-
-        for l in connections_b.iter_mut() {
-            l.sort();
-        }
-
-        Self {
-            a,
-            b,
-            m: connections_a.iter().map(|x| x.len()).sum::<usize>(),
-            connections_a,
-            connections_b,
-            crossings: None,
-            reduced_crossings: None,
-        }
-    }
-
     fn to_stream<W: Write>(&self, writer: W) -> Result<(), std::io::Error> {
         let mut writer = BufWriter::new(writer);
         let edges = self.connections_a.iter().map(|x| x.len()).sum::<usize>();
@@ -141,8 +164,22 @@ impl Graph {
             }
         }
 
-        let graph = Graph::new(connections_a, connections_b);
+        let graph = GraphBuilder::new(connections_a, connections_b).build();
         Ok(graph)
+    }
+
+    /* Reads a graph from a file (in PACE format).
+     */
+    pub fn from_file(file_path: &Path) -> Result<Self, std::io::Error> {
+        let file = File::open(file_path)?;
+        let reader = BufReader::new(file);
+        Self::from_stream(reader)
+    }
+
+    /* Reads a graph from stdin (in PACE format).
+     */
+    pub fn from_stdin() -> Result<Self, std::io::Error> {
+        Self::from_stream(stdin().lock())
     }
 
     pub fn create_crossings(&mut self) {
@@ -173,20 +210,6 @@ impl Graph {
         }
         self.crossings = Some(crossings);
         self.reduced_crossings = Some(reduced_crossings);
-    }
-
-    /* Reads a graph from a file (in PACE format).
-     */
-    pub fn from_file(file_path: &Path) -> Result<Self, std::io::Error> {
-        let file = File::open(file_path)?;
-        let reader = BufReader::new(file);
-        Self::from_stream(reader)
-    }
-
-    /* Reads a graph from stdin (in PACE format).
-     */
-    pub fn from_stdin() -> Result<Self, std::io::Error> {
-        Self::from_stream(stdin().lock())
     }
 }
 
@@ -254,6 +277,11 @@ pub fn extend_solution_recursive(g: &Graph, solution: &mut Solution) -> (u64, Ve
     (best_score, best_extension)
 }
 
+fn sort_by_median(g: &Graph, solution: &mut [NodeB]) {
+    let get_median = |x: NodeB| g[x][g[x].len() / 2];
+    solution.sort_by_key(|x| get_median(*x));
+}
+
 /// Commute adjacent nodes as long as the score improves.
 fn commute_adjacent(g: &Graph, vec: &mut [NodeB]) {
     let mut changed = true;
@@ -268,11 +296,15 @@ fn commute_adjacent(g: &Graph, vec: &mut [NodeB]) {
     }
 }
 
-pub fn one_sided_crossing_minimization(g: &Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
+fn initial_solution(g: &Graph) -> Vec<NodeB> {
     let mut initial_solution = (NodeB(0)..g.b).collect::<Vec<_>>();
-    let get_median = |x: NodeB| g[x][g[x].len() / 2];
-    initial_solution.sort_by_key(|x| get_median(*x));
+    sort_by_median(g, &mut initial_solution);
     commute_adjacent(g, &mut initial_solution);
+    initial_solution
+}
+
+pub fn one_sided_crossing_minimization(g: &Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
+    let initial_solution = initial_solution(g);
     let mut initial_score = score(g, &initial_solution);
     println!("Initial solution found, with score {initial_score}.");
     if let Some(bound) = bound {
@@ -321,10 +353,7 @@ pub struct Bb<'a> {
 impl<'a> Bb<'a> {
     pub fn new(g: &'a Graph, upper_bound: u64) -> Self {
         // Start with a greedy solution.
-        let mut initial_solution = (NodeB(0)..g.b).collect::<Vec<_>>();
-        let get_median = |x: NodeB| g[x][g[x].len() / 2];
-        initial_solution.sort_by_key(|x| get_median(*x));
-        commute_adjacent(g, &mut initial_solution);
+        let initial_solution = initial_solution(g);
         let initial_score = score(g, &initial_solution);
 
         let mut score = 0;
