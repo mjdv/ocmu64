@@ -264,6 +264,8 @@ impl<'a> Bb<'a> {
         }
         assert!(my_lower_bound <= self.best_score);
 
+        let least_end = tail.iter().map(|u| self.g.intervals[*u].end).min().unwrap();
+
         let old_tail = tail.to_vec();
         let old_solution_len = self.solution_len;
         let old_score = self.score;
@@ -288,11 +290,17 @@ impl<'a> Bb<'a> {
             // Swap the next tail node to the front of the tail.
             self.solution.swap(self.solution_len, i);
 
+            let u = self.solution[self.solution_len];
+            // Do not yet try vertices that start after some other vertex ends.
+            // TODO: Think about the equality case.
+            if self.g.intervals[u].start > least_end {
+                continue;
+            }
+
             // NOTE: It's faster to not skip local inefficiencies, because then
             // we are guaranteed to have a valid lower bound on the tail.
             if false {
                 // If this node commutes with the last one, fix their ordering.
-                let u = self.solution[self.solution_len];
                 if let Some(&last) = self.solution.get(self.solution_len.wrapping_sub(1)) {
                     if self.g.node_score(last, u) > self.g.node_score(u, last)
                         // NOTE(ragnar): What is this check doing?
