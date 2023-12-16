@@ -106,10 +106,13 @@ Also runs in $2^c\cdot poly(n,c)$ for max cut-width $c$.
 - Permute B nodes to be in roughly the right order in memory.
 - Partition the problem on C-cuts.
   - Does this help when B&B already has memoization?
-- Identify equivalent vertices and merge them.
-- Fix the order of vertices where possible:
-  - If $r_u \leq l_v$.
-  - If for all $w$: If $v$ goes before $u$, than $u$ also, and if $u$ goes after
-    $w$, than also $v$.
-    I.e. $cvw < cwv$ implies $cuv \leq cwv$ and $cwu > cuw$ implies $cwu \geq cvw$.
-  - If they are identical.
+- DONE *Ordered*: If $r_u \leq l_v$.
+- DONE *Twins*: Identify B nodes with identical nbs and merge them.
+- *Partial twins*: as soon as two vertices have the same nbs in /tail/, they
+  should also be identified.
+- *Siblings*: If for all $w$: If $v$ goes before $u$, than $u$ also, and if $u$ goes after
+  $w$, than also $v$. I.e. $cvw < cwv$ implies $cuv \leq cwv$ and $cwu > cuw$ implies $cwu \geq cvw$.
+  - *This heuristic is super strong, but not true*
+
+  - 32, 19, 28, 31, 33, 43, 23, 29, 50, 34, 20, 25
+  - 31, 32, 33, 43, 23, 50, 34, 19, 20, 25, 28, 29

@@ -1,5 +1,7 @@
+use itertools::Itertools;
+
 use super::*;
-use std::{self, ops::Range};
+use std::{self, iter::Step, ops::Range};
 
 #[derive(Debug, Default)]
 pub struct GraphBuilder {
@@ -59,6 +61,22 @@ impl GraphBuilder {
         }
     }
 
+    fn to_quick_graph(&self) -> Graph {
+        Graph {
+            a: self.a,
+            b: self.b,
+            m: self.connections_a.iter().map(|x| x.len()).sum::<usize>(),
+            b_permutation: Default::default(),
+            connections_a: self.connections_a.clone(),
+            connections_b: self.connections_b.clone(),
+            crossings: None,
+            reduced_crossings: None,
+            intervals: self.intervals(),
+            self_crossings: self.self_crossings,
+            must_come_before: VecB::new(self.b),
+        }
+    }
+
     fn to_graph(&self) -> Graph {
         let (crossings, reduced_crossings) = self.crossings();
         Graph {
@@ -72,6 +90,7 @@ impl GraphBuilder {
             reduced_crossings: Some(reduced_crossings),
             intervals: self.intervals(),
             self_crossings: self.self_crossings,
+            must_come_before: self.find_siblings(),
         }
     }
 
@@ -82,7 +101,7 @@ impl GraphBuilder {
         self.drop_singletons();
         self.merge_twins();
         self.sort_edges();
-        self.permute(initial_solution(&self.to_graph()));
+        self.permute(initial_solution(&self.to_quick_graph()));
         self.sort_edges();
         self.to_graph()
     }
@@ -142,6 +161,53 @@ impl GraphBuilder {
             Step::steps_between(&self.connections_b.len(), &self.b).unwrap()
         );
         self.reconstruct_a();
+    }
+
+    /// Count pairs (u,v) such that u must always be left of v:
+    /// 0. Exclude pairs with disjoint intervals; they are not interesting.
+    /// 1. cvw < cwv => cuw <= cwu (if v before w, than so u)
+    /// 2. cwu < cuw => cwv <= cvw (if u after w, than so v)
+    /// 3. cuv <= cvu
+    fn find_siblings(&self) -> VecB<Vec<NodeB>> {
+        eprint!("Siblings..\r");
+        let intervals = self.intervals();
+        let c = self.crossings().0;
+        let mut siblings = 0;
+        let mut rev_siblings = 0;
+        let mut rev_sibling_weight = 0;
+        // For each node, the other nodes that must come before it.
+        let mut must_come_before: VecB<Vec<NodeB>> = VecB::new(self.b);
+        for u in NodeB(0)..self.b {
+            'pairs: for v in NodeB(0)..self.b {
+                if u == v {
+                    continue;
+                }
+                // Disjoint intervals?
+                if intervals[u].end <= intervals[v].start || intervals[v].end <= intervals[u].start
+                {
+                    continue;
+                }
+                for w in NodeB(0)..self.b {
+                    if c[v][w] < c[w][v] && c[u][w] > c[w][u] {
+                        continue 'pairs;
+                    }
+                    if c[w][u] < c[u][w] && c[w][v] > c[v][w] {
+                        continue 'pairs;
+                    }
+                }
+                // if c[u][v] < c[v][u] || (c[u][v] == c[v][u] && u < v) {
+                if c[u][v] < c[v][u] {
+                    siblings += 1;
+                    must_come_before[v].push(u);
+                } else {
+                    rev_siblings += 1;
+                    rev_sibling_weight += c[u][v] - c[v][u];
+                }
+            }
+        }
+        eprintln!("Found {siblings} siblings");
+        eprintln!("Surprises: {rev_siblings} of total score {rev_sibling_weight}");
+        must_come_before
     }
 
     /// Reconstruct `connections_a`, given `connections_b`.
