@@ -2,13 +2,13 @@ use crate::node::*;
 use std::{
     cmp::min,
     collections::{hash_map::Entry, HashMap},
-    iter::Step,
     ops::{Index, IndexMut, Range},
 };
 
-mod builder;
-pub mod io;
 pub use builder::GraphBuilder;
+
+mod builder;
+mod io;
 
 #[derive(Debug)]
 #[non_exhaustive]
@@ -137,8 +137,8 @@ pub fn one_sided_crossing_minimization(g: &Graph, bound: Option<u64>) -> Option<
     };
     // Clear the \r line.
     eprintln!();
-    eprintln!("States     : {:>9}", bb.states);
-    eprintln!("Unique sets: {:>9}", bb.lower_bound_for_tail.len());
+    eprintln!("B&B States    : {:>9}", bb.states);
+    eprintln!("Unique subsets: {:>9}", bb.lower_bound_for_tail.len());
     sol
 }
 
