@@ -4,10 +4,10 @@ use std::{
     ops::{Deref, DerefMut, Index, IndexMut},
 };
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
 pub struct NodeA(pub usize);
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
 pub struct NodeB(pub usize);
 
 impl Display for NodeA {
