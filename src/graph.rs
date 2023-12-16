@@ -298,7 +298,8 @@ impl<'a> Bb<'a> {
             }
 
             // NOTE: It's faster to not skip local inefficiencies, because then
-            // we are guaranteed to have a valid lower bound on the tail.
+            // we are guaranteed to have a valid lower bound on the tail that
+            // can used for pruning.
             if false {
                 // If this node commutes with the last one, fix their ordering.
                 if let Some(&last) = self.solution.get(self.solution_len.wrapping_sub(1)) {
