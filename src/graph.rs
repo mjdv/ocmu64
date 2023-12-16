@@ -3,7 +3,7 @@ use std::{
     cmp::min,
     collections::{hash_map::Entry, HashMap},
     iter::Step,
-    ops::{Index, IndexMut},
+    ops::{Index, IndexMut, Range},
 };
 
 mod builder;
@@ -20,40 +20,9 @@ pub struct Graph {
     pub connections_b: VecB<Vec<NodeA>>,
     pub b_permutation: VecB<NodeB>,
     pub crossings: Option<VecB<VecB<u64>>>,
+    pub intervals: VecB<Range<NodeA>>,
     /// Stores max(cuv - cvu, 0).
     pub reduced_crossings: Option<VecB<VecB<u64>>>,
-}
-
-impl Graph {
-    pub fn create_crossings(&mut self) {
-        let mut crossings: VecB<VecB<u64>> = VecB {
-            v: vec![VecB::new(self.b); self.b.0],
-        };
-        for node_i in NodeB(0)..self.b {
-            for node_j in Step::forward(node_i, 1)..self.b {
-                for edge_i in &self.connections_b[node_i] {
-                    for edge_j in &self.connections_b[node_j] {
-                        if edge_i > edge_j {
-                            crossings[node_i][node_j] += 1;
-                        }
-                        if edge_i < edge_j {
-                            crossings[node_j][node_i] += 1;
-                        }
-                    }
-                }
-            }
-        }
-        let mut reduced_crossings = VecB {
-            v: vec![VecB::new(self.b); self.b.0],
-        };
-        for i in NodeB(0)..self.b {
-            for j in NodeB(0)..self.b {
-                reduced_crossings[i][j] = crossings[i][j].saturating_sub(crossings[j][i]);
-            }
-        }
-        self.crossings = Some(crossings);
-        self.reduced_crossings = Some(reduced_crossings);
-    }
 }
 
 /// Crossings by having b1 before b2.
@@ -428,8 +397,7 @@ mod test {
         let extra = 14;
         let seed = 8546;
         eprintln!("{n} {extra} {seed}");
-        let mut g = GraphType::Fan { n, extra }.generate(Some(seed));
-        g.create_crossings();
+        let g = GraphType::Fan { n, extra }.generate(Some(seed));
         one_sided_crossing_minimization(&g, None);
     }
 }

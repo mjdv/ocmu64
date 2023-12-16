@@ -1,5 +1,5 @@
 use super::*;
-use std;
+use std::{self, ops::Range};
 
 #[derive(Debug, Default)]
 pub struct GraphBuilder {
@@ -47,6 +47,7 @@ impl GraphBuilder {
     }
 
     fn to_graph(&self) -> Graph {
+        let (crossings, reduced_crossings) = self.crossings();
         Graph {
             a: self.a,
             b: self.b,
@@ -54,12 +55,15 @@ impl GraphBuilder {
             b_permutation: Default::default(),
             connections_a: self.connections_a.clone(),
             connections_b: self.connections_b.clone(),
-            crossings: None,
-            reduced_crossings: None,
+            crossings: Some(crossings),
+            reduced_crossings: Some(reduced_crossings),
+            intervals: self.intervals(),
         }
     }
 
-    // Permute the vertices of the graph so that B is roughly increasing.
+    /// Permute the vertices of the graph so that B is roughly increasing.
+    /// TODO: Store metadata to be able to invert the final solution.
+    /// TODO: Allow customizing whether crossings are built.
     pub fn build(mut self) -> Graph {
         self.drop_singletons();
         self.sort_edges();
@@ -78,6 +82,7 @@ impl GraphBuilder {
             l.sort();
         }
     }
+
     /// Drop all nodes of degree 0.
     fn drop_singletons(&mut self) {
         self.connections_b.retain(|b| !b.is_empty());
@@ -86,6 +91,7 @@ impl GraphBuilder {
         self.reconstruct_b();
         self.sort_edges();
     }
+
     /// Reconstruct `connections_a`, given `connections_b`.
     fn reconstruct_a(&mut self) {
         // Reconstruct A.
@@ -96,6 +102,7 @@ impl GraphBuilder {
             }
         }
     }
+
     /// Reconstruct `connections_b`, given `connections_a`.
     fn reconstruct_b(&mut self) {
         self.connections_b = VecB::new(self.b);
@@ -115,6 +122,45 @@ impl GraphBuilder {
                 .collect(),
         };
         self.reconstruct_a();
+    }
+
+    fn intervals(&self) -> VecB<Range<NodeA>> {
+        VecB {
+            v: self
+                .connections_b
+                .iter()
+                .map(|b| (*b.iter().min().unwrap()..*b.iter().max().unwrap()))
+                .collect(),
+        }
+    }
+
+    fn crossings(&self) -> (VecB<VecB<u64>>, VecB<VecB<u64>>) {
+        let mut crossings: VecB<VecB<u64>> = VecB {
+            v: vec![VecB::new(self.b); self.b.0],
+        };
+        for node_i in NodeB(0)..self.b {
+            for node_j in Step::forward(node_i, 1)..self.b {
+                for edge_i in &self.connections_b[node_i] {
+                    for edge_j in &self.connections_b[node_j] {
+                        if edge_i > edge_j {
+                            crossings[node_i][node_j] += 1;
+                        }
+                        if edge_i < edge_j {
+                            crossings[node_j][node_i] += 1;
+                        }
+                    }
+                }
+            }
+        }
+        let mut reduced_crossings = VecB {
+            v: vec![VecB::new(self.b); self.b.0],
+        };
+        for i in NodeB(0)..self.b {
+            for j in NodeB(0)..self.b {
+                reduced_crossings[i][j] = crossings[i][j].saturating_sub(crossings[j][i]);
+            }
+        }
+        (crossings, reduced_crossings)
     }
 }
 
