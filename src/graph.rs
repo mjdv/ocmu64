@@ -330,8 +330,8 @@ impl<'a> Bb<'a> {
         self.states += 1;
 
         if self.solution_len == self.solution.len() {
-            let score = score(self.g, &self.solution);
-            assert_eq!(score, self.score);
+            debug_assert_eq!(self.score, score(self.g, &self.solution));
+            let score = self.score;
             eprint!(
                 "Found a solution with score {} after {:>9} steps.\r",
                 score, self.states
