@@ -25,8 +25,8 @@ impl GraphType {
 
 /// Add edges on either side at random, for total of n vertices.
 // TODO: Different distributions of fan sizes.
-pub fn fan_graph(n: usize, rng: &mut impl Rng) -> Graph {
-    let mut g = Graph::default();
+pub fn fan_graph(n: usize, rng: &mut impl Rng) -> GraphBuilder {
+    let mut g = GraphBuilder::default();
     let mut a = g.push_node_a();
     let mut b = g.push_node_b();
     g.push_edge(a, b);
@@ -50,7 +50,7 @@ pub fn fan_graph_with_random_edges(n: usize, extra: usize, rng: &mut impl Rng) -
         let b = NodeB(rng.gen_range(0..g.b.0));
         g.push_edge(a, b);
     }
-    g
+    g.build()
 }
 
 /// Create n/(k+1) star graphs rooted in B with endpoints in A.
@@ -60,7 +60,7 @@ pub fn stars(n: usize, k: usize, rng: &mut impl Rng) -> Graph {
     let n = n / (k + 1);
     let a = NodeA(k * n);
     let b = NodeB(n);
-    let mut g = Graph::with_sizes(a, b);
+    let mut g = GraphBuilder::with_sizes(a, b);
     // Shuffle the A nodes.
     let mut a_nodes = (NodeA(0)..a).collect::<Vec<_>>();
     a_nodes.shuffle(rng);
@@ -71,5 +71,5 @@ pub fn stars(n: usize, k: usize, rng: &mut impl Rng) -> Graph {
             g.push_edge(a, b);
         }
     }
-    g
+    g.build()
 }

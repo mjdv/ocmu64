@@ -10,6 +10,15 @@ use std::{
 use crate::node::*;
 
 #[derive(Debug, Default)]
+pub struct GraphBuilder {
+    pub a: NodeA,
+    pub b: NodeB,
+    pub m: usize,
+    pub connections_a: VecA<Vec<NodeB>>,
+    pub connections_b: VecB<Vec<NodeA>>,
+}
+
+#[derive(Debug)]
 pub struct Graph {
     pub a: NodeA,
     pub b: NodeB,
@@ -21,7 +30,7 @@ pub struct Graph {
     pub reduced_crossings: Option<VecB<VecB<u64>>>,
 }
 
-impl Graph {
+impl GraphBuilder {
     pub fn with_sizes(a: NodeA, b: NodeB) -> Self {
         Self {
             a,
@@ -29,10 +38,42 @@ impl Graph {
             m: 0,
             connections_a: VecA::new(a),
             connections_b: VecB::new(b),
+        }
+    }
+    /// Returns the id of the pushed node (not the length).
+    pub fn push_node_a(&mut self) -> NodeA {
+        let id = self.connections_a.push();
+        self.a = self.connections_a.len();
+        id
+    }
+
+    /// Returns the id of the pushed node (not the length).
+    pub fn push_node_b(&mut self) -> NodeB {
+        let id = self.connections_b.push();
+        self.b = self.connections_b.len();
+        id
+    }
+
+    pub fn push_edge(&mut self, a: NodeA, b: NodeB) {
+        self[a].push(b);
+        self[b].push(a);
+        self.m += 1;
+    }
+
+    pub fn build(self) -> Graph {
+        Graph {
+            a: self.a,
+            b: self.b,
+            m: self.m,
+            connections_a: self.connections_a,
+            connections_b: self.connections_b,
             crossings: None,
             reduced_crossings: None,
         }
     }
+}
+
+impl Graph {
     pub fn new(mut connections_a: VecA<Vec<NodeB>>, mut connections_b: VecB<Vec<NodeA>>) -> Graph {
         let a = connections_a.len();
         let b = connections_b.len();
@@ -53,26 +94,6 @@ impl Graph {
             crossings: None,
             reduced_crossings: None,
         }
-    }
-
-    /// Returns the id of the pushed node (not the length).
-    pub fn push_node_a(&mut self) -> NodeA {
-        let id = self.connections_a.push();
-        self.a = self.connections_a.len();
-        id
-    }
-
-    /// Returns the id of the pushed node (not the length).
-    pub fn push_node_b(&mut self) -> NodeB {
-        let id = self.connections_b.push();
-        self.b = self.connections_b.len();
-        id
-    }
-
-    pub fn push_edge(&mut self, a: NodeA, b: NodeB) {
-        self[a].push(b);
-        self[b].push(a);
-        self.m += 1;
     }
 
     fn to_stream<W: Write>(&self, writer: W) -> Result<(), std::io::Error> {
@@ -475,6 +496,34 @@ impl Index<NodeB> for Graph {
 }
 
 impl IndexMut<NodeB> for Graph {
+    fn index_mut(&mut self, index: NodeB) -> &mut Self::Output {
+        &mut self.connections_b[index]
+    }
+}
+
+impl Index<NodeA> for GraphBuilder {
+    type Output = Vec<NodeB>;
+
+    fn index(&self, index: NodeA) -> &Self::Output {
+        &self.connections_a[index]
+    }
+}
+
+impl IndexMut<NodeA> for GraphBuilder {
+    fn index_mut(&mut self, index: NodeA) -> &mut Self::Output {
+        &mut self.connections_a[index]
+    }
+}
+
+impl Index<NodeB> for GraphBuilder {
+    type Output = Vec<NodeA>;
+
+    fn index(&self, index: NodeB) -> &Self::Output {
+        &self.connections_b[index]
+    }
+}
+
+impl IndexMut<NodeB> for GraphBuilder {
     fn index_mut(&mut self, index: NodeB) -> &mut Self::Output {
         &mut self.connections_b[index]
     }
