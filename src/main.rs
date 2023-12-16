@@ -18,7 +18,7 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
-    let mut g = match args.generate {
+    let g = match args.generate {
         Some(gt) => {
             assert!(args.input.is_none());
             gt.generate(args.seed)
@@ -30,7 +30,6 @@ fn main() {
             }
         },
     };
-    g.create_crossings();
 
     println!(
         "Read graph: {:?} {:?}, {} nodes, {} edges",
