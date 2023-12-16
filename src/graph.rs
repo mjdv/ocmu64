@@ -25,52 +25,56 @@ pub struct Graph {
     pub reduced_crossings: Option<VecB<VecB<u64>>>,
 }
 
-/// Crossings by having b1 before b2.
-fn node_score(g: &Graph, b1: NodeB, b2: NodeB) -> u64 {
-    if let Some(crossings) = &g.crossings {
-        crossings[b1][b2]
-    } else {
-        let mut count = 0;
-        for edge_i in &g.connections_b[b1] {
-            for edge_j in &g.connections_b[b2] {
-                if edge_i > edge_j {
-                    count += 1;
+impl Graph {
+    /// Crossings by having b1 before b2.
+    fn node_score(&self, b1: NodeB, b2: NodeB) -> u64 {
+        if let Some(crossings) = &self.crossings {
+            crossings[b1][b2]
+        } else {
+            let mut count = 0;
+            for edge_i in &self.connections_b[b1] {
+                for edge_j in &self.connections_b[b2] {
+                    if edge_i > edge_j {
+                        count += 1;
+                    }
                 }
             }
+            count
         }
-        count
     }
-}
 
-/// Compute the increase of score from fixing solution[0] before the tail.
-fn partial_score(g: &Graph, solution: &[NodeB]) -> u64 {
-    let rc = g.reduced_crossings.as_ref().expect("Must have crossings.");
-    let mut score = 0;
-    let u = solution[0];
-    for &v in &solution[1..] {
-        score += rc[u][v];
+    /// The score of a solution.
+    fn score(&self, solution: &[NodeB]) -> u64 {
+        let mut score = 0;
+        for (j, &b2) in solution.iter().enumerate() {
+            for &b1 in &solution[..j] {
+                score += self.node_score(b1, b2);
+            }
+        }
+        score
     }
-    score
+
+    /// Compute the increase of score from fixing u before the tail.
+    fn partial_score(&self, u: NodeB, tail: &[NodeB]) -> u64 {
+        let rc = self
+            .reduced_crossings
+            .as_ref()
+            .expect("Must have crossings.");
+        let mut score = 0;
+        for &v in tail {
+            score += rc[u][v];
+        }
+        score
+    }
 }
 
 pub type Solution = Vec<NodeB>;
-
-/// The score of a solution.
-pub fn score(g: &Graph, solution: &[NodeB]) -> u64 {
-    let mut score = 0;
-    for (j, &b2) in solution.iter().enumerate() {
-        for &b1 in &solution[..j] {
-            score += node_score(g, b1, b2);
-        }
-    }
-    score
-}
 
 /// Naive recursive b! search.
 #[allow(unused)]
 pub fn extend_solution_recursive(g: &Graph, solution: &mut Solution) -> (u64, Vec<NodeB>) {
     if solution.len() == g.b.0 {
-        return (score(g, solution), vec![]);
+        return (g.score(solution), vec![]);
     }
     let mut best_score: u64 = u64::MAX;
     let mut best_extension: Vec<NodeB> = vec![];
@@ -100,7 +104,7 @@ fn commute_adjacent(g: &Graph, vec: &mut [NodeB]) {
     while changed {
         changed = false;
         for i in 1..vec.len() {
-            if node_score(g, vec[i - 1], vec[i]) > node_score(g, vec[i], vec[i - 1]) {
+            if g.node_score(vec[i - 1], vec[i]) > g.node_score(vec[i], vec[i - 1]) {
                 (vec[i - 1], vec[i]) = (vec[i], vec[i - 1]);
                 changed = true;
             }
@@ -117,7 +121,7 @@ fn initial_solution(g: &Graph) -> Vec<NodeB> {
 
 pub fn one_sided_crossing_minimization(g: &Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
     let initial_solution = initial_solution(g);
-    let mut initial_score = score(g, &initial_solution);
+    let mut initial_score = g.score(&initial_solution);
     println!("Initial solution found, with score {initial_score}.");
     if let Some(bound) = bound {
         if bound < initial_score {
@@ -174,13 +178,13 @@ impl<'a> Bb<'a> {
     pub fn new(g: &'a Graph, upper_bound: u64) -> Self {
         // Start with a greedy solution.
         let initial_solution = initial_solution(g);
-        let initial_score = score(g, &initial_solution);
+        let initial_score = g.score(&initial_solution);
 
         let mut score = 0;
         let tail = &initial_solution;
         for (i2, &b2) in tail.iter().enumerate() {
             for &b1 in &tail[..i2] {
-                score += min(node_score(g, b1, b2), node_score(g, b2, b1));
+                score += min(g.node_score(b1, b2), g.node_score(b2, b1));
             }
         }
 
@@ -225,7 +229,7 @@ impl<'a> Bb<'a> {
         tail_copy.sort();
 
         if self.solution_len == self.solution.len() {
-            debug_assert_eq!(self.score, score(self.g, &self.solution));
+            debug_assert_eq!(self.score, self.g.score(&self.solution));
             let score = self.score;
             if score < self.upper_bound {
                 assert!(score < self.best_score);
@@ -290,10 +294,9 @@ impl<'a> Bb<'a> {
                 // If this node commutes with the last one, fix their ordering.
                 let u = self.solution[self.solution_len];
                 if let Some(&last) = self.solution.get(self.solution_len.wrapping_sub(1)) {
-                    if node_score(self.g, last, u)
-                    > node_score(self.g, u, last)
-                    // NOTE(ragnar): What is this check doing?
-                    && self.upper_bound < 90000
+                    if self.g.node_score(last, u) > self.g.node_score(u, last)
+                        // NOTE(ragnar): What is this check doing?
+                        && self.upper_bound < 90000
                     {
                         skips = true;
                         continue;
@@ -305,7 +308,10 @@ impl<'a> Bb<'a> {
             self.solution_len += 1;
 
             // Increment score for the new node, and decrement tail_lower_bound.
-            self.score += partial_score(self.g, &self.solution[self.solution_len - 1..]);
+            self.score += self.g.partial_score(
+                self.solution[self.solution_len - 1],
+                &self.solution[self.solution_len..],
+            );
 
             if self.branch_and_bound() {
                 assert!(
