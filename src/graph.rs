@@ -1,6 +1,7 @@
 use crate::node::*;
 use std::{
     cmp::min,
+    collections::{hash_map::Entry, HashMap},
     iter::Step,
     ops::{Index, IndexMut},
 };
@@ -10,6 +11,7 @@ pub mod io;
 pub use builder::GraphBuilder;
 
 #[derive(Debug)]
+#[non_exhaustive]
 pub struct Graph {
     pub a: NodeA,
     pub b: NodeB,
@@ -162,33 +164,37 @@ pub fn one_sided_crossing_minimization(g: &Graph, bound: Option<u64>) -> Option<
     };
     // Clear the \r line.
     eprintln!();
-    eprintln!("States: {:>9}", bb.states);
+    eprintln!("States     : {:>9}", bb.states);
+    eprintln!("Unique sets: {:>9}", bb.lower_bound_for_tail.len());
     sol
 }
 
 #[derive(Debug)]
 pub struct Bb<'a> {
     pub g: &'a Graph,
-    pub solution_len: usize,
+    solution_len: usize,
     /// The first `solution_len` elements are fixed (the 'head').
     /// The remainder ('tail') is sorted in the initial order.
-    pub solution: Solution,
+    solution: Solution,
     /// Partial score of the head.
     /// Includes:
     /// - Crossings within the fixed prefix.
     /// - Crossing between the fixed prefix and the remainder.
     /// - The trivial sum of min(cuv, cvu) lower bound on the score of the tail.
-    pub score: u64,
+    score: u64,
     /// We are looking for a solution with score strictly less than this.
     /// Typically the same as best_score, but may be lower if no good enough solution was found yet.
-    pub upper_bound: u64,
+    upper_bound: u64,
     /// The best solution found so far.
-    pub best_solution: Solution,
+    best_solution: Solution,
     /// The best solution score found so far.
-    pub best_score: u64,
+    best_score: u64,
+
+    /// The best lower bound so far corresponding to each tail.
+    lower_bound_for_tail: HashMap<Vec<NodeB>, u64>,
 
     /// The number of states explored.
-    pub states: u64,
+    states: u64,
 }
 
 impl<'a> Bb<'a> {
@@ -213,6 +219,7 @@ impl<'a> Bb<'a> {
             upper_bound: min(upper_bound, initial_score),
             best_solution: initial_solution,
             best_score: initial_score,
+            lower_bound_for_tail: HashMap::new(),
             states: 0,
         }
     }
@@ -239,6 +246,10 @@ impl<'a> Bb<'a> {
     pub fn branch_and_bound(&mut self) -> bool {
         self.states += 1;
 
+        // TODO(ragnar): Figure out why tail isn't always sorted.
+        let mut tail_copy = self.solution[self.solution_len..].to_vec();
+        tail_copy.sort();
+
         if self.solution_len == self.solution.len() {
             debug_assert_eq!(self.score, score(self.g, &self.solution));
             let score = self.score;
@@ -261,11 +272,17 @@ impl<'a> Bb<'a> {
             }
         }
 
-        // Compute a lower bound on the score as 3 parts:
+        // Compute a lower bound on the score as 3 parts of score:
         // 1. The true score of the head part.
         // 2. Crossings between the head and tail.
         // 3. A lower bound on the score of the tail.
-        let my_lower_bound = self.score;
+        // Additionally, if we already have a lower bound on how much the score of the tail exceeds the trivial lower bound, use that.
+        let my_lower_bound = self.score
+            + self
+                .lower_bound_for_tail
+                .get(&tail_copy)
+                .copied()
+                .unwrap_or_default();
 
         // We can not find a solution of score < upper_bound.
         if self.upper_bound <= my_lower_bound {
@@ -339,6 +356,17 @@ impl<'a> Bb<'a> {
         assert_eq!(self.solution_len, old_solution_len);
         // self.solution[self.solution_len..].rotate_left(1);
         self.solution[self.solution_len..].copy_from_slice(&old_tail);
+        let tail_excess = self.upper_bound - old_score;
+        match self.lower_bound_for_tail.entry(tail_copy) {
+            Entry::Occupied(mut e) => {
+                // We did a search without success so the value must grow.
+                assert!(tail_excess > *e.get());
+                *e.get_mut() = tail_excess;
+            }
+            Entry::Vacant(e) => {
+                e.insert(tail_excess);
+            }
+        }
         solution
     }
 }

@@ -102,3 +102,4 @@ Also runs in $2^c\cdot poly(n,c)$ for max cut-width $c$.
 - B&B based on the subexponential FPT algorithm.
 - Is B&B with memoization of tail lowerbounds the same as doing the DP? This is
   also similar to meet-in-the-middle B&B from both sides?
+- Permute B nodes to be in roughly the right order in memory.
