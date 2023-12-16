@@ -264,11 +264,8 @@ pub struct Bb<'a> {
     /// Includes:
     /// - Crossings within the fixed prefix.
     /// - Crossing between the fixed prefix and the remainder.
-    /// Excludes:
-    /// - Any crossings within the remainder.
+    /// - The trivial sum of min(cuv, cvu) lower bound on the score of the tail.
     pub score: u64,
-    /// The trivial lower bound on the score of the tail.
-    pub tail_lower_bound: u64,
     /// We are looking for a solution with score strictly less than this.
     /// Typically the same as best_score, but may be lower if no good enough solution was found yet.
     pub upper_bound: u64,
@@ -290,11 +287,11 @@ impl<'a> Bb<'a> {
         commute_adjacent(g, &mut initial_solution);
         let initial_score = score(g, &initial_solution);
 
-        let mut tail_lower_bound = 0;
+        let mut score = 0;
         let tail = &initial_solution;
         for (i2, &b2) in tail.iter().enumerate() {
             for &b1 in &tail[..i2] {
-                tail_lower_bound += min(node_score(g, b1, b2), node_score(g, b2, b1));
+                score += min(node_score(g, b1, b2), node_score(g, b2, b1));
             }
         }
 
@@ -302,8 +299,7 @@ impl<'a> Bb<'a> {
             g,
             solution_len: 0,
             solution: initial_solution.clone(),
-            score: 0,
-            tail_lower_bound,
+            score,
             upper_bound: min(upper_bound, initial_score),
             best_solution: initial_solution,
             best_score: initial_score,
@@ -334,7 +330,6 @@ impl<'a> Bb<'a> {
         self.states += 1;
 
         if self.solution_len == self.solution.len() {
-            assert_eq!(self.tail_lower_bound, 0);
             let score = score(self.g, &self.solution);
             assert_eq!(score, self.score);
             eprint!(
@@ -360,7 +355,7 @@ impl<'a> Bb<'a> {
         // 1. The true score of the head part.
         // 2. Crossings between the head and tail.
         // 3. A lower bound on the score of the tail.
-        let my_lower_bound = self.score + self.tail_lower_bound;
+        let my_lower_bound = self.score;
 
         // We can not find a solution of score < upper_bound.
         if self.upper_bound <= my_lower_bound {
@@ -377,7 +372,6 @@ impl<'a> Bb<'a> {
         let old_tail = tail.to_vec();
         let old_solution_len = self.solution_len;
         let old_score = self.score;
-        let old_tail_lower_bound = self.tail_lower_bound;
 
         let get_median = |x| self.g.connections_b[x][self.g.connections_b[x].len() / 2];
         let tail = &mut self.solution[self.solution_len..];
@@ -403,15 +397,13 @@ impl<'a> Bb<'a> {
             }
 
             self.score = old_score;
-            self.tail_lower_bound = old_tail_lower_bound;
             self.solution_len += 1;
 
             // Increment score for the new node, and decrement tail_lower_bound.
             for &v in &self.solution[self.solution_len..] {
                 let cuv = node_score(self.g, u, v);
                 let cvu = node_score(self.g, v, u);
-                self.score += cuv;
-                self.tail_lower_bound -= min(cuv, cvu);
+                self.score += cuv.saturating_sub(cvu);
             }
 
             if self.branch_and_bound() {
