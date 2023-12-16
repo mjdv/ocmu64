@@ -135,7 +135,7 @@ pub fn one_sided_crossing_minimization(g: &Graph, bound: Option<u64>) -> Option<
     let sol = if bb.branch_and_bound() {
         Some((bb.best_solution, bb.best_score))
     } else {
-        None
+        Some((initial_solution, initial_score))
     };
     // Clear the \r line.
     eprintln!();
