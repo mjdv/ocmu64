@@ -211,7 +211,7 @@ pub fn extend_solution_recursive(g: &Graph, solution: &mut Solution) -> (u64, Ve
 }
 
 /// Commute adjacent nodes as long as the score improves.
-fn commute_adjacent(g: &Graph, vec: &mut Solution) {
+fn commute_adjacent(g: &Graph, vec: &mut [NodeB]) {
     let mut changed = true;
     while changed {
         changed = false;
@@ -364,13 +364,15 @@ impl<'a> Bb<'a> {
         }
         assert!(my_lower_bound <= self.best_score);
 
-        // TODO(ragnar): Test whether re-optimizing the tail improves performance.
-        // For now I dropped this to preserve the order of the tail.
+        // TODO(ragnar): Test whether re-optimizing the tail actually improves performance.
+        // Results seem mixed.
         //
-        // To do: use some heuristics to choose an ordering for trying nodes.
-        // let get_median = |x| g.connections_b[x][g.connections_b[x].len() / 2];
-        // remaining_nodes.sort_by_key(|x| get_median(*x));
-        // commute_adjacent(g, &mut remaining_nodes);
+        // TODO(mees): use some heuristics to choose an ordering for trying nodes.
+        let old_tail = tail.to_vec();
+        let get_median = |x| self.g.connections_b[x][self.g.connections_b[x].len() / 2];
+        let tail = &mut self.solution[self.solution_len..];
+        tail.sort_by_key(|x| get_median(*x));
+        commute_adjacent(self.g, tail);
 
         let old_solution_len = self.solution_len;
         let mut solution = false;
@@ -406,7 +408,8 @@ impl<'a> Bb<'a> {
                     // Restore the tail.
                     self.solution_len -= 1;
                     assert_eq!(self.solution_len, old_solution_len);
-                    self.solution[self.solution_len..=i].rotate_left(1);
+                    // self.solution[self.solution_len..=i].rotate_left(1);
+                    self.solution[self.solution_len..].copy_from_slice(&old_tail);
                     return true;
                 }
             }
@@ -414,7 +417,8 @@ impl<'a> Bb<'a> {
         }
         // Restore the tail.
         assert_eq!(self.solution_len, old_solution_len);
-        self.solution[self.solution_len..].rotate_left(1);
+        // self.solution[self.solution_len..].rotate_left(1);
+        self.solution[self.solution_len..].copy_from_slice(&old_tail);
         solution
     }
 }
