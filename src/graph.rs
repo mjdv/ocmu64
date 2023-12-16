@@ -24,6 +24,7 @@ pub struct Graph {
     pub intervals: VecB<Range<NodeA>>,
     /// Stores max(cuv - cvu, 0).
     pub reduced_crossings: Option<VecB<VecB<u64>>>,
+    pub self_crossings: u64,
 }
 
 impl Graph {
@@ -46,7 +47,7 @@ impl Graph {
 
     /// The score of a solution.
     fn score(&self, solution: &[NodeB]) -> u64 {
-        let mut score = 0;
+        let mut score = self.self_crossings;
         for (j, &b2) in solution.iter().enumerate() {
             for &b1 in &solution[..j] {
                 score += self.node_score(b1, b2);
@@ -158,6 +159,7 @@ pub struct Bb<'a> {
     tail_mask: MyBitVec,
     /// Partial score of the head.
     /// Includes:
+    /// - Self crossings from merged twins.
     /// - Crossings within the fixed prefix.
     /// - Crossing between the fixed prefix and the remainder.
     /// - The trivial sum of min(cuv, cvu) lower bound on the score of the tail.
@@ -195,7 +197,7 @@ impl<'a> Bb<'a> {
         let initial_solution = initial_solution(g);
         let initial_score = g.score(&initial_solution);
 
-        let mut score = 0;
+        let mut score = g.self_crossings;
         let tail = &initial_solution;
         for (i2, &b2) in tail.iter().enumerate() {
             for &b1 in &tail[..i2] {

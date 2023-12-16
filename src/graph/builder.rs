@@ -7,6 +7,8 @@ pub struct GraphBuilder {
     pub b: NodeB,
     pub connections_a: VecA<Vec<NodeB>>,
     pub connections_b: VecB<Vec<NodeA>>,
+    /// The number of crossings from merging twins.
+    pub self_crossings: u64,
 }
 
 impl GraphBuilder {
@@ -16,6 +18,7 @@ impl GraphBuilder {
             b,
             connections_a: VecA::new(a),
             connections_b: VecB::new(b),
+            self_crossings: 0,
         }
     }
     /// Returns the id of the pushed node (not the length).
@@ -52,6 +55,7 @@ impl GraphBuilder {
             b: connections_b.len(),
             connections_a,
             connections_b,
+            self_crossings: 0,
         }
     }
 
@@ -67,6 +71,7 @@ impl GraphBuilder {
             crossings: Some(crossings),
             reduced_crossings: Some(reduced_crossings),
             intervals: self.intervals(),
+            self_crossings: self.self_crossings,
         }
     }
 
@@ -75,6 +80,7 @@ impl GraphBuilder {
     /// TODO: Allow customizing whether crossings are built.
     pub fn build(mut self) -> Graph {
         self.drop_singletons();
+        self.merge_twins();
         self.sort_edges();
         self.permute(initial_solution(&self.to_graph()));
         self.sort_edges();
@@ -99,10 +105,49 @@ impl GraphBuilder {
         self.connections_a.retain(|a| !a.is_empty());
         self.reconstruct_b();
         self.sort_edges();
+        eprintln!(
+            "Dropped {} and {} singletons",
+            Step::steps_between(&self.connections_a.len(), &self.a).unwrap(),
+            Step::steps_between(&self.connections_b.len(), &self.b).unwrap()
+        );
+    }
+
+    /// Merge vertices with the same set of neighbours.
+    fn merge_twins(&mut self) {
+        self.sort_edges();
+        self.connections_b.sort();
+        let mut self_crossings = 0;
+        self.connections_b = VecB {
+            v: (NodeB(0)..self.b)
+                .group_by(|x| self[*x].clone())
+                .into_iter()
+                .map(|(key, group)| {
+                    let cnt = group.into_iter().count();
+                    if cnt == 1 {
+                        return key;
+                    }
+                    let pairs = cnt * (cnt - 1) / 2;
+                    let incr = Self::edge_list_crossings(&key, &key) * pairs as u64;
+                    self_crossings += incr;
+                    // eprintln!("Keys: {:?} cnt {cnt} incr {incr}", key);
+                    key.iter()
+                        .flat_map(|x| std::iter::repeat(*x).take(cnt))
+                        .collect()
+                })
+                .collect(),
+        };
+        self.self_crossings += self_crossings;
+        eprintln!(
+            "Merged {} twins; {self_crossings} self crossings",
+            Step::steps_between(&self.connections_b.len(), &self.b).unwrap()
+        );
+        self.reconstruct_a();
     }
 
     /// Reconstruct `connections_a`, given `connections_b`.
     pub fn reconstruct_a(&mut self) {
+        self.a = self.connections_a.len();
+        self.b = self.connections_b.len();
         // Reconstruct A.
         self.connections_a = VecA::new(self.a);
         for b in NodeB(0)..self.b {
@@ -114,6 +159,8 @@ impl GraphBuilder {
 
     /// Reconstruct `connections_b`, given `connections_a`.
     fn reconstruct_b(&mut self) {
+        self.a = self.connections_a.len();
+        self.b = self.connections_b.len();
         self.connections_b = VecB::new(self.b);
         for a in NodeA(0)..self.a {
             for &b in self.connections_a[a].iter() {
@@ -143,10 +190,10 @@ impl GraphBuilder {
         }
     }
 
-    pub fn one_node_crossings(&self, i: NodeB, j: NodeB) -> u64 {
+    pub fn edge_list_crossings(e1: &Vec<NodeA>, e2: &Vec<NodeA>) -> u64 {
         let mut result: u64 = 0;
-        for edge_i in &self[i] {
-            for edge_j in &self[j] {
+        for edge_i in e1 {
+            for edge_j in e2 {
                 if edge_i > edge_j {
                     result += 1;
                 }
@@ -155,7 +202,12 @@ impl GraphBuilder {
         result
     }
 
+    pub fn one_node_crossings(&self, i: NodeB, j: NodeB) -> u64 {
+        Self::edge_list_crossings(&self[i], &self[j])
+    }
+
     fn crossings(&self) -> (VecB<VecB<u64>>, VecB<VecB<u64>>) {
+        // eprintln!("Crossings..");
         let mut crossings: VecB<VecB<u64>> = VecB {
             v: vec![VecB::new(self.b); self.b.0],
         };
