@@ -86,8 +86,9 @@ pub fn low_crossing(n: usize, crossings: u64, rng: &mut impl Rng) -> Graph {
     let mut g = fan_graph(n, rng);
     let mut current_crossing_estimate: u64 = 0;
     while current_crossing_estimate < crossings {
-        let mut b = NodeB(rng.gen_range(0..g.a.0));
+        let mut b = NodeB(rng.gen_range(0..g.b.0));
         let mut a: NodeA = g[b][g[b].len() / 2];
+        dbg!((b, a));
         a = if rng.gen_bool(0.5) {
             NodeA(min(
                 a.0 + (StandardGeometric.sample(rng) as usize + 1),
@@ -96,6 +97,7 @@ pub fn low_crossing(n: usize, crossings: u64, rng: &mut impl Rng) -> Graph {
         } else {
             NodeA(a.0 - min(StandardGeometric.sample(rng) as usize + 1, a.0))
         };
+        dbg!(a);
         if g.try_push_edge(a, b) {
             let mut new_crossings = 0;
             for other_b in NodeB(0)..g.b {
@@ -107,29 +109,31 @@ pub fn low_crossing(n: usize, crossings: u64, rng: &mut impl Rng) -> Graph {
                     }
                 }
             }
+            dbg!(new_crossings);
             while let Some(prev_b) = Step::backward_checked(b, 1) {
                 let cpb = g.one_node_crossings(prev_b, b);
                 let cbp = g.one_node_crossings(b, prev_b);
                 if cpb <= cbp {
                     break;
                 }
-                new_crossings += cbp;
-                new_crossings -= cpb;
+                new_crossings += dbg!(cpb);
+                new_crossings -= dbg!(cbp);
                 g.connections_b.swap(prev_b.0, b.0);
                 b = prev_b;
             }
-            while let Some(next_b) = Step::forward_checked(b, 1) {
+            while Step::forward(b, 1) < g.b {
+                let next_b = Step::forward(b, 1);
                 let cnb = g.one_node_crossings(next_b, b);
                 let cbn = g.one_node_crossings(b, next_b);
                 if cbn <= cnb {
                     break;
                 }
-                new_crossings += cnb;
-                new_crossings -= cbn;
+                new_crossings += dbg!(cnb);
+                new_crossings -= dbg!(cbn);
                 g.connections_b.swap(b.0, next_b.0);
                 b = next_b;
             }
-            current_crossing_estimate += new_crossings;
+            current_crossing_estimate += dbg!(new_crossings);
         }
     }
     g.reconstruct_a();

@@ -147,10 +147,7 @@ impl GraphBuilder {
         let mut result: u64 = 0;
         for edge_i in &self[i] {
             for edge_j in &self[j] {
-                if i > j && edge_j > edge_i {
-                    result += 1;
-                }
-                if j > i && edge_i > edge_j {
+                if edge_i > edge_j {
                     result += 1;
                 }
             }
