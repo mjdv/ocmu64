@@ -251,16 +251,18 @@ pub fn one_sided_crossing_minimization(g: &Graph, bound: Option<u64>) -> Option<
 pub struct Bb<'a> {
     pub g: &'a Graph,
     pub solution_len: usize,
-    /// The first `solution_len` elements are fixed.
-    /// The remainder is sorted in the initial order.
+    /// The first `solution_len` elements are fixed (the 'head').
+    /// The remainder ('tail') is sorted in the initial order.
     pub solution: Solution,
-    /// Score of the partial solution.
+    /// Partial score of the head.
     /// Includes:
     /// - Crossings within the fixed prefix.
     /// - Crossing between the fixed prefix and the remainder.
     /// Excludes:
-    /// - Crossings within the remainder.
-    pub score: usize,
+    /// - Any crossings within the remainder.
+    pub score: u64,
+    /// The trivial lower bound on the score of the tail.
+    pub tail_lower_bound: u64,
     /// We are looking for a solution with score strictly less than this.
     /// Typically the same as best_score, but may be lower if no good enough solution was found yet.
     pub upper_bound: u64,
@@ -282,11 +284,20 @@ impl<'a> Bb<'a> {
         commute_adjacent(g, &mut initial_solution);
         let initial_score = score(g, &initial_solution);
 
+        let mut tail_lower_bound = 0;
+        let tail = &initial_solution;
+        for (i2, &b2) in tail.iter().enumerate() {
+            for &b1 in &tail[..i2] {
+                tail_lower_bound += min(node_score(g, b1, b2), node_score(g, b2, b1));
+            }
+        }
+
         Self {
             g,
             solution_len: 0,
             solution: initial_solution.clone(),
             score: 0,
+            tail_lower_bound,
             upper_bound: min(upper_bound, initial_score),
             best_solution: initial_solution,
             best_score: initial_score,
@@ -317,7 +328,9 @@ impl<'a> Bb<'a> {
         self.states += 1;
 
         if self.solution_len == self.solution.len() {
+            assert_eq!(self.tail_lower_bound, 0);
             let score = score(self.g, &self.solution);
+            assert_eq!(score, self.score);
             eprint!(
                 "Found a solution with score {} after {:>9} steps.\r",
                 score, self.states
@@ -337,26 +350,11 @@ impl<'a> Bb<'a> {
             }
         }
 
-        let head = &self.solution[..self.solution_len];
-        let tail = &self.solution[self.solution_len..];
-
         // Compute a lower bound on the score as 3 parts:
         // 1. The true score of the head part.
-        let mut my_lower_bound = score(self.g, head);
         // 2. Crossings between the head and tail.
-        for &b1 in head {
-            for &b2 in tail {
-                my_lower_bound += node_score(self.g, b1, b2);
-            }
-        }
         // 3. A lower bound on the score of the tail.
-        for (i2, &b2) in tail.iter().enumerate() {
-            for &b1 in &tail[..i2] {
-                my_lower_bound += min(node_score(self.g, b1, b2), node_score(self.g, b2, b1));
-            }
-        }
-        // NOTE(ragnar): I think my_lower_bound is always at least lower_bound?
-        // self.lower_bound = max(self.lower_bound, my_lower_bound);
+        let my_lower_bound = self.score + self.tail_lower_bound;
 
         // We can not find a solution of score < upper_bound.
         if self.upper_bound <= my_lower_bound {
@@ -368,32 +366,48 @@ impl<'a> Bb<'a> {
         // Results seem mixed.
         //
         // TODO(mees): use some heuristics to choose an ordering for trying nodes.
+        let tail = &self.solution[self.solution_len..];
+
         let old_tail = tail.to_vec();
+        let old_solution_len = self.solution_len;
+        let old_score = self.score;
+        let old_tail_lower_bound = self.tail_lower_bound;
+
         let get_median = |x| self.g.connections_b[x][self.g.connections_b[x].len() / 2];
         let tail = &mut self.solution[self.solution_len..];
         tail.sort_by_key(|x| get_median(*x));
         commute_adjacent(self.g, tail);
 
-        let old_solution_len = self.solution_len;
         let mut solution = false;
         // Try each of the tail nodes as next node.
         for i in self.solution_len..self.solution.len() {
             // Swap the next tail node to the front of the tail.
             self.solution.swap(self.solution_len, i);
-            let new_node = self.solution[self.solution_len];
-            self.solution_len += 1;
+            let u = self.solution[self.solution_len];
 
             // If this node commutes with the last one, fix their ordering.
-            if let Some(&last_node) = self.solution.get(self.solution_len.wrapping_sub(2)) {
-                if node_score(self.g, last_node, new_node)
-                    > node_score(self.g, new_node, last_node)
+            if let Some(&last) = self.solution.get(self.solution_len.wrapping_sub(1)) {
+                if node_score(self.g, last, u)
+                    > node_score(self.g, u, last)
                     // NOTE(ragnar): What is this check doing?
                     && self.upper_bound < 90000
                 {
-                    self.solution_len -= 1;
                     continue;
                 }
             }
+
+            self.score = old_score;
+            self.tail_lower_bound = old_tail_lower_bound;
+            self.solution_len += 1;
+
+            // Increment score for the new node, and decrement tail_lower_bound.
+            for &v in &self.solution[self.solution_len..] {
+                let cuv = node_score(self.g, u, v);
+                let cvu = node_score(self.g, v, u);
+                self.score += cuv;
+                self.tail_lower_bound -= min(cuv, cvu);
+            }
+
             if self.branch_and_bound() {
                 assert!(
                     my_lower_bound <= self.best_score,
