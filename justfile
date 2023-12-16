@@ -3,7 +3,7 @@ run *args='':
 generate *args='':
     cargo run -r --bin generate -- {{args}}
 flamegraph *args='':
-    cargo flamegraph -- {{args}}
+    cargo flamegraph --open -- {{args}}
 alias p := record
 record *args='':
     cargo build -r
