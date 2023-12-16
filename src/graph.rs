@@ -1,4 +1,4 @@
-use crate::node::*;
+use crate::{get_flag, node::*};
 use std::{
     cmp::min,
     collections::{hash_map::Entry, HashMap},
@@ -25,6 +25,7 @@ pub struct Graph {
     /// Stores max(cuv - cvu, 0).
     pub reduced_crossings: Option<VecB<VecB<u64>>>,
     pub self_crossings: u64,
+    pub must_come_before: VecB<Vec<NodeB>>,
 }
 
 impl Graph {
@@ -135,7 +136,16 @@ pub fn one_sided_crossing_minimization(g: &Graph, bound: Option<u64>) -> Option<
     let sol = if bb.branch_and_bound() {
         Some((bb.best_solution, bb.best_score))
     } else {
-        Some((initial_solution, initial_score))
+        eprintln!();
+        eprintln!("*****************************************************************");
+        eprintln!("THE INITIAL SOLUTION WAS ALREADY OPTIMAL. PROBABLY B&B HAS A BUG!");
+        eprintln!("*****************************************************************");
+        eprintln!();
+        // For small tests the initial guess may be correct already.
+        #[cfg(test)]
+        return Some((initial_solution, initial_score));
+        #[cfg(not(test))]
+        return None;
     };
     // Clear the \r line.
     eprintln!();
@@ -321,15 +331,25 @@ impl<'a> Bb<'a> {
         // If we skipped some children because of local pruning, do not update the lower bound for this tail.
         let mut skips = false;
         // Try each of the tail nodes as next node.
-        for i in self.solution_len..self.solution.len() {
+        'u: for i in self.solution_len..self.solution.len() {
             // Swap the next tail node to the front of the tail.
             self.solution.swap(self.solution_len, i);
             let u = self.solution[self.solution_len];
 
-            // Do not yet try vertices that start after some other vertex ends.
+            // INTERVALS: Do not yet try vertices that start after some other vertex ends.
             // TODO: Think about the equality case.
             if self.g.intervals[u].start > least_end {
                 continue;
+            }
+
+            // SIBLINGS: u must come after all the v listed here.
+            // NOTE: It turns out this is not a valid optimization sadly.
+            if get_flag("sibling") {
+                for v in &self.g.must_come_before[u] {
+                    if unsafe { *self.tail_mask.get_unchecked(v.0) } {
+                        continue 'u;
+                    }
+                }
             }
 
             // NOTE: It's faster to not skip local inefficiencies, because then
