@@ -7,7 +7,9 @@ default-run = "ocmu64"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [profile.release]
 # 2x smaller file size when 'true', but that takes longer
+# lto = true
 lto = "thin"
+# codegen-units = 1
 incremental = true
 opt-level = 3
 # Debug symbols for profiling.
@@ -18,8 +20,8 @@ debug = true
 
 
 [dependencies]
+bitvec = "1.0.1"
 clap = { version = "4.4.11", features = ["derive"] }
-fxhash = "0.2.1"
 rand = "0.8.5"
 rand_chacha = "0.3.1"
 rand_distr = "0.4.3"
