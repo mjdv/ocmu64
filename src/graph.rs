@@ -1,13 +1,13 @@
+use crate::node::*;
 use std::{
     cmp::min,
-    fs::File,
-    io::{stdin, stdout, BufRead, BufReader, BufWriter, Write},
     iter::Step,
     ops::{Index, IndexMut},
-    path::Path,
 };
 
-use crate::node::*;
+mod builder;
+pub mod io;
+pub use builder::GraphBuilder;
 
 #[derive(Debug)]
 pub struct Graph {
@@ -22,166 +22,7 @@ pub struct Graph {
     pub reduced_crossings: Option<VecB<VecB<u64>>>,
 }
 
-#[derive(Debug, Default)]
-pub struct GraphBuilder {
-    pub a: NodeA,
-    pub b: NodeB,
-    pub connections_a: VecA<Vec<NodeB>>,
-    pub connections_b: VecB<Vec<NodeA>>,
-}
-
-impl GraphBuilder {
-    pub fn with_sizes(a: NodeA, b: NodeB) -> Self {
-        Self {
-            a,
-            b,
-            connections_a: VecA::new(a),
-            connections_b: VecB::new(b),
-        }
-    }
-    /// Returns the id of the pushed node (not the length).
-    pub fn push_node_a(&mut self) -> NodeA {
-        let id = self.connections_a.push();
-        self.a = self.connections_a.len();
-        id
-    }
-
-    /// Returns the id of the pushed node (not the length).
-    pub fn push_node_b(&mut self) -> NodeB {
-        let id = self.connections_b.push();
-        self.b = self.connections_b.len();
-        id
-    }
-
-    pub fn push_edge(&mut self, a: NodeA, b: NodeB) {
-        self[a].push(b);
-        self[b].push(a);
-    }
-
-    pub fn new(connections_a: VecA<Vec<NodeB>>, connections_b: VecB<Vec<NodeA>>) -> GraphBuilder {
-        Self {
-            a: connections_a.len(),
-            b: connections_b.len(),
-            connections_a,
-            connections_b,
-        }
-    }
-
-    // Permute the vertices of the graph so that B is roughly increasing.
-    pub fn build(self) -> Graph {
-        let mut g = Graph {
-            a: self.connections_a.len(),
-            b: self.connections_b.len(),
-            m: self.connections_a.iter().map(|x| x.len()).sum::<usize>(),
-            b_permutation: Default::default(),
-            connections_a: self.connections_a,
-            connections_b: self.connections_b,
-            crossings: None,
-            reduced_crossings: None,
-        };
-
-        for l in g.connections_a.iter_mut() {
-            l.sort();
-        }
-        for l in g.connections_b.iter_mut() {
-            l.sort();
-        }
-        let perm = VecB {
-            v: initial_solution(&g),
-        };
-        let mut inv_perm = VecB {
-            v: vec![NodeB(0); g.b.0],
-        };
-        for (i, &b) in perm.iter().enumerate() {
-            inv_perm[b] = NodeB(i);
-        }
-
-        // A nbs are modified in-place.
-        for b_nbs in g.connections_a.iter_mut() {
-            for b in b_nbs {
-                *b = inv_perm[*b];
-            }
-        }
-        // B nbs are copied.
-        let connections_b = VecB {
-            v: perm
-                .iter()
-                .map(|&b| std::mem::take(&mut g.connections_b[b]))
-                .collect(),
-        };
-
-        for l in g.connections_a.iter_mut() {
-            l.sort();
-        }
-
-        Graph { connections_b, ..g }
-    }
-}
-
 impl Graph {
-    fn to_stream<W: Write>(&self, writer: W) -> Result<(), std::io::Error> {
-        let mut writer = BufWriter::new(writer);
-        let edges = self.connections_a.iter().map(|x| x.len()).sum::<usize>();
-        writeln!(writer, "p ocr {} {} {}", self.a.0, self.b.0, edges)?;
-        for i in NodeA(0)..self.a {
-            for j in &self.connections_a[i] {
-                writeln!(writer, "{} {}", i.0 + 1, j.0 + self.a.0 + 1)?;
-            }
-        }
-        Ok(())
-    }
-
-    pub fn to_file(&self, file_path: &Path) -> Result<(), std::io::Error> {
-        let file = File::create(file_path)?;
-        self.to_stream(file)
-    }
-
-    pub fn to_stdout(&self) -> Result<(), std::io::Error> {
-        self.to_stream(stdout().lock())
-    }
-
-    fn from_stream<T: BufRead>(stream: T) -> Result<Self, std::io::Error> {
-        let mut a = NodeA::default();
-        let mut connections_a: VecA<Vec<NodeB>> = VecA::default();
-        let mut connections_b: VecB<Vec<NodeA>> = VecB::default();
-
-        for line in stream.lines() {
-            let line = line?;
-            if line.starts_with('c') {
-                continue;
-            } else if line.starts_with('p') {
-                let words = line.split(' ').collect::<Vec<&str>>();
-                a = NodeA(words[2].parse().unwrap());
-                let b = NodeB(words[3].parse().unwrap());
-                connections_a = VecA::new(a);
-                connections_b = VecB::new(b);
-            } else {
-                let mut words = line.split_ascii_whitespace();
-                let x = NodeA(words.next().unwrap().parse::<usize>().unwrap() - 1);
-                let y = NodeB(words.next().unwrap().parse::<usize>().unwrap() - a.0 - 1);
-                connections_a[x].push(y);
-                connections_b[y].push(x);
-            }
-        }
-
-        let graph = GraphBuilder::new(connections_a, connections_b).build();
-        Ok(graph)
-    }
-
-    /* Reads a graph from a file (in PACE format).
-     */
-    pub fn from_file(file_path: &Path) -> Result<Self, std::io::Error> {
-        let file = File::open(file_path)?;
-        let reader = BufReader::new(file);
-        Self::from_stream(reader)
-    }
-
-    /* Reads a graph from stdin (in PACE format).
-     */
-    pub fn from_stdin() -> Result<Self, std::io::Error> {
-        Self::from_stream(stdin().lock())
-    }
-
     pub fn create_crossings(&mut self) {
         let mut crossings: VecB<VecB<u64>> = VecB {
             v: vec![VecB::new(self.b); self.b.0],
@@ -525,34 +366,6 @@ impl Index<NodeB> for Graph {
 }
 
 impl IndexMut<NodeB> for Graph {
-    fn index_mut(&mut self, index: NodeB) -> &mut Self::Output {
-        &mut self.connections_b[index]
-    }
-}
-
-impl Index<NodeA> for GraphBuilder {
-    type Output = Vec<NodeB>;
-
-    fn index(&self, index: NodeA) -> &Self::Output {
-        &self.connections_a[index]
-    }
-}
-
-impl IndexMut<NodeA> for GraphBuilder {
-    fn index_mut(&mut self, index: NodeA) -> &mut Self::Output {
-        &mut self.connections_a[index]
-    }
-}
-
-impl Index<NodeB> for GraphBuilder {
-    type Output = Vec<NodeA>;
-
-    fn index(&self, index: NodeB) -> &Self::Output {
-        &self.connections_b[index]
-    }
-}
-
-impl IndexMut<NodeB> for GraphBuilder {
     fn index_mut(&mut self, index: NodeB) -> &mut Self::Output {
         &mut self.connections_b[index]
     }
