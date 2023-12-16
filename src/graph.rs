@@ -491,4 +491,43 @@ mod test {
         let g = GraphType::Fan { n, extra }.generate(Some(seed));
         one_sided_crossing_minimization(&g, None);
     }
+
+    #[test]
+    fn fuzz_fan() {
+        for n in 10..100 {
+            for extra in 0..50 {
+                for seed in 0..10 {
+                    eprintln!("{n} {extra} {seed}");
+                    let g = GraphType::Fan { n, extra }.generate(Some(seed));
+                    one_sided_crossing_minimization(&g, None).expect("no solution found!");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn fuzz_star() {
+        for n in 10..100 {
+            for k in 1..9 {
+                for seed in 0..100 {
+                    eprintln!("{n} {k} {seed}");
+                    let g = GraphType::Star { n, k }.generate(Some(seed));
+                    one_sided_crossing_minimization(&g, None).expect("no solution found!");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn fuzz_low_crossing() {
+        for n in 10..100 {
+            for crossings in 0..n as u64 {
+                for seed in 0..10 {
+                    eprintln!("{n} {crossings} {seed}");
+                    let g = GraphType::LowCrossing { n, crossings }.generate(Some(seed));
+                    one_sided_crossing_minimization(&g, None).expect("no solution found!");
+                }
+            }
+        }
+    }
 }
