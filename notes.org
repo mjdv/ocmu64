@@ -41,16 +41,6 @@ Here's a classic linear programming approach:
 3. Take a fractional variable, and set it to both $0$ and $1$.
 4. Recurse on both options.
 
-* Ideas
-- Slowly increase the upper bound for B&B, starting at an infeasible value. This
-  may work well when time spent on impossible values is exponentially small.
-- B&B both from the top and bottom (or possibly also from the middle?) so we can
-  use larger partial lower bounds?
-  - For example, most likely the points in the top thirds will just never occur
-    in the bottom third and similar in reverse. So B&B good partial solutions
-    for the top and bottom third and find good combinations of those.
-- B&B on partial order of nodes. Binary choices are supposedly better and more elementary.
-
 * FPT algoritms
 ** A first FPT: $\phi ^k$
 [[file:papers/fpt.pdf]]
@@ -99,3 +89,16 @@ Also runs in $2^c\cdot poly(n,c)$ for max cut-width $c$.
      where $c(L, x)$ and $c(S-x, x)$ can be precomputed. Compute these in order
      of increasing size of $S$, so that $opt(L\cup (S-x))$ term will be
      computed before $opt(L\cup S)$.
+
+* Ideas
+- Slowly increase the upper bound for B&B, starting at an infeasible value. This
+  may work well when time spent on impossible values is exponentially small.
+- B&B both from the top and bottom (or possibly also from the middle?) so we can
+  use larger partial lower bounds?
+  - For example, most likely the points in the top thirds will just never occur
+    in the bottom third and similar in reverse. So B&B good partial solutions
+    for the top and bottom third and find good combinations of those.
+- B&B on partial order of nodes. Binary choices are supposedly better and more elementary.
+- B&B based on the subexponential FPT algorithm.
+- Is B&B with memoization of tail lowerbounds the same as doing the DP? This is
+  also similar to meet-in-the-middle B&B from both sides?
