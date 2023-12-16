@@ -44,7 +44,9 @@ fn main() {
     eprintln!("Branch and bound took {:?}", start.elapsed());
     if let Some((bb_solution, bb_score)) = bb_output {
         println!("Score of our beautiful solution: {bb_score}");
-        println!("Our beautiful solution: {:?}", bb_solution);
+        if bb_solution.len() < 200 {
+            println!("Our beautiful solution: {:?}", bb_solution);
+        }
     } else {
         println!("No solution found?!");
     }

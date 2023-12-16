@@ -281,8 +281,10 @@ impl<'a> Bb<'a> {
         // let get_median = |x| self.g.connections_b[x][self.g.connections_b[x].len() / 2];
         // tail.sort_by_key(|x| get_median(*x));
         // TODO: First check if we can swap the elements that were around the new leading element.
-        let tail = &mut self.solution[self.solution_len..];
-        commute_adjacent(self.g, tail);
+        if false {
+            let tail = &mut self.solution[self.solution_len..];
+            commute_adjacent(self.g, tail);
+        }
 
         let mut solution = false;
         // If we skipped some children because of local pruning, do not update the lower bound for this tail.
