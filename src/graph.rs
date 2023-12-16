@@ -178,6 +178,19 @@ fn node_score(g: &Graph, b1: NodeB, b2: NodeB) -> u64 {
     }
 }
 
+/// Compute the increase of score from fixing solution[0] before the tail.
+fn partial_score(g: &Graph, solution: &[NodeB]) -> u64 {
+    let c = g.crossings.as_ref().expect("Must have crossings.");
+    let mut score = 0;
+    let u = solution[0];
+    for &v in &solution[1..] {
+        let cuv = c[u][v];
+        let cvu = c[v][u];
+        score += cuv.saturating_sub(cvu);
+    }
+    score
+}
+
 pub type Solution = Vec<NodeB>;
 
 /// The score of a solution.
@@ -400,11 +413,7 @@ impl<'a> Bb<'a> {
             self.solution_len += 1;
 
             // Increment score for the new node, and decrement tail_lower_bound.
-            for &v in &self.solution[self.solution_len..] {
-                let cuv = node_score(self.g, u, v);
-                let cvu = node_score(self.g, v, u);
-                self.score += cuv.saturating_sub(cvu);
-            }
+            self.score += partial_score(self.g, &self.solution[self.solution_len - 1..]);
 
             if self.branch_and_bound() {
                 assert!(
