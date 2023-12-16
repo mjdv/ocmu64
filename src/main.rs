@@ -5,19 +5,27 @@ use ocmu64::{generate::GraphType, graph::*};
 
 #[derive(clap::Parser)]
 struct Args {
-    /// Optional path to input file, or stdin by default.
-    input: Option<PathBuf>,
     /// Optionally generate a graph instead of reading one.
     #[clap(subcommand)]
     generate: Option<GraphType>,
-    #[clap(short, long)]
+    /// Optional path to input file, or stdin by default.
+    #[clap(global = true)]
     seed: Option<u64>,
-    #[clap(short, long)]
+    #[clap(short, long, global = true)]
+    input: Option<PathBuf>,
+    #[clap(short, long, global = true)]
     upper_bound: Option<u64>,
+    #[clap(global = true)]
+    flags: Vec<String>,
 }
 
 fn main() {
     let args = Args::parse();
+
+    ocmu64::FLAGS.with(|f| {
+        f.borrow_mut().extend(args.flags);
+    });
+
     let g = match args.generate {
         Some(gt) => {
             assert!(args.input.is_none());
