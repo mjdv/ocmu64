@@ -1,5 +1,5 @@
 use std::{
-    cmp::{max, min},
+    cmp::min,
     fs::File,
     io::{stdin, stdout, BufRead, BufReader, BufWriter, Write},
     iter::Step,
@@ -157,7 +157,7 @@ impl Graph {
     }
 }
 
-// Crossings by having b1 before b2.
+/// Crossings by having b1 before b2.
 fn node_score(g: &Graph, b1: NodeB, b2: NodeB) -> u64 {
     if let Some(crossings) = &g.crossings {
         crossings[b1][b2]
@@ -176,7 +176,8 @@ fn node_score(g: &Graph, b1: NodeB, b2: NodeB) -> u64 {
 
 pub type Solution = Vec<NodeB>;
 
-pub fn score(g: &Graph, solution: &Solution) -> u64 {
+/// The score of a solution.
+pub fn score(g: &Graph, solution: &[NodeB]) -> u64 {
     let mut score = 0;
     for (j, &b2) in solution.iter().enumerate() {
         for &b1 in &solution[..j] {
@@ -186,6 +187,7 @@ pub fn score(g: &Graph, solution: &Solution) -> u64 {
     score
 }
 
+/// Naive recursive b! search.
 #[allow(unused)]
 pub fn extend_solution_recursive(g: &Graph, solution: &mut Solution) -> (u64, Vec<NodeB>) {
     if solution.len() == g.b.0 {
@@ -193,8 +195,7 @@ pub fn extend_solution_recursive(g: &Graph, solution: &mut Solution) -> (u64, Ve
     }
     let mut best_score: u64 = u64::MAX;
     let mut best_extension: Vec<NodeB> = vec![];
-    for new_node in 0..g.b.0 {
-        let new_node = NodeB(new_node);
+    for new_node in NodeB(0)..g.b {
         if !solution.contains(&new_node) {
             solution.push(new_node);
             let (new_score, new_extension) = extend_solution_recursive(g, solution);
@@ -209,7 +210,8 @@ pub fn extend_solution_recursive(g: &Graph, solution: &mut Solution) -> (u64, Ve
     (best_score, best_extension)
 }
 
-fn commute_adjacent(g: &Graph, vec: &mut Vec<NodeB>) {
+/// Commute adjacent nodes as long as the score improves.
+fn commute_adjacent(g: &Graph, vec: &mut Solution) {
     let mut changed = true;
     while changed {
         changed = false;
@@ -235,96 +237,186 @@ pub fn one_sided_crossing_minimization(g: &Graph, bound: Option<u64>) -> Option<
             println!("Set bound to {initial_score}.");
         }
     }
-    branch_and_bound(g, vec![], 0, initial_score)
+    let mut bb = Bb::new(g, initial_score);
+    let sol = if bb.branch_and_bound() {
+        Some((bb.best_solution, bb.best_score))
+    } else {
+        None
+    };
+    eprintln!("States: {}", bb.states);
+    sol
 }
 
-/// Branch and bound solution to compute OCM. The function will return either an
-/// optimal extension of the partial solution given, together with its score;
-/// or, it will return no solution, indicating that it is not possible to find
-/// an optimal solution to the global problem by extending this partial
-/// solution.
-///
-/// # Arguments
-///
-/// * `partial_solution` - A partial solution which we try to extend. If we
-/// output a solution at the end, it has to be an extension of this one.
-/// * `lower_bound` - This is an existing lower bound on `partial_solution`,
-/// that is, it can never be extended to a solution with less than `lower_bound`
-/// crossings. If you find an extension of `partial_solution` with `lower_bound`
-/// crossings, you can stop searching further: this solution is optimal.
-/// * `upper_bound` - A solution with this many crossings has already been
-/// found. Once you can prove that `partial_solution` cannot be extended to have
-/// fewer than `upper_bound` crossings, you can stop searching: this branch is
-/// not optimal.
-///
-pub fn branch_and_bound(
-    g: &Graph,
-    partial_solution: Solution,
-    mut lower_bound: u64,
-    mut upper_bound: u64,
-) -> Option<(Solution, u64)> {
-    if partial_solution.len() == g.b.0 {
-        let score = score(g, &partial_solution);
-        return Some((partial_solution, score));
-    }
+#[derive(Debug)]
+pub struct Bb<'a> {
+    pub g: &'a Graph,
+    pub solution_len: usize,
+    /// The first `solution_len` elements are fixed.
+    /// The remainder is sorted in the initial order.
+    pub solution: Solution,
+    /// Score of the partial solution.
+    /// Includes:
+    /// - Crossings within the fixed prefix.
+    /// - Crossing between the fixed prefix and the remainder.
+    /// Excludes:
+    /// - Crossings within the remainder.
+    pub score: usize,
+    /// We are looking for a solution with score strictly less than this.
+    /// Typically the same as best_score, but may be lower if no good enough solution was found yet.
+    pub upper_bound: u64,
+    /// The best solution found so far.
+    pub best_solution: Solution,
+    /// The best solution score found so far.
+    pub best_score: u64,
 
-    let mut remaining_nodes = vec![];
-    for i in NodeB(0)..g.b {
-        if !partial_solution.contains(&i) {
-            remaining_nodes.push(i);
+    /// The number of states explored.
+    pub states: u64,
+}
+
+impl<'a> Bb<'a> {
+    pub fn new(g: &'a Graph, upper_bound: u64) -> Self {
+        // Start with a greedy solution.
+        let mut initial_solution = (NodeB(0)..g.b).collect::<Vec<_>>();
+        let get_median = |x: NodeB| g[x][g[x].len() / 2];
+        initial_solution.sort_by_key(|x| get_median(*x));
+        commute_adjacent(g, &mut initial_solution);
+        let initial_score = score(g, &initial_solution);
+
+        Self {
+            g,
+            solution_len: 0,
+            solution: initial_solution.clone(),
+            score: 0,
+            upper_bound: min(upper_bound, initial_score),
+            best_solution: initial_solution,
+            best_score: initial_score,
+            states: 0,
         }
     }
 
-    // To do: use some heuristics to look for better lower bounds.
-    let mut my_lower_bound = score(g, &partial_solution);
-    for b1 in &partial_solution {
-        for b2 in &remaining_nodes {
-            my_lower_bound += node_score(g, *b1, *b2);
-        }
-    }
-    for (i2, b2) in remaining_nodes.iter().enumerate() {
-        for b1 in &remaining_nodes[..i2] {
-            my_lower_bound += min(node_score(g, *b1, *b2), node_score(g, *b2, *b1));
-        }
-    }
-    lower_bound = max(lower_bound, my_lower_bound);
+    /// Branch and bound solution to compute OCM. The function will return either an
+    /// optimal extension of the partial solution given, together with its score;
+    /// or, it will return no solution, indicating that it is not possible to find
+    /// an optimal solution to the global problem by extending this partial
+    /// solution.
+    ///
+    /// # Arguments
+    ///
+    /// * `partial_solution` - A partial solution which we try to extend. If we
+    /// output a solution at the end, it has to be an extension of this one.
+    /// * `lower_bound` - This is an existing lower bound on `partial_solution`,
+    /// that is, it can never be extended to a solution with less than `lower_bound`
+    /// crossings. If you find an extension of `partial_solution` with `lower_bound`
+    /// crossings, you can stop searching further: this solution is optimal.
+    /// * `upper_bound` - A solution with this many crossings has already been
+    /// found. Once you can prove that `partial_solution` cannot be extended to have
+    /// fewer than `upper_bound` crossings, you can stop searching: this branch is
+    /// not optimal.
+    ///
+    pub fn branch_and_bound(&mut self) -> bool {
+        self.states += 1;
 
-    // No need to search this branch at all?
-    if lower_bound >= upper_bound {
-        return None;
-    }
-
-    // To do: use some heuristics to choose an ordering for trying nodes.
-    let get_median = |x| g.connections_b[x][g.connections_b[x].len() / 2];
-    remaining_nodes.sort_by_key(|x| get_median(*x));
-    commute_adjacent(g, &mut remaining_nodes);
-
-    let mut best_solution = None;
-    for new_node in remaining_nodes {
-        if let Some(last_node) = partial_solution.last() {
-            if node_score(g, *last_node, new_node) > node_score(g, new_node, *last_node)
-                && upper_bound < 90000
-            {
-                continue;
+        if self.solution_len == self.solution.len() {
+            let score = score(self.g, &self.solution);
+            eprint!(
+                "Found a solution with score {} after {:>9} steps.\r",
+                score, self.states
+            );
+            if score < self.upper_bound {
+                assert!(score < self.best_score);
+                self.best_score = score;
+                self.best_solution = self.solution.clone();
+                // We found a solution of this score, so we are now looking for something strictly better.
+                self.upper_bound = score;
+                return true;
+            } else if score < self.best_score {
+                self.best_score = score;
+                return false;
+            } else {
+                return false;
             }
         }
-        let mut new_solution = partial_solution.clone();
-        new_solution.push(new_node);
-        let extension = branch_and_bound(g, new_solution, lower_bound, upper_bound);
-        if let Some((solution_candidate, candidate_score)) = extension {
-            best_solution = Some((solution_candidate, candidate_score));
-            upper_bound = candidate_score;
-        }
-        // Early exit?
-        if lower_bound >= upper_bound {
-            return best_solution;
-        }
-    }
-    /*if best_solution.is_none() {
-        return (None, lower_bound);
-    }*/
 
-    best_solution
+        let head = &self.solution[..self.solution_len];
+        let tail = &self.solution[self.solution_len..];
+
+        // Compute a lower bound on the score as 3 parts:
+        // 1. The true score of the head part.
+        let mut my_lower_bound = score(self.g, head);
+        // 2. Crossings between the head and tail.
+        for &b1 in head {
+            for &b2 in tail {
+                my_lower_bound += node_score(self.g, b1, b2);
+            }
+        }
+        // 3. A lower bound on the score of the tail.
+        for (i2, &b2) in tail.iter().enumerate() {
+            for &b1 in &tail[..i2] {
+                my_lower_bound += min(node_score(self.g, b1, b2), node_score(self.g, b2, b1));
+            }
+        }
+        // NOTE(ragnar): I think my_lower_bound is always at least lower_bound?
+        // self.lower_bound = max(self.lower_bound, my_lower_bound);
+
+        // We can not find a solution of score < upper_bound.
+        if self.upper_bound <= my_lower_bound {
+            return false;
+        }
+        assert!(my_lower_bound <= self.best_score);
+
+        // TODO(ragnar): Test whether re-optimizing the tail improves performance.
+        // For now I dropped this to preserve the order of the tail.
+        //
+        // To do: use some heuristics to choose an ordering for trying nodes.
+        // let get_median = |x| g.connections_b[x][g.connections_b[x].len() / 2];
+        // remaining_nodes.sort_by_key(|x| get_median(*x));
+        // commute_adjacent(g, &mut remaining_nodes);
+
+        let old_solution_len = self.solution_len;
+        let mut solution = false;
+        // Try each of the tail nodes as next node.
+        for i in self.solution_len..self.solution.len() {
+            // Swap the next tail node to the front of the tail.
+            self.solution.swap(self.solution_len, i);
+            let new_node = self.solution[self.solution_len];
+            self.solution_len += 1;
+
+            // If this node commutes with the last one, fix their ordering.
+            if let Some(&last_node) = self.solution.get(self.solution_len.wrapping_sub(2)) {
+                if node_score(self.g, last_node, new_node)
+                    > node_score(self.g, new_node, last_node)
+                    // NOTE(ragnar): What is this check doing?
+                    && self.upper_bound < 90000
+                {
+                    self.solution_len -= 1;
+                    continue;
+                }
+            }
+            if self.branch_and_bound() {
+                assert!(
+                    my_lower_bound <= self.best_score,
+                    "Found a solution with score {} but lower bound is {}",
+                    self.best_score,
+                    my_lower_bound
+                );
+                assert_eq!(self.upper_bound, self.best_score);
+                solution = true;
+                // Early exit?
+                if my_lower_bound == self.best_score {
+                    // Restore the tail.
+                    self.solution_len -= 1;
+                    assert_eq!(self.solution_len, old_solution_len);
+                    self.solution[self.solution_len..=i].rotate_left(1);
+                    return true;
+                }
+            }
+            self.solution_len -= 1;
+        }
+        // Restore the tail.
+        assert_eq!(self.solution_len, old_solution_len);
+        self.solution[self.solution_len..].rotate_left(1);
+        solution
+    }
 }
 
 impl Index<NodeA> for Graph {
