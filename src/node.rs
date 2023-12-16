@@ -4,9 +4,11 @@ use std::{
     ops::{Deref, DerefMut, Index, IndexMut},
 };
 
+/// TODO: u32 indices
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
 pub struct NodeA(pub usize);
 
+/// TODO: u32 indices
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
 pub struct NodeB(pub usize);
 
@@ -140,11 +142,11 @@ impl<T> DerefMut for VecB<T> {
 impl<T> Index<NodeA> for VecA<T> {
     type Output = T;
     fn index(&self, index: NodeA) -> &Self::Output {
-        #[cfg(release)]
+        #[cfg(not(debug_assertions))]
         unsafe {
             self.v.get_unchecked(index.0)
         }
-        #[cfg(not(release))]
+        #[cfg(debug_assertions)]
         &self.v[index.0]
     }
 }
@@ -152,11 +154,11 @@ impl<T> Index<NodeA> for VecA<T> {
 /// Unchecked indexing.
 impl<T> IndexMut<NodeA> for VecA<T> {
     fn index_mut(&mut self, index: NodeA) -> &mut Self::Output {
-        #[cfg(release)]
+        #[cfg(not(debug_assertions))]
         unsafe {
             self.v.get_unchecked_mut(index.0)
         }
-        #[cfg(not(release))]
+        #[cfg(debug_assertions)]
         &mut self.v[index.0]
     }
 }
@@ -165,11 +167,11 @@ impl<T> IndexMut<NodeA> for VecA<T> {
 impl<T> Index<NodeB> for VecB<T> {
     type Output = T;
     fn index(&self, index: NodeB) -> &Self::Output {
-        #[cfg(release)]
+        #[cfg(not(debug_assertions))]
         unsafe {
             self.v.get_unchecked(index.0)
         }
-        #[cfg(not(release))]
+        #[cfg(debug_assertions)]
         &self.v[index.0]
     }
 }
@@ -177,11 +179,11 @@ impl<T> Index<NodeB> for VecB<T> {
 /// Unchecked indexing.
 impl<T> IndexMut<NodeB> for VecB<T> {
     fn index_mut(&mut self, index: NodeB) -> &mut Self::Output {
-        #[cfg(release)]
+        #[cfg(not(debug_assertions))]
         unsafe {
             self.v.get_unchecked_mut(index.0)
         }
-        #[cfg(not(release))]
+        #[cfg(debug_assertions)]
         &mut self.v[index.0]
     }
 }
