@@ -62,7 +62,7 @@ impl Step for NodeB {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct VecA<T> {
     pub(crate) v: Vec<T>,
 }
