@@ -72,6 +72,8 @@ pub struct VecB<T> {
     pub(crate) v: Vec<T>,
 }
 
+/// Vector of A nodes.
+/// Indexing is unchecked by default.
 impl<T: Default + Clone> VecA<T> {
     pub fn new(a: NodeA) -> Self {
         VecA {
@@ -88,6 +90,8 @@ impl<T: Default + Clone> VecA<T> {
     }
 }
 
+/// Vector of B nodes.
+/// Indexing is unchecked by default.
 impl<T: Default + Clone> VecB<T> {
     pub fn new(b: NodeB) -> Self {
         VecB {
@@ -132,28 +136,32 @@ impl<T> DerefMut for VecB<T> {
     }
 }
 
+/// Unchecked indexing.
 impl<T> Index<NodeA> for VecA<T> {
     type Output = T;
     fn index(&self, index: NodeA) -> &Self::Output {
-        &self.v[index.0]
+        unsafe { self.v.get_unchecked(index.0) }
     }
 }
 
+/// Unchecked indexing.
 impl<T> IndexMut<NodeA> for VecA<T> {
     fn index_mut(&mut self, index: NodeA) -> &mut Self::Output {
-        &mut self.v[index.0]
+        unsafe { self.v.get_unchecked_mut(index.0) }
     }
 }
 
+/// Unchecked indexing.
 impl<T> Index<NodeB> for VecB<T> {
     type Output = T;
     fn index(&self, index: NodeB) -> &Self::Output {
-        &self.v[index.0]
+        unsafe { self.v.get_unchecked(index.0) }
     }
 }
 
+/// Unchecked indexing.
 impl<T> IndexMut<NodeB> for VecB<T> {
     fn index_mut(&mut self, index: NodeB) -> &mut Self::Output {
-        &mut self.v[index.0]
+        unsafe { self.v.get_unchecked_mut(index.0) }
     }
 }
