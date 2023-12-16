@@ -344,7 +344,7 @@ impl<'a> Bb<'a> {
 
             // SIBLINGS: u must come after all the v listed here.
             // NOTE: It turns out this is not a valid optimization sadly.
-            if get_flag("sibling") {
+            if get_flag("siblings") {
                 for v in &self.g.must_come_before[u] {
                     if unsafe { *self.tail_mask.get_unchecked(v.0) } {
                         continue 'u;
@@ -497,7 +497,7 @@ impl DerefMut for MyBitVec {
 
 #[cfg(test)]
 mod test {
-    use crate::generate::GraphType;
+    use crate::{clear_flags, generate::GraphType, set_flags};
 
     use super::one_sided_crossing_minimization;
 
@@ -546,6 +546,35 @@ mod test {
                     eprintln!("{n} {crossings} {seed}");
                     let g = GraphType::LowCrossing { n, crossings }.generate(Some(seed));
                     one_sided_crossing_minimization(&g, None).expect("no solution found!");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn fuzz_siblings() {
+        for n in 5..400 {
+            for k in 0..10 {
+                for seed in 0..10000 {
+                    eprintln!("{n} {k} {seed}");
+                    // let g = GraphType::Star { n, k }.generate(Some(seed));
+                    let g = GraphType::Fan { n, extra: k }.generate(Some(seed));
+                    clear_flags();
+                    let (sol1, score1) =
+                        one_sided_crossing_minimization(&g, None).expect("no solution found!");
+                    set_flags(&["siblings"]);
+                    let (sol2, score2) =
+                        one_sided_crossing_minimization(&g, None).expect("no solution found!");
+                    if score1 != score2 {
+                        eprintln!("DIFFERENCE FOUND!");
+                        eprintln!("n: {n} k: {k} seed: {seed}");
+                        eprintln!("{g:?}");
+                        eprintln!("score1: {}", score1);
+                        eprintln!("score2: {}", score2);
+                        eprintln!("sol1: {:?}", sol1);
+                        eprintln!("sol2: {:?}", sol2);
+                        panic!();
+                    }
                 }
             }
         }

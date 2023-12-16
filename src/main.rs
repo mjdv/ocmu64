@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use clap::Parser;
-use ocmu64::{generate::GraphType, graph::*};
+use ocmu64::{generate::GraphType, graph::*, set_flags};
 
 #[derive(clap::Parser)]
 struct Args {
@@ -22,9 +22,7 @@ struct Args {
 fn main() {
     let args = Args::parse();
 
-    ocmu64::FLAGS.with(|f| {
-        f.borrow_mut().extend(args.flags);
-    });
+    set_flags(&args.flags);
 
     let g = match args.generate {
         Some(gt) => {

@@ -10,3 +10,13 @@ thread_local! {
 pub fn get_flag(name: &str) -> bool {
     FLAGS.with(|f| f.borrow().iter().any(|flag| flag == name))
 }
+pub fn clear_flags() {
+    FLAGS.with(|f| f.borrow_mut().clear());
+}
+pub fn set_flags(flags: &[impl AsRef<str>]) {
+    FLAGS.with(|f| {
+        let mut f = f.borrow_mut();
+        f.clear();
+        f.extend(flags.iter().map(|f| f.as_ref().to_string()));
+    });
+}
