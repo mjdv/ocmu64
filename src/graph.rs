@@ -1,11 +1,12 @@
 use crate::node::*;
 use std::{
     cmp::min,
-    collections::{hash_map::Entry, HashMap},
+    collections::hash_map::Entry,
     ops::{Index, IndexMut, Range},
 };
 
 pub use builder::GraphBuilder;
+use fxhash::FxHashMap;
 
 mod builder;
 mod io;
@@ -168,7 +169,7 @@ pub struct Bb<'a> {
     /// The bitmask only has to be as wide as the cutwidth of the graph.
     /// It could be a template parameter to use the smallest width that is sufficiently large.
     /// TODO: Make the score a u32 here?
-    lower_bound_for_tail: HashMap<Vec<NodeB>, u64>,
+    lower_bound_for_tail: FxHashMap<Vec<NodeB>, u64>,
 
     /// The number of states explored.
     states: u64,
@@ -196,7 +197,7 @@ impl<'a> Bb<'a> {
             upper_bound: min(upper_bound, initial_score),
             best_solution: initial_solution,
             best_score: initial_score,
-            lower_bound_for_tail: HashMap::new(),
+            lower_bound_for_tail: FxHashMap::default(),
             states: 0,
         }
     }
