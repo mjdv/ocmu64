@@ -32,7 +32,13 @@ fn main() {
     };
     g.create_crossings();
 
-    println!("Read a graph: ({:?}).", g);
+    println!(
+        "Read graph: {:?} {:?}, {} nodes, {} edges",
+        g.a,
+        g.b,
+        g.a.0 + g.b.0,
+        g.m
+    );
     println!("Branch and bound...");
     let start = std::time::Instant::now();
     let bb_output = one_sided_crossing_minimization(&g, args.upper_bound);

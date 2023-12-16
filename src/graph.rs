@@ -13,6 +13,7 @@ use crate::node::*;
 pub struct Graph {
     pub a: NodeA,
     pub b: NodeB,
+    pub m: usize,
     pub connections_a: VecA<Vec<NodeB>>,
     pub connections_b: VecB<Vec<NodeA>>,
     pub crossings: Option<VecB<VecB<u64>>>,
@@ -23,6 +24,7 @@ impl Graph {
         Self {
             a,
             b,
+            m: 0,
             connections_a: VecA::new(a),
             connections_b: VecB::new(b),
             crossings: None,
@@ -42,6 +44,7 @@ impl Graph {
         Self {
             a,
             b,
+            m: connections_a.iter().map(|x| x.len()).sum::<usize>(),
             connections_a,
             connections_b,
             crossings: None,
@@ -65,6 +68,7 @@ impl Graph {
     pub fn push_edge(&mut self, a: NodeA, b: NodeB) {
         self[a].push(b);
         self[b].push(a);
+        self.m += 1;
     }
 
     fn to_stream<W: Write>(&self, writer: W) -> Result<(), std::io::Error> {
@@ -243,7 +247,9 @@ pub fn one_sided_crossing_minimization(g: &Graph, bound: Option<u64>) -> Option<
     } else {
         None
     };
-    eprintln!("States: {}", bb.states);
+    // Clear the \r line.
+    eprintln!();
+    eprintln!("States: {:>9}", bb.states);
     sol
 }
 
