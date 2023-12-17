@@ -125,11 +125,11 @@ fn initial_solution(g: &Graph) -> Vec<NodeB> {
 pub fn one_sided_crossing_minimization(g: &Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
     let initial_solution = initial_solution(g);
     let mut initial_score = g.score(&initial_solution);
-    println!("Initial solution found, with score {initial_score}.");
+    eprintln!("Initial solution found, with score {initial_score}.");
     if let Some(bound) = bound {
         if bound < initial_score {
             initial_score = bound;
-            println!("Set bound to {initial_score}.");
+            eprintln!("Set bound to {initial_score}.");
         }
     }
     let mut bb = Bb::new(g, initial_score);
@@ -497,7 +497,7 @@ impl DerefMut for MyBitVec {
 
 #[cfg(test)]
 mod test {
-    use crate::{clear_flags, generate::GraphType, set_flags};
+    use crate::{clear_flags, generate::GraphType, node::NodeB, set_flags};
 
     use super::one_sided_crossing_minimization;
 
@@ -552,13 +552,78 @@ mod test {
     }
 
     #[test]
+    fn bad_siblings() {
+        let mut ok = true;
+        for (t, seed, drop) in [
+            (GraphType::Star { n: 25, k: 4 }, 490, vec![]),
+            (GraphType::Fan { n: 12, extra: 8 }, 7071, vec![]),
+            (
+                GraphType::Fan { n: 30, extra: 9 },
+                7203,
+                [0, 2, 5, 6, 7, 9, 10, 11].map(NodeB).to_vec(),
+            ),
+            (
+                GraphType::LowCrossing {
+                    n: 685,
+                    crossings: 415,
+                },
+                2,
+                vec![],
+            ),
+            (
+                GraphType::LowCrossing {
+                    n: 285,
+                    crossings: 185,
+                },
+                46,
+                vec![],
+            ),
+        ] {
+            let g = t.generate(Some(seed));
+            let mut g = g.builder();
+            g.drop_b(&drop);
+            let g = g.build();
+            clear_flags();
+            let (sol1, score1) =
+                one_sided_crossing_minimization(&g, None).expect("no solution found!");
+            set_flags(&["siblings"]);
+            let (sol2, score2) =
+                one_sided_crossing_minimization(&g, None).expect("no solution found!");
+            if score1 != score2 {
+                eprintln!("DIFFERENCE FOUND!");
+                eprintln!("{t:?} seed: {seed}");
+                eprintln!("{g:?}");
+                for u in NodeB(0)..g.b {
+                    for v in &g.must_come_before[u] {
+                        eprint!("{}<{} ", v.0, u.0);
+                    }
+                }
+                eprintln!();
+                eprintln!("score1: {}", score1);
+                eprintln!("score2: {}", score2);
+                eprintln!("sol1: {:?}", sol1);
+                eprintln!("sol2: {:?}", sol2);
+                eprintln!();
+                ok = false;
+            }
+        }
+        assert!(ok);
+    }
+
+    #[ignore]
+    #[test]
     fn fuzz_siblings() {
-        for n in 5..400 {
-            for k in 0..10 {
-                for seed in 0..10000 {
-                    eprintln!("{n} {k} {seed}");
-                    // let g = GraphType::Star { n, k }.generate(Some(seed));
-                    let g = GraphType::Fan { n, extra: k }.generate(Some(seed));
+        for n in (5..10000).step_by(20) {
+            println!("n = {}", n);
+            for k in (5..n).step_by(10) {
+                for seed in 0..100 {
+                    // let t = GraphType::Star { n, k };
+                    // let t = GraphType::Fan { n, extra: k };
+                    let t = GraphType::LowCrossing {
+                        n,
+                        crossings: k as _,
+                    };
+                    let g = t.generate(Some(seed));
                     clear_flags();
                     let (sol1, score1) =
                         one_sided_crossing_minimization(&g, None).expect("no solution found!");
@@ -566,13 +631,18 @@ mod test {
                     let (sol2, score2) =
                         one_sided_crossing_minimization(&g, None).expect("no solution found!");
                     if score1 != score2 {
-                        eprintln!("DIFFERENCE FOUND!");
-                        eprintln!("n: {n} k: {k} seed: {seed}");
-                        eprintln!("{g:?}");
-                        eprintln!("score1: {}", score1);
-                        eprintln!("score2: {}", score2);
-                        eprintln!("sol1: {:?}", sol1);
-                        eprintln!("sol2: {:?}", sol2);
+                        println!("{t:?} seed: {seed}");
+                        for u in NodeB(0)..g.b {
+                            for v in &g.must_come_before[u] {
+                                print!("{}<{} ", v.0, u.0);
+                            }
+                        }
+                        println!();
+                        println!("score1: {}", score1);
+                        println!("score2: {}", score2);
+                        println!("sol1: {:?}", sol1);
+                        println!("sol2: {:?}", sol2);
+                        println!();
                         panic!();
                     }
                 }

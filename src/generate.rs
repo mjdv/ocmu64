@@ -4,7 +4,7 @@ use crate::{graph::*, node::*};
 use rand::{seq::SliceRandom, Rng, SeedableRng};
 use rand_distr::{Distribution, StandardGeometric};
 
-#[derive(clap::Parser)]
+#[derive(clap::Parser, Debug)]
 pub enum GraphType {
     /// A graph with 0 crossing, with some random extra edges.
     Fan { n: usize, extra: usize },
@@ -28,6 +28,7 @@ impl GraphType {
             GraphType::Star { n, k } => stars(n, k, rng),
             GraphType::LowCrossing { n, crossings } => low_crossing(n, crossings, rng),
         }
+        .build()
     }
 }
 
@@ -51,20 +52,20 @@ pub fn fan_graph(n: usize, rng: &mut impl Rng) -> GraphBuilder {
 }
 
 /// A fan graph with some random edges added in.
-pub fn fan_graph_with_random_edges(n: usize, extra: usize, rng: &mut impl Rng) -> Graph {
+pub fn fan_graph_with_random_edges(n: usize, extra: usize, rng: &mut impl Rng) -> GraphBuilder {
     let mut g = fan_graph(n, rng);
     for _ in 0..extra {
         let a = NodeA(rng.gen_range(0..g.a.0));
         let b = NodeB(rng.gen_range(0..g.b.0));
         g.push_edge(a, b);
     }
-    g.build()
+    g
 }
 
 /// Create n/(k+1) star graphs rooted in B with endpoints in A.
 /// Each of the B nodes has k random neighbours in A.
 /// All A nodes have degree 1.
-pub fn stars(n: usize, k: usize, rng: &mut impl Rng) -> Graph {
+pub fn stars(n: usize, k: usize, rng: &mut impl Rng) -> GraphBuilder {
     let n = n / (k + 1);
     let a = NodeA(k * n);
     let b = NodeB(n);
@@ -79,10 +80,10 @@ pub fn stars(n: usize, k: usize, rng: &mut impl Rng) -> Graph {
             g.push_edge(a, b);
         }
     }
-    g.build()
+    g
 }
 
-pub fn low_crossing(n: usize, crossings: u64, rng: &mut impl Rng) -> Graph {
+pub fn low_crossing(n: usize, crossings: u64, rng: &mut impl Rng) -> GraphBuilder {
     let mut g = fan_graph(n, rng);
     let mut current_crossings: i64 = 0;
     while (current_crossings as u64) < crossings {
@@ -132,5 +133,5 @@ pub fn low_crossing(n: usize, crossings: u64, rng: &mut impl Rng) -> Graph {
         }
     }
     g.reconstruct_a();
-    g.build()
+    g
 }
