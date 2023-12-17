@@ -13,6 +13,18 @@ pub struct GraphBuilder {
     pub self_crossings: u64,
 }
 
+impl Graph {
+    pub fn builder(&self) -> GraphBuilder {
+        GraphBuilder {
+            a: self.a,
+            b: self.b,
+            connections_a: self.connections_a.clone(),
+            connections_b: self.connections_b.clone(),
+            self_crossings: self.self_crossings,
+        }
+    }
+}
+
 impl GraphBuilder {
     pub fn with_sizes(a: NodeA, b: NodeB) -> Self {
         Self {
@@ -49,6 +61,24 @@ impl GraphBuilder {
             self.push_edge(a, b);
             true
         }
+    }
+
+    pub fn drop_a(&mut self, a: &[NodeA]) {
+        let mut a = a.to_vec();
+        a.sort();
+        for &a in a.iter().rev() {
+            self.connections_a.remove(a.0);
+        }
+        self.reconstruct_b();
+    }
+
+    pub fn drop_b(&mut self, b: &[NodeB]) {
+        let mut b = b.to_vec();
+        b.sort();
+        for &b in b.iter().rev() {
+            self.connections_b.remove(b.0);
+        }
+        self.reconstruct_a();
     }
 
     pub fn new(connections_a: VecA<Vec<NodeB>>, connections_b: VecB<Vec<NodeA>>) -> GraphBuilder {
