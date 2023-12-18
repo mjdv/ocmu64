@@ -2,7 +2,7 @@ use std::{cmp::min, iter::Step};
 
 use crate::{graph::*, node::*};
 use rand::{seq::SliceRandom, Rng, SeedableRng};
-use rand_distr::{Distribution, StandardGeometric};
+use rand_distr::{Distribution, Geometric};
 
 #[derive(clap::Parser, Debug)]
 pub enum GraphType {
@@ -13,7 +13,12 @@ pub enum GraphType {
     /// A fan graph with some random modifications that keeps the number of
     /// crossings small. (The number of crossings parameter is an
     /// approximation.)
-    LowCrossing { n: usize, crossings: u64 },
+    LowCrossing {
+        n: usize,
+        crossings: u64,
+        #[clap(default_value_t = 0.5)]
+        p: f64,
+    },
 }
 
 impl GraphType {
@@ -26,7 +31,7 @@ impl GraphType {
         match *self {
             GraphType::Fan { n, extra } => fan_graph_with_random_edges(n, extra, rng),
             GraphType::Star { n, k } => stars(n, k, rng),
-            GraphType::LowCrossing { n, crossings } => low_crossing(n, crossings, rng),
+            GraphType::LowCrossing { n, crossings, p } => low_crossing(n, crossings, p, rng),
         }
         .build()
     }
@@ -83,19 +88,21 @@ pub fn stars(n: usize, k: usize, rng: &mut impl Rng) -> GraphBuilder {
     g
 }
 
-pub fn low_crossing(n: usize, crossings: u64, rng: &mut impl Rng) -> GraphBuilder {
+pub fn low_crossing(n: usize, crossings: u64, p: f64, rng: &mut impl Rng) -> GraphBuilder {
     let mut g = fan_graph(n, rng);
     let mut current_crossings: i64 = 0;
+    let geometric_distribution: Geometric =
+        Geometric::new(p).expect("Not a valid probability for geometric distribution.");
     while (current_crossings as u64) < crossings {
-        let mut b = NodeB(rng.gen_range(0..g.b.0));
+        let mut b: NodeB = NodeB(rng.gen_range(0..g.b.0));
         let mut a: NodeA = g[b][g[b].len() / 2];
         a = if rng.gen_bool(0.5) {
             NodeA(min(
-                a.0 + (StandardGeometric.sample(rng) as usize + 1),
+                a.0 + (geometric_distribution.sample(rng) as usize + 1),
                 g.a.0 - 1,
             ))
         } else {
-            NodeA(a.0 - min(StandardGeometric.sample(rng) as usize + 1, a.0))
+            NodeA(a.0 - min(geometric_distribution.sample(rng) as usize + 1, a.0))
         };
         if g.try_push_edge(a, b) {
             let mut new_crossings: i64 = 0;
