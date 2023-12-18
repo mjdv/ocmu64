@@ -2,7 +2,7 @@ use std::{cmp::min, iter::Step};
 
 use crate::{graph::*, node::*};
 use rand::{seq::SliceRandom, Rng, SeedableRng};
-use rand_distr::{Distribution, Geometric};
+use rand_distr::{Distribution, Geometric, Uniform, WeightedIndex};
 
 #[derive(clap::Parser, Debug)]
 pub enum GraphType {
@@ -19,6 +19,14 @@ pub enum GraphType {
         #[clap(default_value_t = 0.5)]
         p: f64,
     },
+    LowCrossingClustered {
+        n: usize,
+        crossings: u64,
+        #[clap(default_value_t = 0.5)]
+        p: f64,
+        #[clap(default_value_t = 100.0)]
+        sigma: f64,
+    },
 }
 
 impl GraphType {
@@ -32,6 +40,12 @@ impl GraphType {
             GraphType::Fan { n, extra } => fan_graph_with_random_edges(n, extra, rng),
             GraphType::Star { n, k } => stars(n, k, rng),
             GraphType::LowCrossing { n, crossings, p } => low_crossing(n, crossings, p, rng),
+            GraphType::LowCrossingClustered {
+                n,
+                crossings,
+                p,
+                sigma,
+            } => low_crossing_clustered(n, crossings, p, sigma, rng),
         }
         .build()
     }
@@ -88,13 +102,20 @@ pub fn stars(n: usize, k: usize, rng: &mut impl Rng) -> GraphBuilder {
     g
 }
 
-pub fn low_crossing(n: usize, crossings: u64, p: f64, rng: &mut impl Rng) -> GraphBuilder {
-    let mut g = fan_graph(n, rng);
-    let mut current_crossings: i64 = 0;
+pub fn low_crossing_with_distribution<T: Distribution<usize>>(
+    fan_graph: GraphBuilder,
+    crossings: u64,
+    b_distribution: T,
+    p: f64,
+    rng: &mut impl Rng,
+) -> GraphBuilder {
+    let mut g = fan_graph;
     let geometric_distribution: Geometric =
         Geometric::new(p).expect("Not a valid probability for geometric distribution.");
+
+    let mut current_crossings: i64 = 0;
     while (current_crossings as u64) < crossings {
-        let mut b: NodeB = NodeB(rng.gen_range(0..g.b.0));
+        let mut b: NodeB = NodeB(b_distribution.sample(rng));
         let mut a: NodeA = g[b][g[b].len() / 2];
         a = if rng.gen_bool(0.5) {
             NodeA(min(
@@ -141,4 +162,26 @@ pub fn low_crossing(n: usize, crossings: u64, p: f64, rng: &mut impl Rng) -> Gra
     }
     g.reconstruct_a();
     g
+}
+
+pub fn low_crossing(n: usize, crossings: u64, p: f64, rng: &mut impl Rng) -> GraphBuilder {
+    let g = fan_graph(n, rng);
+    let uniform_distribution = Uniform::try_from(0..g.b.0).unwrap();
+    low_crossing_with_distribution(g, crossings, uniform_distribution, p, rng)
+}
+
+pub fn low_crossing_clustered(
+    n: usize,
+    crossings: u64,
+    p: f64,
+    sigma: f64,
+    rng: &mut impl Rng,
+) -> GraphBuilder {
+    let g = fan_graph(n, rng);
+    let weight_vector: Vec<f64> = (0..g.b.0)
+        .map(|x| f64::exp(-((x as f64 - (g.b.0 / 2) as f64) / sigma).powi(2)) / sigma)
+        .collect();
+    println!("Sum = {}", weight_vector.iter().sum::<f64>());
+    let normal_distribution = WeightedIndex::new(&weight_vector).unwrap();
+    low_crossing_with_distribution(g, crossings, normal_distribution, p, rng)
 }

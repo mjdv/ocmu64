@@ -543,9 +543,11 @@ mod test {
         for n in 10..100 {
             for crossings in 0..n as u64 {
                 for seed in 0..10 {
-                    eprintln!("{n} {crossings} {seed}");
-                    let g = GraphType::LowCrossing { n, crossings }.generate(Some(seed));
-                    one_sided_crossing_minimization(&g, None).expect("no solution found!");
+                    for p in (1..9).map(|x| (x as f64) / 10.0) {
+                        eprintln!("{n} {crossings} {seed} {p}");
+                        let g = GraphType::LowCrossing { n, crossings, p }.generate(Some(seed));
+                        one_sided_crossing_minimization(&g, None).expect("no solution found!");
+                    }
                 }
             }
         }
@@ -566,6 +568,7 @@ mod test {
                 GraphType::LowCrossing {
                     n: 685,
                     crossings: 415,
+                    p: 0.5,
                 },
                 2,
                 vec![],
@@ -574,6 +577,7 @@ mod test {
                 GraphType::LowCrossing {
                     n: 285,
                     crossings: 185,
+                    p: 0.5,
                 },
                 46,
                 vec![],
@@ -622,6 +626,7 @@ mod test {
                     let t = GraphType::LowCrossing {
                         n,
                         crossings: k as _,
+                        p: 0.5,
                     };
                     let g = t.generate(Some(seed));
                     clear_flags();
