@@ -91,6 +91,14 @@ impl<T: Default + Clone> VecA<T> {
         id
     }
 }
+impl VecA<Vec<NodeB>> {
+    pub fn b_len(&self) -> NodeB {
+        Step::forward(
+            *self.iter().filter_map(|x| x.iter().max()).max().unwrap(),
+            1,
+        )
+    }
+}
 
 /// Vector of B nodes.
 /// Indexing is unchecked by default.
@@ -107,6 +115,14 @@ impl<T: Default + Clone> VecB<T> {
         let id = self.len();
         self.v.push(T::default());
         id
+    }
+}
+impl VecB<Vec<NodeA>> {
+    pub fn a_len(&self) -> NodeA {
+        Step::forward(
+            *self.iter().filter_map(|x| x.iter().max()).max().unwrap(),
+            1,
+        )
     }
 }
 

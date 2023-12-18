@@ -30,10 +30,9 @@ fn main() {
             gt.generate(args.seed)
         }
         None => match args.input {
-            Some(f) => Graph::from_file(&f).expect("Unable to read graph from file."),
-            None => {
-                Graph::from_stdin().expect("Did not get a graph in the correct format on stdin.")
-            }
+            Some(f) => GraphBuilder::from_file(&f).expect("Unable to read graph from file."),
+            None => GraphBuilder::from_stdin()
+                .expect("Did not get a graph in the correct format on stdin."),
         },
     };
 
@@ -42,11 +41,11 @@ fn main() {
         g.a,
         g.b,
         g.a.0 + g.b.0,
-        g.m
+        g.connections_a.iter().map(|x| x.len()).sum::<usize>()
     );
     println!("Branch and bound...");
     let start = std::time::Instant::now();
-    let bb_output = one_sided_crossing_minimization(&g, args.upper_bound);
+    let bb_output = one_sided_crossing_minimization(g, args.upper_bound);
     eprintln!("Branch and bound took {:?}", start.elapsed());
     if let Some((bb_solution, bb_score)) = bb_output {
         println!("Score of our beautiful solution: {bb_score}");
