@@ -1,9 +1,9 @@
 use itertools::Itertools;
 
 use super::*;
-use std::{self, iter::Step, ops::Range};
+use std::{self, cmp::max, iter::Step, ops::Range};
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct GraphBuilder {
     pub a: NodeA,
     pub b: NodeB,
@@ -81,17 +81,27 @@ impl GraphBuilder {
         self.reconstruct_a();
     }
 
-    pub fn new(connections_a: VecA<Vec<NodeB>>, connections_b: VecB<Vec<NodeA>>) -> GraphBuilder {
-        Self {
-            a: connections_a.len(),
+    pub fn new(connections_b: VecB<Vec<NodeA>>) -> GraphBuilder {
+        let a = Step::forward(
+            *connections_b
+                .iter()
+                .filter_map(|x| x.iter().max())
+                .max()
+                .unwrap(),
+            1,
+        );
+        let mut g = Self {
+            a,
             b: connections_b.len(),
-            connections_a,
+            connections_a: Default::default(),
             connections_b,
             self_crossings: 0,
-        }
+        };
+        g.reconstruct_a();
+        g
     }
 
-    fn to_quick_graph(&self) -> Graph {
+    pub fn to_quick_graph(&self) -> Graph {
         Graph {
             a: self.a,
             b: self.b,
@@ -105,6 +115,51 @@ impl GraphBuilder {
             self_crossings: self.self_crossings,
             must_come_before: VecB::new(self.b),
         }
+    }
+
+    /// Split into non-trivial graphs corresponding to disjoint intervals.
+    fn split(&self) -> Vec<GraphBuilder> {
+        let mut intervals = self.intervals();
+        // Suffix min of start
+        {
+            let mut min_start = self.a;
+            for r in intervals.iter_mut().rev() {
+                min_start = min(min_start, r.start);
+                r.start = min_start;
+            }
+        }
+        // Prefix max of end
+        {
+            let mut max_end = NodeA(0);
+            for r in intervals.iter_mut() {
+                max_end = max(max_end, r.end);
+                r.end = max_end;
+            }
+        }
+
+        let mut graphs = vec![];
+        let mut i = 0;
+        while i < self.b.0 {
+            // Find the component starting at intervals[i].
+            let mut j = i + 1;
+            let mut end = intervals[NodeB(i)].end;
+            while j < self.b.0 && intervals[NodeB(j)].start < end {
+                end = max(end, intervals[NodeB(j)].end);
+                j += 1;
+            }
+            // Size-1 components can be skipped.
+            if j == i + 1 {
+                i = j;
+                continue;
+            }
+            // Convert the component into a Graph on its own.
+            let g = GraphBuilder::new(VecB {
+                v: self.connections_b.v[i..j].to_vec(),
+            });
+            graphs.push(g);
+            i = j;
+        }
+        graphs
     }
 
     fn to_graph(&self) -> Graph {
@@ -127,13 +182,13 @@ impl GraphBuilder {
     /// Permute the vertices of the graph so that B is roughly increasing.
     /// TODO: Store metadata to be able to invert the final solution.
     /// TODO: Allow customizing whether crossings are built.
-    pub fn build(mut self) -> Graph {
+    pub fn build(mut self) -> Graphs {
         self.drop_singletons();
         self.merge_twins();
         self.sort_edges();
         self.permute(initial_solution(&self.to_quick_graph()));
         self.sort_edges();
-        self.to_graph()
+        self.split().iter().map(|g| g.to_graph()).collect()
     }
 }
 
@@ -154,11 +209,11 @@ impl GraphBuilder {
         self.connections_a.retain(|a| !a.is_empty());
         self.reconstruct_b();
         self.sort_edges();
-        eprintln!(
-            "Dropped {} and {} singletons",
-            Step::steps_between(&self.connections_a.len(), &self.a).unwrap(),
-            Step::steps_between(&self.connections_b.len(), &self.b).unwrap()
-        );
+        let da = Step::steps_between(&self.connections_a.len(), &self.a).unwrap();
+        let db = Step::steps_between(&self.connections_b.len(), &self.b).unwrap();
+        if da > 0 || db > 0 {
+            eprintln!("Dropped {da} and {db} singletons",);
+        }
     }
 
     /// Merge vertices with the same set of neighbours.
@@ -242,9 +297,8 @@ impl GraphBuilder {
 
     /// Reconstruct `connections_a`, given `connections_b`.
     pub fn reconstruct_a(&mut self) {
-        self.a = self.connections_a.len();
+        self.a = self.connections_b.a_len();
         self.b = self.connections_b.len();
-        // Reconstruct A.
         self.connections_a = VecA::new(self.a);
         for b in NodeB(0)..self.b {
             for &a in self.connections_b[b].iter() {
@@ -256,7 +310,7 @@ impl GraphBuilder {
     /// Reconstruct `connections_b`, given `connections_a`.
     fn reconstruct_b(&mut self) {
         self.a = self.connections_a.len();
-        self.b = self.connections_b.len();
+        self.b = self.connections_a.b_len();
         self.connections_b = VecB::new(self.b);
         for a in NodeA(0)..self.a {
             for &b in self.connections_a[a].iter() {

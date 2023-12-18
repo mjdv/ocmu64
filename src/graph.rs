@@ -28,6 +28,8 @@ pub struct Graph {
     pub must_come_before: VecB<Vec<NodeB>>,
 }
 
+pub type Graphs = Vec<Graph>;
+
 impl Graph {
     /// Crossings by having b1 before b2.
     fn node_score(&self, b1: NodeB, b2: NodeB) -> u64 {
@@ -122,7 +124,7 @@ fn initial_solution(g: &Graph) -> Vec<NodeB> {
     initial_solution
 }
 
-pub fn one_sided_crossing_minimization(g: &Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
+fn oscm_part(g: &Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
     let initial_solution = initial_solution(g);
     let mut initial_score = g.score(&initial_solution);
     eprintln!("Initial solution found, with score {initial_score}.");
@@ -133,29 +135,54 @@ pub fn one_sided_crossing_minimization(g: &Graph, bound: Option<u64>) -> Option<
         }
     }
     let mut bb = Bb::new(g, initial_score);
-    let sol = if bb.branch_and_bound() {
+    if bb.branch_and_bound() {
         Some((bb.best_solution, bb.best_score))
     } else {
-        eprintln!();
-        eprintln!("*****************************************************************");
-        eprintln!("THE INITIAL SOLUTION WAS ALREADY OPTIMAL. PROBABLY B&B HAS A BUG!");
-        eprintln!("*****************************************************************");
-        eprintln!();
-        // For small tests the initial guess may be correct already.
-        #[cfg(test)]
-        return Some((initial_solution, initial_score));
-        #[cfg(not(test))]
-        return None;
+        Some((initial_solution, initial_score))
+    }
+}
+
+pub fn one_sided_crossing_minimization(
+    g: GraphBuilder,
+    mut bound: Option<u64>,
+) -> Option<(Vec<Solution>, u64)> {
+    let mut score = g.self_crossings;
+    let gs = g.build();
+    eprintln!(
+        "Part sizes: {:?}",
+        gs.iter().map(|g| g.b.0).collect::<Vec<_>>()
+    );
+
+    let sol = 'sol: {
+        let mut solutions = vec![];
+        for (i, g) in gs.iter().enumerate() {
+            let Some((part_sol, part_score)) = oscm_part(g, bound) else {
+                eprintln!("No solution for part {i} of {}.", gs.len());
+                break 'sol None;
+            };
+            score += part_score;
+            solutions.push(part_sol);
+            if let Some(bound) = bound.as_mut() {
+                if *bound < part_score {
+                    eprintln!("Ran out of bound at part {i} of {}.", gs.len());
+                    eprintln!("{g:?}");
+                    break 'sol None;
+                }
+                *bound -= part_score;
+            }
+        }
+        Some((solutions, score))
     };
+
     // Clear the \r line.
     eprintln!();
-    eprintln!("Sols found    : {:>9}", bb.sols_found);
-    eprintln!("B&B States    : {:>9}", bb.states);
-    eprintln!("LB exceeded 1 : {:>9}", bb.lb_exceeded_1);
-    eprintln!("LB exceeded 2 : {:>9}", bb.lb_exceeded_2);
-    eprintln!("LB updates    : {:>9}", bb.lb_updates);
-    eprintln!("Unique subsets: {:>9}", bb.lower_bound_for_tail.len());
-    eprintln!("LB matching   : {:>9}", bb.lb_hit);
+    // eprintln!("Sols found    : {:>9}", bb.sols_found);
+    // eprintln!("B&B States    : {:>9}", bb.states);
+    // eprintln!("LB exceeded 1 : {:>9}", bb.lb_exceeded_1);
+    // eprintln!("LB exceeded 2 : {:>9}", bb.lb_exceeded_2);
+    // eprintln!("LB updates    : {:>9}", bb.lb_updates);
+    // eprintln!("Unique subsets: {:>9}", bb.lower_bound_for_tail.len());
+    // eprintln!("LB matching   : {:>9}", bb.lb_hit);
     sol
 }
 
@@ -509,7 +536,7 @@ mod test {
         let seed = 8546;
         eprintln!("{n} {extra} {seed}");
         let g = GraphType::Fan { n, extra }.generate(Some(seed));
-        one_sided_crossing_minimization(&g, None);
+        one_sided_crossing_minimization(g, None);
     }
 
     #[test]
@@ -519,7 +546,7 @@ mod test {
                 for seed in 0..10 {
                     eprintln!("{n} {extra} {seed}");
                     let g = GraphType::Fan { n, extra }.generate(Some(seed));
-                    one_sided_crossing_minimization(&g, None).expect("no solution found!");
+                    one_sided_crossing_minimization(g, None).expect("no solution found!");
                 }
             }
         }
@@ -532,7 +559,7 @@ mod test {
                 for seed in 0..100 {
                     eprintln!("{n} {k} {seed}");
                     let g = GraphType::Star { n, k }.generate(Some(seed));
-                    one_sided_crossing_minimization(&g, None).expect("no solution found!");
+                    one_sided_crossing_minimization(g, None).expect("no solution found!");
                 }
             }
         }
@@ -546,7 +573,7 @@ mod test {
                     for p in (1..9).map(|x| (x as f64) / 10.0) {
                         eprintln!("{n} {crossings} {seed} {p}");
                         let g = GraphType::LowCrossing { n, crossings, p }.generate(Some(seed));
-                        one_sided_crossing_minimization(&g, None).expect("no solution found!");
+                        one_sided_crossing_minimization(g, None).expect("no solution found!");
                     }
                 }
             }
@@ -583,25 +610,23 @@ mod test {
                 vec![],
             ),
         ] {
-            let g = t.generate(Some(seed));
-            let mut g = g.builder();
+            let mut g = t.generate(Some(seed));
             g.drop_b(&drop);
-            let g = g.build();
             clear_flags();
             let (sol1, score1) =
-                one_sided_crossing_minimization(&g, None).expect("no solution found!");
+                one_sided_crossing_minimization(g.clone(), None).expect("no solution found!");
             set_flags(&["siblings"]);
             let (sol2, score2) =
-                one_sided_crossing_minimization(&g, None).expect("no solution found!");
+                one_sided_crossing_minimization(g.clone(), None).expect("no solution found!");
             if score1 != score2 {
                 eprintln!("DIFFERENCE FOUND!");
                 eprintln!("{t:?} seed: {seed}");
                 eprintln!("{g:?}");
-                for u in NodeB(0)..g.b {
-                    for v in &g.must_come_before[u] {
-                        eprint!("{}<{} ", v.0, u.0);
-                    }
-                }
+                // for u in NodeB(0)..g.b {
+                //     for v in &g.must_come_before[u] {
+                //         eprint!("{}<{} ", v.0, u.0);
+                //     }
+                // }
                 eprintln!();
                 eprintln!("score1: {}", score1);
                 eprintln!("score2: {}", score2);
@@ -630,18 +655,18 @@ mod test {
                     };
                     let g = t.generate(Some(seed));
                     clear_flags();
-                    let (sol1, score1) =
-                        one_sided_crossing_minimization(&g, None).expect("no solution found!");
+                    let (sol1, score1) = one_sided_crossing_minimization(g.clone(), None)
+                        .expect("no solution found!");
                     set_flags(&["siblings"]);
                     let (sol2, score2) =
-                        one_sided_crossing_minimization(&g, None).expect("no solution found!");
+                        one_sided_crossing_minimization(g, None).expect("no solution found!");
                     if score1 != score2 {
                         println!("{t:?} seed: {seed}");
-                        for u in NodeB(0)..g.b {
-                            for v in &g.must_come_before[u] {
-                                print!("{}<{} ", v.0, u.0);
-                            }
-                        }
+                        // for u in NodeB(0)..g.b {
+                        //     for v in &g.must_come_before[u] {
+                        //         print!("{}<{} ", v.0, u.0);
+                        //     }
+                        // }
                         println!();
                         println!("score1: {}", score1);
                         println!("score2: {}", score2);

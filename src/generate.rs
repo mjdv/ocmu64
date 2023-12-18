@@ -30,7 +30,7 @@ pub enum GraphType {
 }
 
 impl GraphType {
-    pub fn generate(&self, seed: Option<u64>) -> Graph {
+    pub fn generate(&self, seed: Option<u64>) -> GraphBuilder {
         let rng = &mut match seed {
             Some(seed) => rand_chacha::ChaCha8Rng::seed_from_u64(seed),
             None => rand_chacha::ChaCha8Rng::from_entropy(),
@@ -47,7 +47,6 @@ impl GraphType {
                 sigma,
             } => low_crossing_clustered(n, crossings, p, sigma, rng),
         }
-        .build()
     }
 }
 

@@ -5,7 +5,7 @@ use std::{
     path::Path,
 };
 
-impl Graph {
+impl GraphBuilder {
     fn to_stream<W: Write>(&self, writer: W) -> Result<(), std::io::Error> {
         let mut writer = BufWriter::new(writer);
         let edges = self.connections_a.iter().map(|x| x.len()).sum::<usize>();
@@ -29,7 +29,6 @@ impl Graph {
 
     fn from_stream<T: BufRead>(stream: T) -> Result<Self, std::io::Error> {
         let mut a = NodeA::default();
-        let mut connections_a: VecA<Vec<NodeB>> = VecA::default();
         let mut connections_b: VecB<Vec<NodeA>> = VecB::default();
 
         for line in stream.lines() {
@@ -40,18 +39,16 @@ impl Graph {
                 let words = line.split(' ').collect::<Vec<&str>>();
                 a = NodeA(words[2].parse().unwrap());
                 let b = NodeB(words[3].parse().unwrap());
-                connections_a = VecA::new(a);
                 connections_b = VecB::new(b);
             } else {
                 let mut words = line.split_ascii_whitespace();
                 let x = NodeA(words.next().unwrap().parse::<usize>().unwrap() - 1);
                 let y = NodeB(words.next().unwrap().parse::<usize>().unwrap() - a.0 - 1);
-                connections_a[x].push(y);
                 connections_b[y].push(x);
             }
         }
 
-        let graph = GraphBuilder::new(connections_a, connections_b).build();
+        let graph = GraphBuilder::new(connections_b);
         Ok(graph)
     }
 
