@@ -1,6 +1,5 @@
 use std::{
     path::{Path, PathBuf},
-    process::exit,
     sync::{Arc, Mutex},
     time::Instant,
 };
@@ -27,6 +26,8 @@ struct Args {
     database: PathBuf,
     #[clap(long, global = true)]
     skip: bool,
+    #[clap(short, long, global = true)]
+    timelimit: Option<u64>,
     #[clap(long, global = true)]
     subprocess: bool,
     #[clap(global = true)]
@@ -36,6 +37,8 @@ struct Args {
 fn main() {
     let args = Args::parse();
     set_flags(&args.flags);
+
+    set_limits(&args);
 
     if args.subprocess {
         main_subprocess(&args);
@@ -82,6 +85,21 @@ fn solve_graph(g: GraphBuilder, args: &Args) {
     }
 }
 
+fn set_limits(args: &Args) {
+    let set = |res, limit| {
+        let rlimit = libc::rlimit {
+            rlim_cur: limit as _,
+            rlim_max: limit as _,
+        };
+        unsafe {
+            libc::setrlimit(res, &rlimit);
+        }
+    };
+    if let Some(time) = args.timelimit {
+        set(libc::RLIMIT_CPU, time);
+    }
+}
+
 /// When running as a subprocess, read a path and print the score to stdout as json.
 fn main_subprocess(args: &Args) {
     let g = GraphBuilder::from_file(
@@ -96,18 +114,17 @@ fn main_subprocess(args: &Args) {
 }
 
 fn call_subprocess(path: &Path, args: &Args) -> Option<u64> {
-    let output = std::process::Command::new(std::env::current_exe().unwrap())
-        .arg("--subprocess")
-        .arg("--input")
-        .arg(path)
-        .arg("--database")
-        .arg(&args.database)
-        .args(&args.flags)
-        .output()
-        .expect("Failed to execute subprocess.");
+    let mut arg = std::process::Command::new(std::env::current_exe().unwrap());
+    arg.arg("--subprocess");
+    arg.arg("--input").arg(path);
+    arg.arg("--database").arg(&args.database);
+    if let Some(time) = args.timelimit {
+        arg.arg("--timelimit").arg(time.to_string());
+    }
+    arg.args(&args.flags);
+    let output = arg.output().expect("Failed to execute subprocess.");
     if !output.status.success() {
-        eprintln!("Subprocess failed: {:?}", output);
-        exit(1);
+        return None;
     }
     serde_json::from_slice(&output.stdout).unwrap()
 }
@@ -131,6 +148,7 @@ fn process_directory(dir: &Path, args: &Args) {
         Running(Instant),
         // Duration.
         Done(u64),
+        Failed(u64),
     }
     let state = paths
         .iter()
@@ -164,13 +182,20 @@ fn process_directory(dir: &Path, args: &Args) {
         let summary = state
             .iter()
             .map(|x| {
-                let (duration, color) = match x.1 {
-                    State::DoneBefore(d) => (d, colored::Color::Magenta),
-                    State::TriedBefore(d) => (d, colored::Color::Red),
-                    State::Running(start) => (start.elapsed().as_secs(), colored::Color::Yellow),
-                    State::Done(d) => (d, colored::Color::Green),
+                let (duration, color, style) = match x.1 {
+                    State::DoneBefore(d) => (d, colored::Color::Magenta, false),
+                    State::TriedBefore(d) => (d, colored::Color::Red, false),
+                    State::Running(start) => {
+                        (start.elapsed().as_secs(), colored::Color::Yellow, false)
+                    }
+                    State::Done(d) => (d, colored::Color::Green, false),
+                    State::Failed(d) => (d, colored::Color::Red, true),
                 };
-                format!("{}", duration_to_char(duration).color(color))
+                if style {
+                    format!("{}", duration_to_char(duration).color(color).bold())
+                } else {
+                    format!("{}", duration_to_char(duration).color(color))
+                }
             })
             .join("");
         let cnt = state
@@ -178,7 +203,7 @@ fn process_directory(dir: &Path, args: &Args) {
             .filter(|x| matches!(x.1, State::Done(_) | State::DoneBefore(_)))
             .count();
         let total = state.len();
-        eprintln!("{cnt:>3}/{total:>3} {summary}");
+        eprint!("{cnt:>3}/{total:>3} {summary}\r");
     }
 
     fn update(state: &Mutex<Vec<(PathBuf, State)>>, p: &Path, new_state: State) {
@@ -231,8 +256,13 @@ fn process_directory(dir: &Path, args: &Args) {
         let score = call_subprocess(&p, &args);
         let duration = start.elapsed().as_secs();
         db.lock().unwrap().add_result(&p, duration, score);
-        update(&state, &p, State::Done(duration));
+        if score.is_some() {
+            update(&state, &p, State::Done(duration));
+        } else {
+            update(&state, &p, State::Failed(duration));
+        }
         // State will be printed after setting a new entry to Running.
     });
     print_state(&state.lock().unwrap());
+    eprintln!();
 }
