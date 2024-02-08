@@ -211,9 +211,9 @@ impl GraphBuilder {
         self.sort_edges();
         let da = Step::steps_between(&self.connections_a.len(), &self.a).unwrap();
         let db = Step::steps_between(&self.connections_b.len(), &self.b).unwrap();
-        if da > 0 || db > 0 {
-            eprintln!("Dropped {da} and {db} singletons",);
-        }
+        // if da > 0 || db > 0 {
+        //     eprintln!("Dropped {da} and {db} singletons",);
+        // }
     }
 
     /// Merge vertices with the same set of neighbours.
@@ -241,10 +241,10 @@ impl GraphBuilder {
                 .collect(),
         };
         self.self_crossings += self_crossings;
-        eprintln!(
-            "Merged {} twins; {self_crossings} self crossings",
-            Step::steps_between(&self.connections_b.len(), &self.b).unwrap()
-        );
+        // eprintln!(
+        //     "Merged {} twins; {self_crossings} self crossings",
+        //     Step::steps_between(&self.connections_b.len(), &self.b).unwrap()
+        // );
         self.reconstruct_a();
     }
 
@@ -254,7 +254,7 @@ impl GraphBuilder {
     /// 2. cwu < cuw => cwv <= cvw (if u after w, than so v)
     /// 3. cuv <= cvu
     fn find_siblings(&self) -> VecB<Vec<NodeB>> {
-        eprint!("Siblings..\r");
+        // eprint!("Siblings..\r");
         let intervals = self.intervals();
         let c = self.crossings().0;
         let mut siblings = 0;
@@ -290,8 +290,8 @@ impl GraphBuilder {
                 }
             }
         }
-        eprintln!("Found {siblings} siblings");
-        eprintln!("Surprises: {rev_siblings} of total score {rev_sibling_weight}");
+        // eprintln!("Found {siblings} siblings");
+        // eprintln!("Surprises: {rev_siblings} of total score {rev_sibling_weight}");
         must_come_before
     }
 
