@@ -62,6 +62,14 @@ impl Database {
         self.data.results.get(input).and_then(|x| x.score)
     }
 
+    pub fn get_max_duration(&self, input: &str) -> f32 {
+        self.data
+            .results
+            .get(input)
+            .map(|x| x.runs.iter().map(|x| x.duration).fold(0.0, f32::max))
+            .unwrap_or(0.0)
+    }
+
     pub fn add_result(&mut self, input: String, duration: Duration, score: Option<u64>) {
         let results = self
             .data
