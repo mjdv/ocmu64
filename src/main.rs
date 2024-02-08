@@ -1,9 +1,10 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Mutex};
 
 use clap::Parser;
+use colored::Colorize;
 use itertools::Itertools;
 use ocmu64::{generate::GraphType, graph::*, set_flags};
-use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use rayon::prelude::*;
 
 #[derive(clap::Parser)]
 struct Args {
@@ -69,13 +70,40 @@ fn main() {
         }
     };
 
-    graphs.into_par_iter().for_each(|(g, p)| {
+    #[derive(PartialEq, Eq, Clone, Copy, Debug)]
+    enum State {
+        Pending,
+        Running,
+        Done,
+    }
+    let state = Mutex::new(vec![State::Pending; graphs.len()]);
+
+    fn print(state: &Mutex<Vec<State>>) {
+        let state = state.lock().unwrap();
+        let summary = state
+            .iter()
+            .map(|&x| match x {
+                State::Pending => format!("{}", "✗".red()),
+                State::Running => format!("{}", "O".yellow()),
+                State::Done => format!("{}", "✓".green()),
+            })
+            .join("");
+        let cnt = state.iter().filter(|&&x| x == State::Done).count();
+        let total = state.len();
+        eprintln!("{cnt:>3}/{total:>3} {summary}");
+    }
+
+    graphs.into_par_iter().enumerate().for_each(|(i, (g, p))| {
+        state.lock().unwrap()[i] = State::Running;
+        print(&state);
         solve_graph(g, p, &args);
+        state.lock().unwrap()[i] = State::Done;
+        print(&state);
     });
 }
 
 fn solve_graph(g: GraphBuilder, p: String, args: &Args) {
-    println!(
+    eprintln!(
         "{p}: Read A={:?} B={:?}, {} nodes, {} edges",
         g.a,
         g.b,
@@ -87,12 +115,12 @@ fn solve_graph(g: GraphBuilder, p: String, args: &Args) {
     let bb_output = one_sided_crossing_minimization(g, args.upper_bound);
     // eprintln!("Branch and bound took {:?}", start.elapsed());
     if let Some((bb_solution, bb_score)) = bb_output {
-        println!("{p}: SCORE: {bb_score}");
+        eprintln!("{p}: SCORE: {bb_score}");
         // if bb_solution.len() < 200 {
         //     println!("Our beautiful solution: {:?}", bb_solution);
         // }
     } else {
-        println!("{p}: No solution found?!");
+        eprintln!("{p}: No solution found?!");
     }
     // println!("");
     // println!("Recursive...");
