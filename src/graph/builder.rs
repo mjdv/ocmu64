@@ -209,8 +209,8 @@ impl GraphBuilder {
         self.connections_a.retain(|a| !a.is_empty());
         self.reconstruct_b();
         self.sort_edges();
-        let da = Step::steps_between(&self.connections_a.len(), &self.a).unwrap();
-        let db = Step::steps_between(&self.connections_b.len(), &self.b).unwrap();
+        let _da = Step::steps_between(&self.connections_a.len(), &self.a).unwrap();
+        let _db = Step::steps_between(&self.connections_b.len(), &self.b).unwrap();
         // if da > 0 || db > 0 {
         //     eprintln!("Dropped {da} and {db} singletons",);
         // }
@@ -257,9 +257,9 @@ impl GraphBuilder {
         // eprint!("Siblings..\r");
         let intervals = self.intervals();
         let c = self.crossings().0;
-        let mut siblings = 0;
-        let mut rev_siblings = 0;
-        let mut rev_sibling_weight = 0;
+        let mut _siblings = 0;
+        let mut _rev_siblings = 0;
+        let mut _rev_sibling_weight = 0;
         // For each node, the other nodes that must come before it.
         let mut must_come_before: VecB<Vec<NodeB>> = VecB::new(self.b);
         for u in NodeB(0)..self.b {
@@ -282,11 +282,11 @@ impl GraphBuilder {
                 }
                 // if c[u][v] < c[v][u] || (c[u][v] == c[v][u] && u < v) {
                 if c[u][v] < c[v][u] {
-                    siblings += 1;
+                    _siblings += 1;
                     must_come_before[v].push(u);
                 } else {
-                    rev_siblings += 1;
-                    rev_sibling_weight += c[u][v] - c[v][u];
+                    _rev_siblings += 1;
+                    _rev_sibling_weight += c[u][v] - c[v][u];
                 }
             }
         }
