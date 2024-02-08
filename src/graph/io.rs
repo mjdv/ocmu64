@@ -42,8 +42,16 @@ impl GraphBuilder {
                 connections_b = VecB::new(b);
             } else {
                 let mut words = line.split_ascii_whitespace();
-                let x = NodeA(words.next().unwrap().parse::<usize>().unwrap() - 1);
-                let y = NodeB(words.next().unwrap().parse::<usize>().unwrap() - a.0 - 1);
+                let x = words.next().unwrap().parse::<usize>().unwrap();
+                let y = words.next().unwrap().parse::<usize>().unwrap();
+                assert!(
+                    1 <= x && x <= a.0 && a.0 + 1 <= y && y <= a.0 + connections_b.len().0,
+                    "Bad edge {x} {y} with |A|={} |B|={}",
+                    a.0,
+                    connections_b.len().0
+                );
+                let x = NodeA(x - 1);
+                let y = NodeB(y - a.0 - 1);
                 connections_b[y].push(x);
             }
         }
