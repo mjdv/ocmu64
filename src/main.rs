@@ -3,7 +3,7 @@ use std::{path::PathBuf, sync::Mutex, time::Duration};
 use clap::Parser;
 use colored::Colorize;
 use itertools::Itertools;
-use ocmu64::{generate::GraphType, graph::*, set_flags};
+use ocmu64::{database::Database, generate::GraphType, graph::*, set_flags};
 use rayon::prelude::*;
 
 #[derive(clap::Parser)]
@@ -18,6 +18,8 @@ struct Args {
     input: Option<PathBuf>,
     #[clap(short, long, global = true)]
     upper_bound: Option<u64>,
+    #[clap(long, global = true, default_value = "db/exact.json")]
+    database: PathBuf,
     #[clap(global = true)]
     flags: Vec<String>,
 }
@@ -99,17 +101,23 @@ fn main() {
         eprintln!("{cnt:>3}/{total:>3} {summary}");
     }
 
+    // read database file using serde_json
+    let db = Mutex::new(Database::new(args.database.clone()));
+
     graphs.into_par_iter().enumerate().for_each(|(i, (g, p))| {
         state.lock().unwrap()[i] = State::Running;
         print(&state);
         let start = std::time::Instant::now();
-        solve_graph(g, p, &args);
-        state.lock().unwrap()[i] = State::Done(start.elapsed());
+        let score = solve_graph(g, &p, &args);
+        let duration = start.elapsed();
+        state.lock().unwrap()[i] = State::Done(duration);
         print(&state);
+
+        db.lock().unwrap().add_result(p, duration, score);
     });
 }
 
-fn solve_graph(g: GraphBuilder, p: String, args: &Args) {
+fn solve_graph(g: GraphBuilder, p: &str, args: &Args) -> Option<u64> {
     eprintln!(
         "{p}: Read A={:?} B={:?}, {} nodes, {} edges",
         g.a,
@@ -117,13 +125,12 @@ fn solve_graph(g: GraphBuilder, p: String, args: &Args) {
         g.a.0 + g.b.0,
         g.connections_a.iter().map(|x| x.len()).sum::<usize>()
     );
-    let bb_output = one_sided_crossing_minimization(g, args.upper_bound);
-    if let Some((bb_solution, bb_score)) = bb_output {
-        eprintln!("{p}: SCORE: {bb_score}");
-        // if bb_solution.len() < 200 {
-        //     println!("Our beautiful solution: {:?}", bb_solution);
-        // }
+    let output = one_sided_crossing_minimization(g, args.upper_bound);
+    if let Some((_solution, score)) = output {
+        eprintln!("{p}: SCORE: {score}");
+        Some(score)
     } else {
         eprintln!("{p}: No solution found?!");
+        None
     }
 }

@@ -1,3 +1,4 @@
+use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Debug, Display},
     iter::Step,
@@ -9,7 +10,7 @@ use std::{
 pub struct NodeA(pub usize);
 
 /// TODO: u32 indices
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash, Serialize, Deserialize)]
 pub struct NodeB(pub usize);
 
 impl Display for NodeA {
