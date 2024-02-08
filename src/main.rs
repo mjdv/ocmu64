@@ -20,6 +20,8 @@ struct Args {
     upper_bound: Option<u64>,
     #[clap(long, global = true, default_value = "db/exact.json")]
     database: PathBuf,
+    #[clap(long, global = true)]
+    skip: bool,
     #[clap(global = true)]
     flags: Vec<String>,
 }
@@ -48,7 +50,6 @@ fn main() {
                 paths
                     .iter()
                     .map(|path| {
-                        eprintln!("Reading graph from file {:?}", path);
                         (
                             GraphBuilder::from_file(&path)
                                 .expect("Unable to read graph from file."),
@@ -74,17 +75,30 @@ fn main() {
 
     #[derive(PartialEq, Eq, Clone, Copy, Debug)]
     enum State {
+        DoneBefore,
         Pending,
         Running,
         Done(Duration),
     }
-    let state = Mutex::new(vec![State::Pending; graphs.len()]);
+    let state = Mutex::new(
+        graphs
+            .iter()
+            .map(|(_, p)| {
+                if Database::new(args.database.clone()).get_score(p).is_some() {
+                    State::DoneBefore
+                } else {
+                    State::Pending
+                }
+            })
+            .collect::<Vec<_>>(),
+    );
 
     fn print(state: &Mutex<Vec<State>>) {
         let state = state.lock().unwrap();
         let summary = state
             .iter()
             .map(|&x| match x {
+                State::DoneBefore => format!("{}", "✓".purple()),
                 State::Pending => format!("{}", "✗".red()),
                 State::Running => format!("{}", "O".yellow()),
                 State::Done(d) => {
@@ -95,7 +109,7 @@ fn main() {
             .join("");
         let cnt = state
             .iter()
-            .filter(|&&x| matches!(x, State::Done(_)))
+            .filter(|&&x| matches!(x, State::Done(_) | State::DoneBefore))
             .count();
         let total = state.len();
         eprintln!("{cnt:>3}/{total:>3} {summary}");
@@ -105,6 +119,12 @@ fn main() {
     let db = Mutex::new(Database::new(args.database.clone()));
 
     graphs.into_par_iter().enumerate().for_each(|(i, (g, p))| {
+        if args.skip {
+            if db.lock().unwrap().get_score(&p).is_some() {
+                return;
+            }
+        }
+
         state.lock().unwrap()[i] = State::Running;
         print(&state);
         let start = std::time::Instant::now();

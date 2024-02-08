@@ -58,6 +58,10 @@ impl Database {
         serde_json::to_writer(std::io::BufWriter::new(file), &self.data).unwrap();
     }
 
+    pub fn get_score(&self, input: &str) -> Option<u64> {
+        self.data.results.get(input).and_then(|x| x.score)
+    }
+
     pub fn add_result(&mut self, input: String, duration: Duration, score: Option<u64>) {
         let results = self
             .data
