@@ -266,19 +266,14 @@ fn process_exact_files(mut paths: Vec<PathBuf>, args: &Args) {
                     (OldState::Solved(_), State::Solved(_)) => Green,
                     (OldState::Solved(_), State::Failed(_)) => Magenta,
                 };
-                match (bold, underline) {
-                    (true, true) => format!(
-                        "{}",
-                        duration_to_char(duration).color(color).bold().underline()
-                    ),
-                    (true, false) => format!("{}", duration_to_char(duration).color(color).bold()),
-                    (false, true) => {
-                        format!("{}", duration_to_char(duration).color(color).underline())
-                    }
-                    (false, false) => {
-                        format!("{}", duration_to_char(duration).color(color))
-                    }
+                let mut s = duration_to_char(duration).color(color);
+                if bold {
+                    s = s.bold();
                 }
+                if underline {
+                    s = s.underline();
+                }
+                format!("{}", s)
             })
             .join("");
         let cnt = state.iter().filter(|x| x.2.solved()).count();
