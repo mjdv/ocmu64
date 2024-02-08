@@ -22,6 +22,7 @@ debug = true
 [dependencies]
 bitvec = "1.0.1"
 clap = { version = "4.4.11", features = ["derive"] }
+colored = "2.1.0"
 itertools = "0.12.0"
 rand = "0.8.5"
 rand_chacha = "0.3.1"
