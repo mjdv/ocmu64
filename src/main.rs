@@ -27,7 +27,10 @@ fn main() {
 
     let graphs = match (&args.generate, &args.input) {
         (Some(_), Some(_)) => panic!("Cannot generate and read a graph at the same time."),
-        (Some(gt), None) => vec![gt.generate(args.seed)],
+        (Some(gt), None) => vec![(
+            gt.generate(args.seed),
+            format!("Generated with seed {:?}", args.seed),
+        )],
         (None, Some(f)) => {
             // If f is a directory, iterate over all files in it.
             if f.is_dir() {
@@ -42,21 +45,31 @@ fn main() {
                     .iter()
                     .map(|path| {
                         eprintln!("Reading graph from file {:?}", path);
-                        GraphBuilder::from_file(&path).expect("Unable to read graph from file.")
+                        (
+                            GraphBuilder::from_file(&path)
+                                .expect("Unable to read graph from file."),
+                            path.to_str().unwrap().to_string(),
+                        )
                     })
                     .collect()
             } else {
-                vec![GraphBuilder::from_file(&f).expect("Unable to read graph from file.")]
+                vec![(
+                    GraphBuilder::from_file(&f).expect("Unable to read graph from file."),
+                    f.to_str().unwrap().to_string(),
+                )]
             }
         }
         (None, None) => {
-            vec![GraphBuilder::from_stdin()
-                .expect("Did not get a graph in the correct format on stdin.")]
+            vec![(
+                GraphBuilder::from_stdin()
+                    .expect("Did not get a graph in the correct format on stdin."),
+                "stdin".to_string(),
+            )]
         }
     };
 
-    for (i, g) in graphs.into_iter().enumerate() {
-        eprintln!("SOLVING GRAPH {}", i);
+    for (g, p) in graphs {
+        eprintln!("SOLVING GRAPH {p}");
         solve_graph(g, &args);
     }
 }
