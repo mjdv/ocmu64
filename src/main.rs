@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::Mutex};
+use std::{path::PathBuf, sync::Mutex, time::Duration};
 
 use clap::Parser;
 use colored::Colorize;
@@ -74,7 +74,7 @@ fn main() {
     enum State {
         Pending,
         Running,
-        Done,
+        Done(Duration),
     }
     let state = Mutex::new(vec![State::Pending; graphs.len()]);
 
@@ -85,10 +85,16 @@ fn main() {
             .map(|&x| match x {
                 State::Pending => format!("{}", "✗".red()),
                 State::Running => format!("{}", "O".yellow()),
-                State::Done => format!("{}", "✓".green()),
+                State::Done(d) => {
+                    let cnt = (d.as_secs() + 1).ilog10();
+                    format!("{}", format!("{cnt}").green())
+                }
             })
             .join("");
-        let cnt = state.iter().filter(|&&x| x == State::Done).count();
+        let cnt = state
+            .iter()
+            .filter(|&&x| matches!(x, State::Done(_)))
+            .count();
         let total = state.len();
         eprintln!("{cnt:>3}/{total:>3} {summary}");
     }
@@ -96,8 +102,9 @@ fn main() {
     graphs.into_par_iter().enumerate().for_each(|(i, (g, p))| {
         state.lock().unwrap()[i] = State::Running;
         print(&state);
+        let start = std::time::Instant::now();
         solve_graph(g, p, &args);
-        state.lock().unwrap()[i] = State::Done;
+        state.lock().unwrap()[i] = State::Done(start.elapsed());
         print(&state);
     });
 }
@@ -110,10 +117,7 @@ fn solve_graph(g: GraphBuilder, p: String, args: &Args) {
         g.a.0 + g.b.0,
         g.connections_a.iter().map(|x| x.len()).sum::<usize>()
     );
-    // println!("Branch and bound...");
-    let start = std::time::Instant::now();
     let bb_output = one_sided_crossing_minimization(g, args.upper_bound);
-    // eprintln!("Branch and bound took {:?}", start.elapsed());
     if let Some((bb_solution, bb_score)) = bb_output {
         eprintln!("{p}: SCORE: {bb_score}");
         // if bb_solution.len() < 200 {
@@ -122,9 +126,4 @@ fn solve_graph(g: GraphBuilder, p: String, args: &Args) {
     } else {
         eprintln!("{p}: No solution found?!");
     }
-    // println!("");
-    // println!("Recursive...");
-    // let (score, extension) = extend_solution_recursive(&mut sol);
-    // println!("Score of our beautiful solution: {score}");
-    // println!("Our beautiful solution: {:?}", extension);
 }
