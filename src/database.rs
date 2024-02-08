@@ -1,16 +1,19 @@
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, path::PathBuf};
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+};
 
 /// Data stored per testcase.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct Data {
-    results: HashMap<String, InputResults>,
+    results: HashMap<PathBuf, InputResults>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct InputResults {
     /// Path to the input, eg input/exact/01.gr
-    path: String,
+    path: PathBuf,
     /// The best score.
     score: Option<u64>,
     /// All runs.
@@ -54,13 +57,13 @@ impl Database {
         serde_json::to_writer(std::io::BufWriter::new(file), &self.data).unwrap();
     }
 
-    pub fn get_score(&self, input: &str) -> Option<u64> {
+    pub fn get_score(&self, input: &Path) -> Option<u64> {
         self.data.results.get(input).and_then(|x| x.score)
     }
 
     /// When unsolved: max duration over all runs.
     /// When solved: fastest run giving the optimal score.
-    pub fn get_duration(&self, input: &str) -> u64 {
+    pub fn get_duration(&self, input: &Path) -> u64 {
         let results = self.data.results.get(input);
         let Some(results) = results else {
             return 0;
@@ -78,13 +81,13 @@ impl Database {
         }
     }
 
-    pub fn add_result(&mut self, input: &str, duration: u64, score: Option<u64>) {
+    pub fn add_result(&mut self, input: &Path, duration: u64, score: Option<u64>) {
         let results = self
             .data
             .results
-            .entry(input.to_string())
+            .entry(input.to_path_buf())
             .or_insert_with(|| InputResults {
-                path: input.to_string(),
+                path: input.to_path_buf(),
                 score: None,
                 runs: Vec::new(),
             });
