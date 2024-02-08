@@ -2,3 +2,4 @@
 /.vscode
 /perf.data*
 /flamegraph.svg
+/db/
