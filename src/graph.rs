@@ -127,11 +127,11 @@ fn initial_solution(g: &Graph) -> Vec<NodeB> {
 fn oscm_part(g: &Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
     let initial_solution = initial_solution(g);
     let mut initial_score = g.score(&initial_solution);
-    eprintln!("Initial solution found, with score {initial_score}.");
+    // eprintln!("Initial solution found, with score {initial_score}.");
     if let Some(bound) = bound {
         if bound < initial_score {
             initial_score = bound;
-            eprintln!("Set bound to {initial_score}.");
+            // eprintln!("Set bound to {initial_score}.");
         }
     }
     let mut bb = Bb::new(g, initial_score);
@@ -148,10 +148,10 @@ pub fn one_sided_crossing_minimization(
 ) -> Option<(Vec<Solution>, u64)> {
     let mut score = g.self_crossings;
     let gs = g.build();
-    eprintln!(
-        "Part sizes: {:?}",
-        gs.iter().map(|g| g.b.0).collect::<Vec<_>>()
-    );
+    // eprintln!(
+    //     "Part sizes: {:?}",
+    //     gs.iter().map(|g| g.b.0).collect::<Vec<_>>()
+    // );
 
     let sol = 'sol: {
         let mut solutions = vec![];
@@ -175,7 +175,7 @@ pub fn one_sided_crossing_minimization(
     };
 
     // Clear the \r line.
-    eprintln!();
+    // eprintln!();
     // eprintln!("Sols found    : {:>9}", bb.sols_found);
     // eprintln!("B&B States    : {:>9}", bb.states);
     // eprintln!("LB exceeded 1 : {:>9}", bb.lb_exceeded_1);
@@ -298,7 +298,7 @@ impl<'a> Bb<'a> {
             debug_assert_eq!(self.score, self.g.score(&self.solution));
             let score = self.score;
             if score < self.upper_bound {
-                eprint!("Best score: {score:>9}\r");
+                // eprint!("Best score: {score:>9}\r");
                 assert!(score < self.best_score);
                 self.best_score = score;
                 self.best_solution = self.solution.clone();
