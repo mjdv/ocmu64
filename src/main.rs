@@ -142,7 +142,6 @@ fn main() {
         let mut state = state.lock().unwrap();
         let idx = state.iter().position(|x| x.0 == p).unwrap();
         state[idx].1 = new_state;
-        print_state(&state);
     }
 
     let db = Arc::new(Mutex::new(db));
@@ -185,11 +184,14 @@ fn main() {
 
         let start = std::time::Instant::now();
         update(&state, &p, State::Running(start));
+        print_state(&state.lock().unwrap());
         let score = solve_graph(g, &p, &args);
         let duration = start.elapsed().as_secs();
         db.lock().unwrap().add_result(&p, duration, score);
         update(&state, &p, State::Done(duration));
+        // State will be printed after setting a new entry to Running.
     });
+    print_state(&state.lock().unwrap());
 }
 
 fn solve_graph(g: GraphBuilder, p: &str, args: &Args) -> Option<u64> {
