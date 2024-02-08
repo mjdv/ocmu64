@@ -39,8 +39,8 @@ pub struct Database {
 }
 
 impl Database {
-    pub fn new(path: PathBuf) -> Self {
-        let data = if path.exists() {
+    pub fn new<P: AsRef<Path>>(path: P) -> Self {
+        let data = if path.as_ref().exists() {
             let file = std::fs::File::open(&path).unwrap();
             serde_json::from_reader(std::io::BufReader::new(file)).unwrap()
         } else {
@@ -49,7 +49,10 @@ impl Database {
             }
         };
 
-        Self { path, data }
+        Self {
+            path: path.as_ref().to_path_buf(),
+            data,
+        }
     }
 
     pub fn save(&self) {
