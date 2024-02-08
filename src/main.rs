@@ -230,6 +230,13 @@ fn process_directory(dir: &Path, args: &Args) {
             .join("");
         let cnt = state.iter().filter(|x| x.1.solved()).count();
         let total = state.len();
+        let ids_1 = (1..=state.len()).map(|x| format!("{}", x % 10)).join("");
+        let ids_10 = (10..=state.len())
+            .step_by(10)
+            .map(|x| format!("{:>10}", x))
+            .join("");
+        eprintln!("{:>7} {}", "", ids_10);
+        eprintln!("{:>7} {}", "", ids_1);
         eprintln!("{cnt:>3}/{total:>3} {summary}");
     }
 
