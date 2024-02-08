@@ -1,4 +1,8 @@
-use std::{path::PathBuf, sync::Mutex, time::Duration};
+use std::{
+    path::PathBuf,
+    sync::{Arc, Mutex},
+    time::{Duration, Instant},
+};
 
 use clap::Parser;
 use colored::Colorize;
@@ -73,28 +77,41 @@ fn main() {
         }
     };
 
+    // read database file using serde_json
+    let db = Database::new(args.database.clone());
+
     #[derive(PartialEq, Eq, Clone, Copy, Debug)]
     enum State {
-        DoneBefore,
-        Pending,
-        Running,
-        Done(Duration),
+        TriedBefore(u64),
+        DoneBefore(u64),
+        // Start time.
+        Running(Instant),
+        // Duration.
+        Done(u64),
     }
-    let state = Mutex::new(
-        graphs
-            .iter()
-            .map(|(_, p)| {
-                (
-                    p.clone(),
-                    if Database::new(args.database.clone()).get_score(p).is_some() {
-                        State::DoneBefore
-                    } else {
-                        State::Pending
-                    },
-                )
-            })
-            .collect::<Vec<_>>(),
-    );
+    let state = graphs
+        .iter()
+        .map(|(_, p)| {
+            (
+                p.clone(),
+                if db.get_score(p).is_some() {
+                    State::DoneBefore(db.get_duration(p))
+                } else {
+                    State::TriedBefore(db.get_duration(p))
+                },
+            )
+        })
+        .collect::<Vec<_>>();
+
+    fn duration_to_char(d: u64) -> &'static str {
+        match d {
+            0 => "0",
+            ..=10 => "1",
+            ..=100 => "2",
+            ..=1000 => "3",
+            _ => "4",
+        }
+    }
 
     fn update(state: &Mutex<Vec<(String, State)>>, p: &str, new_state: State) {
         let mut state = state.lock().unwrap();
@@ -102,29 +119,54 @@ fn main() {
         state[idx].1 = new_state;
         let summary = state
             .iter()
-            .map(|x| match x.1 {
-                State::DoneBefore => format!("{}", "✓".purple()),
-                State::Pending => format!("{}", "✗".red()),
-                State::Running => format!("{}", "O".yellow()),
-                State::Done(d) => {
-                    let cnt = (d.as_secs() + 1).ilog10();
-                    format!("{}", format!("{cnt}").green())
-                }
+            .map(|x| {
+                let (duration, color) = match x.1 {
+                    State::DoneBefore(d) => (d, colored::Color::Magenta),
+                    State::TriedBefore(d) => (d, colored::Color::Red),
+                    State::Running(start) => (start.elapsed().as_secs(), colored::Color::Yellow),
+                    State::Done(d) => (d, colored::Color::Green),
+                };
+                format!("{}", duration_to_char(duration).color(color))
             })
             .join("");
         let cnt = state
             .iter()
-            .filter(|x| matches!(x.1, State::Done(_) | State::DoneBefore))
+            .filter(|x| matches!(x.1, State::Done(_) | State::DoneBefore(_)))
             .count();
         let total = state.len();
         eprintln!("{cnt:>3}/{total:>3} {summary}");
     }
 
-    // read database file using serde_json
-    let db = Mutex::new(Database::new(args.database.clone()));
+    let db = Arc::new(Mutex::new(db));
+    let state = Arc::new(Mutex::new(state));
 
     // Sort graphs by unsolved first, by least amount of time tried.
-    graphs.sort_by_key(|(_, p)| db.lock().unwrap().get_max_duration(p) as u64);
+    graphs.sort_by_key(|(_, p)| db.lock().unwrap().get_duration(p) as u64);
+
+    {
+        let db = db.clone();
+        let state = state.clone();
+
+        ctrlc::set_handler(move || {
+            eprintln!("Caught Ctrl-C, saving database.");
+
+            let mut db = db.lock().unwrap();
+
+            // Update pending runs in database.
+            let mut state = state.lock().unwrap();
+            for (p, s) in state.iter_mut() {
+                if let State::Running(start) = s {
+                    let duration = start.elapsed().as_secs();
+                    db.add_result(p, duration, None);
+                    *s = State::Done(duration);
+                }
+            }
+
+            db.save();
+            std::process::exit(0);
+        })
+        .unwrap();
+    }
 
     graphs.into_par_iter().for_each(|(g, p)| {
         if args.skip {
@@ -133,13 +175,12 @@ fn main() {
             }
         }
 
-        update(&state, &p, State::Running);
         let start = std::time::Instant::now();
+        update(&state, &p, State::Running(start));
         let score = solve_graph(g, &p, &args);
-        let duration = start.elapsed();
+        let duration = start.elapsed().as_secs();
+        db.lock().unwrap().add_result(&p, duration, score);
         update(&state, &p, State::Done(duration));
-
-        db.lock().unwrap().add_result(p, duration, score);
     });
 }
 
