@@ -141,25 +141,62 @@ fn process_directory(dir: &Path, args: &Args) {
     let db = Database::new(args.database.clone());
 
     #[derive(PartialEq, Eq, Clone, Copy, Debug)]
+    enum OldState {
+        Failed(u64),
+        Solved(u64),
+    }
+
+    impl OldState {
+        fn solved(&self) -> bool {
+            matches!(self, OldState::Solved(_))
+        }
+        fn duration(&self) -> u64 {
+            match self {
+                OldState::Failed(d) => *d,
+                OldState::Solved(d) => *d,
+            }
+        }
+    }
+
+    #[derive(PartialEq, Eq, Clone, Copy, Debug)]
     enum State {
-        TriedBefore(u64),
-        DoneBefore(u64),
-        // Start time.
+        // Skipped, // TODO
+        Pending,
         Running(Instant),
-        // Duration.
-        Done(u64),
+        Solved(u64),
         Failed(u64),
     }
+
+    impl State {
+        fn solved(&self) -> bool {
+            matches!(self, State::Solved(_))
+        }
+        fn finished(&self) -> bool {
+            matches!(self, State::Solved(_) | State::Failed(_))
+        }
+        fn duration(&self) -> Option<u64> {
+            match self {
+                State::Pending => None,
+                State::Running(start) => Some(start.elapsed().as_secs()),
+                State::Solved(d) => Some(*d),
+                State::Failed(d) => Some(*d),
+            }
+        }
+    }
+
+    type States = Vec<(PathBuf, OldState, State)>;
+
     let state = paths
         .iter()
         .map(|p| {
             (
                 p.clone(),
                 if db.get_score(p).is_some() {
-                    State::DoneBefore(db.get_duration(p))
+                    OldState::Solved(db.get_duration(p))
                 } else {
-                    State::TriedBefore(db.get_duration(p))
+                    OldState::Failed(db.get_duration(p))
                 },
+                State::Pending,
             )
         })
         .collect::<Vec<_>>();
@@ -178,39 +215,72 @@ fn process_directory(dir: &Path, args: &Args) {
         }
     }
 
-    fn print_state(state: &Vec<(PathBuf, State)>) {
+    fn print_old_state(state: &States) {
         let summary = state
             .iter()
-            .map(|x| {
-                let (duration, color, style) = match x.1 {
-                    State::DoneBefore(d) => (d, colored::Color::Magenta, false),
-                    State::TriedBefore(d) => (d, colored::Color::Red, false),
-                    State::Running(start) => {
-                        (start.elapsed().as_secs(), colored::Color::Yellow, false)
-                    }
-                    State::Done(d) => (d, colored::Color::Green, false),
-                    State::Failed(d) => (d, colored::Color::Red, true),
+            .map(|(_, so, _)| {
+                let duration = so.duration();
+                use colored::Color::*;
+                let color = match so {
+                    OldState::Failed(_) => Red,
+                    OldState::Solved(_) => Green,
                 };
-                if style {
-                    format!("{}", duration_to_char(duration).color(color).bold())
-                } else {
-                    format!("{}", duration_to_char(duration).color(color))
+                format!("{}", duration_to_char(duration).color(color))
+            })
+            .join("");
+        let cnt = state.iter().filter(|x| x.1.solved()).count();
+        let total = state.len();
+        eprintln!("{cnt:>3}/{total:>3} {summary}");
+    }
+
+    fn print_state(state: &States) {
+        let summary = state
+            .iter()
+            .map(|(_, so, sn)| {
+                let bold = sn.finished() && so.solved() != sn.solved();
+                let underline = false; //matches!(sn, State::Running(_));
+                let duration = sn.duration().unwrap_or(so.duration());
+                use colored::Color::*;
+                let color = match (so, sn) {
+                    (OldState::Failed(_), State::Pending) => White,
+                    (OldState::Failed(_), State::Running(_)) => Yellow,
+                    (OldState::Failed(_), State::Solved(_)) => Green,
+                    (OldState::Failed(_), State::Failed(_)) => Red,
+                    (OldState::Solved(_), State::Pending) => Magenta,
+                    (OldState::Solved(_), State::Running(_)) => Yellow,
+                    (OldState::Solved(_), State::Solved(_)) => Green,
+                    (OldState::Solved(_), State::Failed(_)) => Magenta,
+                };
+                match (bold, underline) {
+                    (true, true) => format!(
+                        "{}",
+                        duration_to_char(duration).color(color).bold().underline()
+                    ),
+                    (true, false) => format!("{}", duration_to_char(duration).color(color).bold()),
+                    (false, true) => {
+                        format!("{}", duration_to_char(duration).color(color).underline())
+                    }
+                    (false, false) => {
+                        format!("{}", duration_to_char(duration).color(color))
+                    }
                 }
             })
             .join("");
         let cnt = state
             .iter()
-            .filter(|x| matches!(x.1, State::Done(_) | State::DoneBefore(_)))
+            .filter(|x| x.1.solved() || x.2.solved())
             .count();
         let total = state.len();
         eprint!("{cnt:>3}/{total:>3} {summary}\r");
     }
 
-    fn update(state: &Mutex<Vec<(PathBuf, State)>>, p: &Path, new_state: State) {
+    fn update(state: &Mutex<Vec<(PathBuf, OldState, State)>>, p: &Path, new_state: State) {
         let mut state = state.lock().unwrap();
         let idx = state.iter().position(|x| x.0 == p).unwrap();
-        state[idx].1 = new_state;
+        state[idx].2 = new_state;
     }
+
+    print_old_state(&state);
 
     let db = Arc::new(Mutex::new(db));
     let state = Arc::new(Mutex::new(state));
@@ -229,10 +299,11 @@ fn process_directory(dir: &Path, args: &Args) {
 
             // Update pending runs in database.
             let mut state = state.lock().unwrap();
-            for (p, s) in state.iter_mut() {
-                if let State::Running(start) = s {
+            for (p, _s_old, s_new) in state.iter_mut() {
+                if let State::Running(start) = s_new {
                     let duration = start.elapsed().as_secs();
                     db.add_result(p, duration, None);
+                    *s_new = State::Failed(duration);
                 }
             }
 
@@ -257,7 +328,7 @@ fn process_directory(dir: &Path, args: &Args) {
         let duration = start.elapsed().as_secs();
         db.lock().unwrap().add_result(&p, duration, score);
         if score.is_some() {
-            update(&state, &p, State::Done(duration));
+            update(&state, &p, State::Solved(duration));
         } else {
             update(&state, &p, State::Failed(duration));
         }
