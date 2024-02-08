@@ -22,8 +22,6 @@ struct Args {
     input: Option<PathBuf>,
     #[clap(short, long, global = true)]
     upper_bound: Option<u64>,
-    #[clap(long, global = true, default_value = "db/exact.json")]
-    database: PathBuf,
     #[clap(long, global = true)]
     skip: bool,
     #[clap(short, long, global = true)]
@@ -56,15 +54,29 @@ fn main() {
                 .expect("Did not get a graph in the correct format on stdin.");
             solve_graph(g, &args);
         }
-        (None, Some(path)) if path.is_file() => {
-            // TODO: Write database for files.
-            let g = GraphBuilder::from_file(path).expect("Unable to read graph from file.");
-            solve_graph(g, &args);
+        (None, Some(path)) => {
+            let paths = if path.is_file() {
+                vec![path.to_path_buf()]
+            } else {
+                std::fs::read_dir(path)
+                    .unwrap()
+                    .map(|x| x.unwrap().path())
+                    .collect_vec()
+            };
+            if path
+                .components()
+                .find(|c| c.as_os_str() == "exact")
+                .is_some()
+            {
+                process_exact_files(paths, &args);
+            } else {
+                for path in paths {
+                    let g =
+                        GraphBuilder::from_file(&path).expect("Unable to read graph from file.");
+                    solve_graph(g, &args);
+                }
+            }
         }
-        (None, Some(path)) if path.is_dir() => {
-            process_directory(path, &args);
-        }
-        _ => panic!(),
     };
 }
 
@@ -117,7 +129,6 @@ fn call_subprocess(path: &Path, args: &Args) -> Option<u64> {
     let mut arg = std::process::Command::new(std::env::current_exe().unwrap());
     arg.arg("--subprocess");
     arg.arg("--input").arg(path);
-    arg.arg("--database").arg(&args.database);
     if let Some(time) = args.timelimit {
         arg.arg("--timelimit").arg(time.to_string());
     }
@@ -129,16 +140,14 @@ fn call_subprocess(path: &Path, args: &Args) -> Option<u64> {
     serde_json::from_slice(&output.stdout).unwrap()
 }
 
-fn process_directory(dir: &Path, args: &Args) {
-    let mut paths = std::fs::read_dir(dir)
+fn process_exact_files(mut paths: Vec<PathBuf>, args: &Args) {
+    // read database file using serde_json
+    let db = Database::new("db/exact.json");
+    let mut all_paths = std::fs::read_dir("input/exact")
         .unwrap()
         .map(|x| x.unwrap().path())
         .collect_vec();
-
-    paths.sort();
-
-    // read database file using serde_json
-    let db = Database::new(args.database.clone());
+    all_paths.sort();
 
     #[derive(PartialEq, Eq, Clone, Copy, Debug)]
     enum OldState {
@@ -160,7 +169,6 @@ fn process_directory(dir: &Path, args: &Args) {
 
     #[derive(PartialEq, Eq, Clone, Copy, Debug)]
     enum State {
-        // Skipped, // TODO
         Pending,
         Running(Instant),
         Solved(u64),
@@ -186,7 +194,7 @@ fn process_directory(dir: &Path, args: &Args) {
 
     type States = Vec<(PathBuf, OldState, State)>;
 
-    let state = paths
+    let state = all_paths
         .iter()
         .map(|p| {
             (
@@ -253,7 +261,7 @@ fn process_directory(dir: &Path, args: &Args) {
                     (OldState::Failed(_), State::Running(_)) => Yellow,
                     (OldState::Failed(_), State::Solved(_)) => Green,
                     (OldState::Failed(_), State::Failed(_)) => Red,
-                    (OldState::Solved(_), State::Pending) => Magenta,
+                    (OldState::Solved(_), State::Pending) => White,
                     (OldState::Solved(_), State::Running(_)) => Yellow,
                     (OldState::Solved(_), State::Solved(_)) => Green,
                     (OldState::Solved(_), State::Failed(_)) => Magenta,
