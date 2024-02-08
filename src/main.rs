@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use clap::Parser;
 use itertools::Itertools;
 use ocmu64::{generate::GraphType, graph::*, set_flags};
+use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
 #[derive(clap::Parser)]
 struct Args {
@@ -68,15 +69,14 @@ fn main() {
         }
     };
 
-    for (g, p) in graphs {
-        eprintln!("SOLVING GRAPH {p}");
-        solve_graph(g, &args);
-    }
+    graphs.into_par_iter().for_each(|(g, p)| {
+        solve_graph(g, p, &args);
+    });
 }
 
-fn solve_graph(g: GraphBuilder, args: &Args) {
+fn solve_graph(g: GraphBuilder, p: String, args: &Args) {
     println!(
-        "Read graph: {:?} {:?}, {} nodes, {} edges",
+        "{p}: Read A={:?} B={:?}, {} nodes, {} edges",
         g.a,
         g.b,
         g.a.0 + g.b.0,
@@ -87,12 +87,12 @@ fn solve_graph(g: GraphBuilder, args: &Args) {
     let bb_output = one_sided_crossing_minimization(g, args.upper_bound);
     // eprintln!("Branch and bound took {:?}", start.elapsed());
     if let Some((bb_solution, bb_score)) = bb_output {
-        println!("Score of our beautiful solution: {bb_score}");
+        println!("{p}: SCORE: {bb_score}");
         // if bb_solution.len() < 200 {
         //     println!("Our beautiful solution: {:?}", bb_solution);
         // }
     } else {
-        println!("No solution found?!");
+        println!("{p}: No solution found?!");
     }
     // println!("");
     // println!("Recursive...");
