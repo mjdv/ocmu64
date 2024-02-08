@@ -117,10 +117,7 @@ fn main() {
         }
     }
 
-    fn update(state: &Mutex<Vec<(String, State)>>, p: &str, new_state: State) {
-        let mut state = state.lock().unwrap();
-        let idx = state.iter().position(|x| x.0 == p).unwrap();
-        state[idx].1 = new_state;
+    fn print_state(state: &Vec<(String, State)>) {
         let summary = state
             .iter()
             .map(|x| {
@@ -139,6 +136,13 @@ fn main() {
             .count();
         let total = state.len();
         eprintln!("{cnt:>3}/{total:>3} {summary}");
+    }
+
+    fn update(state: &Mutex<Vec<(String, State)>>, p: &str, new_state: State) {
+        let mut state = state.lock().unwrap();
+        let idx = state.iter().position(|x| x.0 == p).unwrap();
+        state[idx].1 = new_state;
+        print_state(&state);
     }
 
     let db = Arc::new(Mutex::new(db));
@@ -162,12 +166,12 @@ fn main() {
                 if let State::Running(start) = s {
                     let duration = start.elapsed().as_secs();
                     db.add_result(p, duration, None);
-                    *s = State::Done(duration);
                 }
             }
 
             db.save();
-            std::process::exit(0);
+            print_state(&state);
+            std::process::exit(1);
         })
         .unwrap();
     }
