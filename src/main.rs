@@ -1,7 +1,7 @@
 use std::{
     path::PathBuf,
     sync::{Arc, Mutex},
-    time::{Duration, Instant},
+    time::Instant,
 };
 
 use clap::Parser;
@@ -106,10 +106,14 @@ fn main() {
     fn duration_to_char(d: u64) -> &'static str {
         match d {
             0 => "0",
-            ..=10 => "1",
-            ..=100 => "2",
-            ..=1000 => "3",
-            _ => "4",
+            ..=3 => "1",
+            ..=10 => "2",
+            ..=30 => "3",
+            ..=100 => "4",
+            ..=300 => "5",
+            ..=1000 => "6",
+            ..=3000 => "7",
+            _ => "8",
         }
     }
 
@@ -168,7 +172,7 @@ fn main() {
         .unwrap();
     }
 
-    graphs.into_par_iter().for_each(|(g, p)| {
+    graphs.into_iter().par_bridge().for_each(|(g, p)| {
         if args.skip {
             if db.lock().unwrap().get_score(&p).is_some() {
                 return;
