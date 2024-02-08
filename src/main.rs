@@ -290,8 +290,6 @@ fn process_directory(dir: &Path, args: &Args) {
         let state = state.clone();
 
         ctrlc::set_handler(move || {
-            eprintln!("Caught Ctrl-C, saving database.");
-
             let mut db = db.lock().unwrap();
 
             // Update pending runs in database.
@@ -305,7 +303,9 @@ fn process_directory(dir: &Path, args: &Args) {
             }
 
             db.save();
+            eprintln!();
             print_state(&state);
+            eprintln!();
             std::process::exit(1);
         })
         .unwrap();
