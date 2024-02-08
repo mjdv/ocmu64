@@ -1,5 +1,6 @@
 use std::{
-    path::PathBuf,
+    path::{Path, PathBuf},
+    process::exit,
     sync::{Arc, Mutex},
     time::Instant,
 };
@@ -26,56 +27,98 @@ struct Args {
     database: PathBuf,
     #[clap(long, global = true)]
     skip: bool,
+    #[clap(long, global = true)]
+    subprocess: bool,
     #[clap(global = true)]
     flags: Vec<String>,
 }
 
 fn main() {
     let args = Args::parse();
-
     set_flags(&args.flags);
 
-    let mut graphs = match (&args.generate, &args.input) {
-        (Some(_), Some(_)) => panic!("Cannot generate and read a graph at the same time."),
-        (Some(gt), None) => vec![(
-            gt.generate(args.seed),
-            format!("Generated with seed {:?}", args.seed),
-        )],
-        (None, Some(f)) => {
-            // If f is a directory, iterate over all files in it.
-            if f.is_dir() {
-                let mut paths = std::fs::read_dir(f)
-                    .unwrap()
-                    .map(|x| x.unwrap().path())
-                    .collect_vec();
+    if args.subprocess {
+        main_subprocess(&args);
+        return;
+    }
 
-                // TODO: human readable sort?
-                paths.sort();
-                paths
-                    .iter()
-                    .map(|path| {
-                        (
-                            GraphBuilder::from_file(&path)
-                                .expect("Unable to read graph from file."),
-                            path.to_str().unwrap().to_string(),
-                        )
-                    })
-                    .collect()
-            } else {
-                vec![(
-                    GraphBuilder::from_file(&f).expect("Unable to read graph from file."),
-                    f.to_str().unwrap().to_string(),
-                )]
-            }
+    match (&args.generate, &args.input) {
+        (Some(_), Some(_)) => panic!("Cannot generate and read a graph at the same time."),
+        (Some(gt), None) => {
+            let g = gt.generate(args.seed);
+            solve_graph(g, &args);
         }
         (None, None) => {
-            vec![(
-                GraphBuilder::from_stdin()
-                    .expect("Did not get a graph in the correct format on stdin."),
-                "stdin".to_string(),
-            )]
+            let g = GraphBuilder::from_stdin()
+                .expect("Did not get a graph in the correct format on stdin.");
+            solve_graph(g, &args);
         }
+        (None, Some(path)) if path.is_file() => {
+            // TODO: Write database for files.
+            let g = GraphBuilder::from_file(path).expect("Unable to read graph from file.");
+            solve_graph(g, &args);
+        }
+        (None, Some(path)) if path.is_dir() => {
+            process_directory(path, &args);
+        }
+        _ => panic!(),
     };
+}
+
+/// Solve a single graph.
+fn solve_graph(g: GraphBuilder, args: &Args) {
+    eprintln!(
+        "Read A={:?} B={:?}, {} nodes, {} edges",
+        g.a,
+        g.b,
+        g.a.0 + g.b.0,
+        g.connections_a.iter().map(|x| x.len()).sum::<usize>()
+    );
+    let output = one_sided_crossing_minimization(g, args.upper_bound);
+    if let Some((_solution, score)) = output {
+        eprintln!("SCORE: {score}");
+    } else {
+        eprintln!("No solution found?!");
+    }
+}
+
+/// When running as a subprocess, read a path and print the score to stdout as json.
+fn main_subprocess(args: &Args) {
+    let g = GraphBuilder::from_file(
+        args.input
+            .as_ref()
+            .expect("Input path must be given for subprocess."),
+    )
+    .expect("Unable to read graph from file.");
+    let output = one_sided_crossing_minimization(g, args.upper_bound);
+    let score = output.map(|x| x.1);
+    serde_json::to_writer(std::io::stdout(), &score).unwrap();
+}
+
+fn call_subprocess(path: &Path, args: &Args) -> Option<u64> {
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .arg("--subprocess")
+        .arg("--input")
+        .arg(path)
+        .arg("--database")
+        .arg(&args.database)
+        .args(&args.flags)
+        .output()
+        .expect("Failed to execute subprocess.");
+    if !output.status.success() {
+        eprintln!("Subprocess failed: {:?}", output);
+        exit(1);
+    }
+    serde_json::from_slice(&output.stdout).unwrap()
+}
+
+fn process_directory(dir: &Path, args: &Args) {
+    let mut paths = std::fs::read_dir(dir)
+        .unwrap()
+        .map(|x| x.unwrap().path())
+        .collect_vec();
+
+    paths.sort();
 
     // read database file using serde_json
     let db = Database::new(args.database.clone());
@@ -89,9 +132,9 @@ fn main() {
         // Duration.
         Done(u64),
     }
-    let state = graphs
+    let state = paths
         .iter()
-        .map(|(_, p)| {
+        .map(|p| {
             (
                 p.clone(),
                 if db.get_score(p).is_some() {
@@ -117,7 +160,7 @@ fn main() {
         }
     }
 
-    fn print_state(state: &Vec<(String, State)>) {
+    fn print_state(state: &Vec<(PathBuf, State)>) {
         let summary = state
             .iter()
             .map(|x| {
@@ -138,7 +181,7 @@ fn main() {
         eprintln!("{cnt:>3}/{total:>3} {summary}");
     }
 
-    fn update(state: &Mutex<Vec<(String, State)>>, p: &str, new_state: State) {
+    fn update(state: &Mutex<Vec<(PathBuf, State)>>, p: &Path, new_state: State) {
         let mut state = state.lock().unwrap();
         let idx = state.iter().position(|x| x.0 == p).unwrap();
         state[idx].1 = new_state;
@@ -148,7 +191,7 @@ fn main() {
     let state = Arc::new(Mutex::new(state));
 
     // Sort graphs by unsolved first, by least amount of time tried.
-    graphs.sort_by_key(|(_, p)| db.lock().unwrap().get_duration(p) as u64);
+    paths.sort_by_key(|p| db.lock().unwrap().get_duration(p) as u64);
 
     {
         let db = db.clone();
@@ -175,7 +218,7 @@ fn main() {
         .unwrap();
     }
 
-    graphs.into_iter().par_bridge().for_each(|(g, p)| {
+    paths.into_iter().par_bridge().for_each(|p| {
         if args.skip {
             if db.lock().unwrap().get_score(&p).is_some() {
                 return;
@@ -185,29 +228,11 @@ fn main() {
         let start = std::time::Instant::now();
         update(&state, &p, State::Running(start));
         print_state(&state.lock().unwrap());
-        let score = solve_graph(g, &p, &args);
+        let score = call_subprocess(&p, &args);
         let duration = start.elapsed().as_secs();
         db.lock().unwrap().add_result(&p, duration, score);
         update(&state, &p, State::Done(duration));
         // State will be printed after setting a new entry to Running.
     });
     print_state(&state.lock().unwrap());
-}
-
-fn solve_graph(g: GraphBuilder, p: &str, args: &Args) -> Option<u64> {
-    eprintln!(
-        "{p}: Read A={:?} B={:?}, {} nodes, {} edges",
-        g.a,
-        g.b,
-        g.a.0 + g.b.0,
-        g.connections_a.iter().map(|x| x.len()).sum::<usize>()
-    );
-    let output = one_sided_crossing_minimization(g, args.upper_bound);
-    if let Some((_solution, score)) = output {
-        eprintln!("{p}: SCORE: {score}");
-        Some(score)
-    } else {
-        eprintln!("{p}: No solution found?!");
-        None
-    }
 }
