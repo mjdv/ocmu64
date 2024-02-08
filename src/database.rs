@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, path::PathBuf, time::Duration};
+use std::{collections::HashMap, path::PathBuf};
 
 /// Data stored per testcase.
 #[derive(Debug, Clone, Serialize, Deserialize)]
