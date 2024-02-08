@@ -31,7 +31,7 @@ fn main() {
 
     set_flags(&args.flags);
 
-    let graphs = match (&args.generate, &args.input) {
+    let mut graphs = match (&args.generate, &args.input) {
         (Some(_), Some(_)) => panic!("Cannot generate and read a graph at the same time."),
         (Some(gt), None) => vec![(
             gt.generate(args.seed),
@@ -84,20 +84,25 @@ fn main() {
         graphs
             .iter()
             .map(|(_, p)| {
-                if Database::new(args.database.clone()).get_score(p).is_some() {
-                    State::DoneBefore
-                } else {
-                    State::Pending
-                }
+                (
+                    p.clone(),
+                    if Database::new(args.database.clone()).get_score(p).is_some() {
+                        State::DoneBefore
+                    } else {
+                        State::Pending
+                    },
+                )
             })
             .collect::<Vec<_>>(),
     );
 
-    fn print(state: &Mutex<Vec<State>>) {
-        let state = state.lock().unwrap();
+    fn update(state: &Mutex<Vec<(String, State)>>, p: &str, new_state: State) {
+        let mut state = state.lock().unwrap();
+        let idx = state.iter().position(|x| x.0 == p).unwrap();
+        state[idx].1 = new_state;
         let summary = state
             .iter()
-            .map(|&x| match x {
+            .map(|x| match x.1 {
                 State::DoneBefore => format!("{}", "✓".purple()),
                 State::Pending => format!("{}", "✗".red()),
                 State::Running => format!("{}", "O".yellow()),
@@ -109,7 +114,7 @@ fn main() {
             .join("");
         let cnt = state
             .iter()
-            .filter(|&&x| matches!(x, State::Done(_) | State::DoneBefore))
+            .filter(|x| matches!(x.1, State::Done(_) | State::DoneBefore))
             .count();
         let total = state.len();
         eprintln!("{cnt:>3}/{total:>3} {summary}");
@@ -118,20 +123,21 @@ fn main() {
     // read database file using serde_json
     let db = Mutex::new(Database::new(args.database.clone()));
 
-    graphs.into_par_iter().enumerate().for_each(|(i, (g, p))| {
+    // Sort graphs by unsolved first, by least amount of time tried.
+    graphs.sort_by_key(|(_, p)| db.lock().unwrap().get_max_duration(p) as u64);
+
+    graphs.into_par_iter().for_each(|(g, p)| {
         if args.skip {
             if db.lock().unwrap().get_score(&p).is_some() {
                 return;
             }
         }
 
-        state.lock().unwrap()[i] = State::Running;
-        print(&state);
+        update(&state, &p, State::Running);
         let start = std::time::Instant::now();
         let score = solve_graph(g, &p, &args);
         let duration = start.elapsed();
-        state.lock().unwrap()[i] = State::Done(duration);
-        print(&state);
+        update(&state, &p, State::Done(duration));
 
         db.lock().unwrap().add_result(p, duration, score);
     });
