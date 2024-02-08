@@ -266,10 +266,7 @@ fn process_directory(dir: &Path, args: &Args) {
                 }
             })
             .join("");
-        let cnt = state
-            .iter()
-            .filter(|x| x.1.solved() || x.2.solved())
-            .count();
+        let cnt = state.iter().filter(|x| x.2.solved()).count();
         let total = state.len();
         eprint!("{cnt:>3}/{total:>3} {summary}\r");
     }
