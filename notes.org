@@ -117,3 +117,9 @@ Also runs in $2^c\cdot poly(n,c)$ for max cut-width $c$.
 
   - 32, 19, 28, 31, 33, 43, 23, 29, 50, 34, 20, 25
   - 31, 32, 33, 43, 23, 50, 34, 19, 20, 25, 28, 29
+
+- Merge adjacent 1-1 edges:
+  When two adjacent vertices in A have degree 1, and their neighbours also have
+  degree 1, these two 1-1 edges can be merged.
+
+- In the B&B, instead of appending the next vertex u, insert it optimally in the prefix.
