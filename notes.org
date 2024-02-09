@@ -108,8 +108,21 @@ Also runs in $2^c\cdot poly(n,c)$ for max cut-width $c$.
   - Does this help when B&B already has memoization?
 - DONE *Ordered*: If $r_u \leq l_v$.
 - DONE *Twins*: Identify B nodes with identical nbs and merge them.
+- DONE Merge adjacent 1-1 edges:
+  When two adjacent vertices in A have degree 1, and their neighbours also have
+  degree 1, these two 1-1 edges can be merged.
+- DONE In the B&B, instead of appending the next vertex u, insert it optimally in the prefix.
+
+- *Subgraph*: Given an interval $S_A$ of $A$. Let $S_B=\Gamma(S_A)$ be its set
+  of neighbours. When $\Gamma(S_B) = S_A$, we can solve $S_B$ independently, add
+  its cost to the global solution, and replace $S_A$ and $S_B$ by a single
+  weighted edge.
+  - *Tiny bridge* instance of this: when $u\in B$ is connected to $x,y$ adjacent
+    in $A$, and $u,x,y$ don't have other edges.
+
 - *Partial twins*: as soon as two vertices have the same nbs in /tail/, they
   should also be identified.
+
 - *Siblings*: If for all $w$: If $v$ goes before $w$, than $u$ also, and if $u$ goes after
   $w$, than also $v$. I.e. $cvw < cwv$ implies $cuv \leq cwv$ and $cwu > cuw$ implies $cwu \geq cvw$.
   Then: $u$ most likely comes before $v$.
@@ -117,9 +130,3 @@ Also runs in $2^c\cdot poly(n,c)$ for max cut-width $c$.
 
   - 32, 19, 28, 31, 33, 43, 23, 29, 50, 34, 20, 25
   - 31, 32, 33, 43, 23, 50, 34, 19, 20, 25, 28, 29
-
-- Merge adjacent 1-1 edges:
-  When two adjacent vertices in A have degree 1, and their neighbours also have
-  degree 1, these two 1-1 edges can be merged.
-
-- In the B&B, instead of appending the next vertex u, insert it optimally in the prefix.
