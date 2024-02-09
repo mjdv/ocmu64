@@ -119,6 +119,10 @@ Also runs in $2^c\cdot poly(n,c)$ for max cut-width $c$.
   weighted edge.
   - *Tiny bridge* instance of this: when $u\in B$ is connected to $x,y$ adjacent
     in $A$, and $u,x,y$ don't have other edges.
+- *LEMMA? Larger nbs:* When $u$ and $v$ in $B$, and $deg(u) = deg(v)$, and
+  $\Gamma(u) \leq \Gamma(v)$, then does $u$ come before $v$?
+  - $\Gamma(u)$ is the sorted list of neighbours of $u$, and $\Gamma(u)\leq
+    \Gamma(v)$ means each nb of $u$ is $\leq$ the corresponding one of $v$.
 
 - *Partial twins*: as soon as two vertices have the same nbs in /tail/, they
   should also be identified.

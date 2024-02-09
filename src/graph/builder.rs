@@ -1,7 +1,12 @@
 use itertools::Itertools;
 
 use super::*;
-use std::{self, cmp::max, iter::Step, ops::Range};
+use std::{
+    self,
+    cmp::max,
+    iter::{zip, Step},
+    ops::Range,
+};
 
 #[derive(Debug, Default, Clone)]
 pub struct GraphBuilder {
@@ -178,8 +183,14 @@ impl GraphBuilder {
         self.connections_a.iter().map(|x| x.len()).sum::<usize>()
     }
 
-    fn to_graph(&self) -> Graph {
+    fn to_graph(mut self) -> Graph {
         let (crossings, reduced_crossings) = self.crossings();
+        let mut must_come_before = self.find_siblings();
+        let must_come_before_2 = self.dominating_pairs();
+        for (a, b) in must_come_before.iter_mut().zip(must_come_before_2.iter()) {
+            a.extend(b);
+        }
+
         Graph {
             a: self.a,
             b: self.b,
@@ -191,7 +202,7 @@ impl GraphBuilder {
             reduced_crossings: Some(reduced_crossings),
             intervals: self.intervals(),
             self_crossings: self.self_crossings,
-            must_come_before: self.find_siblings(),
+            must_come_before,
         }
     }
 
@@ -262,7 +273,7 @@ impl GraphBuilder {
         self.permute(initial_solution(&self.to_quick_graph()));
         self.sort_edges();
         self.print_stats();
-        self.split().iter().map(|g| g.to_graph()).collect()
+        self.split().into_iter().map(|g| g.to_graph()).collect()
     }
 }
 
@@ -376,20 +387,74 @@ impl GraphBuilder {
         self.drop_singletons();
     }
 
+    /// Find pairs (u,v) with equal degree and neighbours(u) <= neighbours(v).
+    fn dominating_pairs(&mut self) -> VecB<Vec<NodeB>> {
+        // For each node, the other nodes that must come before it.
+        let mut must_come_before: VecB<Vec<NodeB>> = VecB::new(self.b);
+        if !get_flag("dominating_pairs") {
+            return must_come_before;
+        }
+
+        let mut dominating_pairs = 0;
+        let mut strong_dominating_pairs = 0;
+
+        self.sort_edges();
+        for u in NodeB(0)..self.b {
+            for v in NodeB(0)..self.b {
+                if u == v {
+                    continue;
+                }
+                if self[u].len() != self[v].len() {
+                    if get_flag("strong_dominating_pairs") {
+                        if self[u].len() < self[v].len() {
+                            // u < v if nbs(u) <= the first u.len() of nbs(v).
+                            if zip(&self[u], &self[v]).all(|(x, y)| x <= y) {
+                                must_come_before[v].push(u);
+                                strong_dominating_pairs += 1;
+                            }
+                        } else {
+                            // u < v if the last v.len() of nbs(u) <= nbs(v).
+                            if zip(self[u].iter().rev(), self[v].iter().rev()).all(|(x, y)| x <= y)
+                            {
+                                must_come_before[v].push(u);
+                                strong_dominating_pairs += 1;
+                            }
+                        }
+                    }
+                    continue;
+                }
+                if self[u] == self[v] {
+                    if u < v {
+                        must_come_before[v].push(u);
+                    }
+                } else if zip(&self[u], &self[v]).all(|(x, y)| x <= y) {
+                    must_come_before[v].push(u);
+                    dominating_pairs += 1;
+                }
+            }
+        }
+        info!("Found {dominating_pairs} dominating pairs");
+        info!("Found {strong_dominating_pairs} strong dominating pairs");
+        must_come_before
+    }
+
     /// Count pairs (u,v) such that u must always be left of v:
     /// 0. Exclude pairs with disjoint intervals; they are not interesting.
     /// 1. cvw < cwv => cuw <= cwu (if v before w, than so u)
     /// 2. cwu < cuw => cwv <= cvw (if u after w, than so v)
     /// 3. cuv <= cvu
     fn find_siblings(&self) -> VecB<Vec<NodeB>> {
-        // eprint!("Siblings..\r");
+        // For each node, the other nodes that must come before it.
+        let mut must_come_before: VecB<Vec<NodeB>> = VecB::new(self.b);
+        if !get_flag("siblings") {
+            return must_come_before;
+        }
+
         let intervals = self.intervals();
         let c = self.crossings().0;
         let mut siblings = 0;
         let mut rev_siblings = 0;
         let mut rev_sibling_weight = 0;
-        // For each node, the other nodes that must come before it.
-        let mut must_come_before: VecB<Vec<NodeB>> = VecB::new(self.b);
         for u in NodeB(0)..self.b {
             'pairs: for v in NodeB(0)..self.b {
                 if u == v {
