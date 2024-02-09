@@ -391,7 +391,7 @@ impl GraphBuilder {
     fn dominating_pairs(&mut self) -> VecB<Vec<NodeB>> {
         // For each node, the other nodes that must come before it.
         let mut must_come_before: VecB<Vec<NodeB>> = VecB::new(self.b);
-        if !get_flag("dominating_pairs") {
+        if get_flag("no_dominating_pairs") {
             return must_come_before;
         }
 
@@ -410,34 +410,35 @@ impl GraphBuilder {
                     continue;
                 }
                 if self[u].len() != self[v].len() {
-                    if get_flag("strong_dominating_pairs") {
-                        if self[u].len() < self[v].len() {
-                            // u < v if nbs(u) <= the first u.len() of nbs(v).
-                            if zip(&self[u], &self[v]).all(|(x, y)| x <= y) {
-                                must_come_before[v].push(u);
-                                strong_dominating_pairs += 1;
-                                continue;
-                            }
-                        } else {
-                            // u < v if the last v.len() of nbs(u) <= nbs(v).
-                            if zip(self[u].iter().rev(), self[v].iter().rev()).all(|(x, y)| x <= y)
-                            {
-                                must_come_before[v].push(u);
-                                strong_dominating_pairs += 1;
-                                continue;
-                            }
+                    if get_flag("no_strong_dominating_pairs") {
+                        continue;
+                    }
+                    if self[u].len() < self[v].len() {
+                        // u < v if nbs(u) <= the first u.len() of nbs(v).
+                        if zip(&self[u], &self[v]).all(|(x, y)| x <= y) {
+                            must_come_before[v].push(u);
+                            strong_dominating_pairs += 1;
+                            continue;
+                        }
+                    } else {
+                        // u < v if the last v.len() of nbs(u) <= nbs(v).
+                        if zip(self[u].iter().rev(), self[v].iter().rev()).all(|(x, y)| x <= y) {
+                            must_come_before[v].push(u);
+                            strong_dominating_pairs += 1;
+                            continue;
                         }
                     }
-                    if get_flag("stronger_dominating_pairs") {
-                        if (0..self[u].len()).all(|i| {
-                            // u[i] must be smaller than v[j]
-                            // for all j>=floor(i*vl/ul)
-                            let j = (i * self[v].len()) / self[u].len();
-                            self[u][i] < self[v][j]
-                        }) {
-                            must_come_before[v].push(u);
-                            stronger_dominating_pairs += 1;
-                        }
+                    if get_flag("no_stronger_dominating_pairs") {
+                        continue;
+                    }
+                    if (0..self[u].len()).all(|i| {
+                        // u[i] must be smaller than v[j]
+                        // for all j>=floor(i*vl/ul)
+                        let j = (i * self[v].len()) / self[u].len();
+                        self[u][i] < self[v][j]
+                    }) {
+                        must_come_before[v].push(u);
+                        stronger_dominating_pairs += 1;
                     }
                     continue;
                 }
