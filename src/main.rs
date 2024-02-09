@@ -17,7 +17,7 @@ struct Args {
     /// Optionally generate a graph instead of reading one.
     #[clap(subcommand)]
     generate: Option<GraphType>,
-    #[clap(global = true)]
+    #[clap(short, long, global = true)]
     seed: Option<u64>,
     /// Optional path to input file, or stdin by default.
     #[clap(short, long, global = true)]
@@ -342,26 +342,31 @@ fn process_exact_files(mut paths: Vec<PathBuf>, args: &Args) {
         .unwrap();
     }
 
-    paths.into_iter().par_bridge().for_each(|p| {
-        if args.skip {
-            if db.lock().unwrap().get_score(&p).is_some() {
-                return;
+    paths.into_iter().par_bridge().for_each_init(
+        || {
+            set_flags(&args.flags);
+        },
+        |_init, p| {
+            if args.skip {
+                if db.lock().unwrap().get_score(&p).is_some() {
+                    return;
+                }
             }
-        }
 
-        let start = std::time::Instant::now();
-        update(&state, &p, State::Running(start));
-        print_state(&state.lock().unwrap());
-        let score = call_subprocess(&p, &args);
-        let duration = start.elapsed().as_secs();
-        db.lock().unwrap().add_result(&p, duration, score);
-        if score.is_some() {
-            update(&state, &p, State::Solved(duration));
-        } else {
-            update(&state, &p, State::Failed(duration));
-        }
-        // State will be printed after setting a new entry to Running.
-    });
+            let start = std::time::Instant::now();
+            update(&state, &p, State::Running(start));
+            print_state(&state.lock().unwrap());
+            let score = call_subprocess(&p, &args);
+            let duration = start.elapsed().as_secs();
+            db.lock().unwrap().add_result(&p, duration, score);
+            if score.is_some() {
+                update(&state, &p, State::Solved(duration));
+            } else {
+                update(&state, &p, State::Failed(duration));
+            }
+            // State will be printed after setting a new entry to Running.
+        },
+    );
     print_state(&state.lock().unwrap());
     eprintln!();
 }
