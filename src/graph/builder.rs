@@ -167,7 +167,7 @@ impl GraphBuilder {
                     *x = NodeA(x.0 - start);
                 }
             }
-            let g = GraphBuilder::new(VecB { v: new_cb });
+            let g = GraphBuilder::new(VecB::from(new_cb));
             graphs.push(g);
             i = j;
         }
@@ -308,8 +308,8 @@ impl GraphBuilder {
         self.sort_edges();
         self.connections_b.sort();
         let mut self_crossings = 0;
-        self.connections_b = VecB {
-            v: (NodeB(0)..self.b)
+        self.connections_b = VecB::from(
+            (NodeB(0)..self.b)
                 .group_by(|x| self[*x].clone())
                 .into_iter()
                 .map(|(key, group)| {
@@ -325,7 +325,7 @@ impl GraphBuilder {
                         .collect()
                 })
                 .collect(),
-        };
+        );
         self.self_crossings += self_crossings;
         info!(
             "Merged {} twins; {self_crossings} self crossings",
@@ -510,7 +510,7 @@ impl GraphBuilder {
 
     /// Reconstruct `connections_a`, given `connections_b`.
     pub fn reconstruct_a(&mut self) {
-        self.a = self.connections_b.a_len();
+        self.a = self.connections_b.nb_len();
         self.b = self.connections_b.len();
         self.connections_a = VecA::new(self.a);
         for b in NodeB(0)..self.b {
@@ -523,7 +523,7 @@ impl GraphBuilder {
     /// Reconstruct `connections_b`, given `connections_a`.
     fn reconstruct_b(&mut self) {
         self.a = self.connections_a.len();
-        self.b = self.connections_a.b_len();
+        self.b = self.connections_a.nb_len();
         self.connections_b = VecB::new(self.b);
         for a in NodeA(0)..self.a {
             for &b in self.connections_a[a].iter() {
@@ -534,23 +534,22 @@ impl GraphBuilder {
 
     /// Permute the nodes of B such that the given solution is simply 0..b.
     fn permute(&mut self, solution: Solution) {
-        self.connections_b = VecB {
-            v: solution
+        self.connections_b = VecB::from(
+            solution
                 .iter()
                 .map(|&b| std::mem::take(&mut self.connections_b[b]))
                 .collect(),
-        };
+        );
         self.reconstruct_a();
     }
 
     fn intervals(&self) -> VecB<Range<NodeA>> {
-        VecB {
-            v: self
-                .connections_b
+        VecB::from(
+            self.connections_b
                 .iter()
                 .map(|b| (*b.iter().min().unwrap()..*b.iter().max().unwrap()))
                 .collect(),
-        }
+        )
     }
 
     pub fn edge_list_crossings(e1: &Vec<NodeA>, e2: &Vec<NodeA>) -> u64 {
@@ -570,17 +569,13 @@ impl GraphBuilder {
     }
 
     fn crossings(&self) -> (VecB<VecB<u64>>, VecB<VecB<u64>>) {
-        let mut crossings: VecB<VecB<u64>> = VecB {
-            v: vec![VecB::new(self.b); self.b.0],
-        };
+        let mut crossings: VecB<VecB<u64>> = VecB::from(vec![VecB::new(self.b); self.b.0]);
         for node_i in NodeB(0)..self.b {
             for node_j in NodeB(0)..self.b {
                 crossings[node_i][node_j] = self.one_node_crossings(node_i, node_j);
             }
         }
-        let mut reduced_crossings = VecB {
-            v: vec![VecB::new(self.b); self.b.0],
-        };
+        let mut reduced_crossings = VecB::from(vec![VecB::new(self.b); self.b.0]);
         for i in NodeB(0)..self.b {
             for j in NodeB(0)..self.b {
                 reduced_crossings[i][j] = crossings[i][j].saturating_sub(crossings[j][i]);
