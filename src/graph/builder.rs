@@ -435,7 +435,7 @@ impl GraphBuilder {
                         // u[i] must be smaller than v[j]
                         // for all j>=floor(i*vl/ul)
                         let j = (i * self[v].len()) / self[u].len();
-                        self[u][i] < self[v][j]
+                        self[u][i] <= self[v][j]
                     }) {
                         must_come_before[v].push(u);
                         stronger_dominating_pairs += 1;
