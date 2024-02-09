@@ -106,19 +106,8 @@ fn main() {
 
                 return;
             }
-            if path
-                .components()
-                .find(|c| c.as_os_str() == "exact")
-                .is_some()
-            {
-                process_exact_files(paths, &args);
-            } else {
-                for path in paths {
-                    let g =
-                        GraphBuilder::from_file(&path).expect("Unable to read graph from file.");
-                    solve_graph(g, &args);
-                }
-            }
+
+            process_dir(paths, &args);
         }
     };
 }
@@ -186,10 +175,13 @@ fn call_subprocess(path: &Path, args: &Args) -> Option<u64> {
     serde_json::from_slice(&output.stdout).unwrap()
 }
 
-fn process_exact_files(mut paths: Vec<PathBuf>, args: &Args) {
+fn process_dir(mut paths: Vec<PathBuf>, args: &Args) -> Option<()> {
+    let dir = paths.first()?.parent()?;
+    let dirname = dir.file_name()?.to_str()?;
+
     // read database file using serde_json
-    let db = Database::new("db/exact.json");
-    let mut all_paths = std::fs::read_dir("input/exact")
+    let db = Database::new(format!("db/{dirname}.json"));
+    let mut all_paths = std::fs::read_dir(dir)
         .unwrap()
         .map(|x| x.unwrap().path())
         .collect_vec();
@@ -390,9 +382,10 @@ fn process_exact_files(mut paths: Vec<PathBuf>, args: &Args) {
             } else {
                 update(&state, &p, State::Failed(duration));
             }
-            // State will be printed after setting a new entry to Running.
+            print_state(&state.lock().unwrap());
         },
     );
     print_state(&state.lock().unwrap());
     eprintln!();
+    Some(())
 }
