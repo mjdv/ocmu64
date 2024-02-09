@@ -110,8 +110,9 @@ Also runs in $2^c\cdot poly(n,c)$ for max cut-width $c$.
 - DONE *Twins*: Identify B nodes with identical nbs and merge them.
 - *Partial twins*: as soon as two vertices have the same nbs in /tail/, they
   should also be identified.
-- *Siblings*: If for all $w$: If $v$ goes before $u$, than $u$ also, and if $u$ goes after
+- *Siblings*: If for all $w$: If $v$ goes before $w$, than $u$ also, and if $u$ goes after
   $w$, than also $v$. I.e. $cvw < cwv$ implies $cuv \leq cwv$ and $cwu > cuw$ implies $cwu \geq cvw$.
+  Then: $u$ most likely comes before $v$.
   - *This heuristic is super strong, but not true*
 
   - 32, 19, 28, 31, 33, 43, 23, 29, 50, 34, 20, 25
