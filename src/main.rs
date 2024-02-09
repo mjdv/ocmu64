@@ -1,4 +1,5 @@
 use std::{
+    iter::zip,
     path::{Path, PathBuf},
     process::Stdio,
     sync::{Arc, Mutex},
@@ -34,6 +35,8 @@ struct Args {
     verbose: bool,
     #[clap(short, long, global = true)]
     print: bool,
+    #[clap(long, global = true)]
+    statsonly: bool,
     #[clap(global = true)]
     flags: Vec<String>,
 }
@@ -73,7 +76,7 @@ fn main() {
             solve_graph(g, &args);
         }
         (None, Some(path)) => {
-            let paths = if path.is_file() {
+            let mut paths = if path.is_file() {
                 init_log(args);
                 vec![path.to_path_buf()]
             } else {
@@ -82,6 +85,27 @@ fn main() {
                     .map(|x| x.unwrap().path())
                     .collect_vec()
             };
+            if args.statsonly {
+                paths.sort();
+                let graphs = paths.iter().map(|path| {
+                    GraphBuilder::from_file(&path)
+                        .expect("Unable to read graph from file.")
+                        .build()
+                });
+                for (path, gs) in zip(&paths, graphs) {
+                    let mut a = 0;
+                    let mut b = 0;
+                    let mut edges = 0;
+                    for g in gs {
+                        a += g.a.0;
+                        b += g.b.0;
+                        edges += g.num_edges();
+                    }
+                    eprintln!("{}: A={a:>5} B={b:>5} edges={edges:>6}", path.display());
+                }
+
+                return;
+            }
             if path
                 .components()
                 .find(|c| c.as_os_str() == "exact")
