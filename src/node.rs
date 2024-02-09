@@ -2,98 +2,104 @@ use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Debug, Display},
     iter::Step,
+    marker::PhantomData,
     ops::{Deref, DerefMut, Index, IndexMut},
 };
 
-/// TODO: u32 indices
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
-pub struct NodeA(pub usize);
+pub trait NodeTrait: Copy + PartialEq + Eq + PartialOrd + Ord + Default + Serialize {
+    const CHAR: char;
+    const T: PhantomData<Self> = PhantomData;
+}
 
-/// TODO: u32 indices
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash, Serialize, Deserialize)]
-pub struct NodeB(pub usize);
+#[derive(
+    Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Default, Hash, Serialize, Deserialize,
+)]
+pub struct Node<NT>(pub usize, pub PhantomData<NT>);
 
-impl Display for NodeA {
+#[derive(
+    Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Default, Hash, Serialize, Deserialize,
+)]
+pub struct AT;
+impl NodeTrait for AT {
+    const CHAR: char = 'A';
+}
+#[derive(
+    Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Default, Hash, Serialize, Deserialize,
+)]
+pub struct BT;
+impl NodeTrait for BT {
+    const CHAR: char = 'B';
+}
+
+pub type NodeA = Node<AT>;
+pub type NodeB = Node<BT>;
+
+/// A function to create a NodeA.
+#[allow(non_snake_case)]
+pub fn NodeA(v: usize) -> NodeA {
+    Node(v, PhantomData)
+}
+/// A function to create a NodeB.
+#[allow(non_snake_case)]
+pub fn NodeB(v: usize) -> NodeB {
+    Node(v, PhantomData)
+}
+
+impl<NT: NodeTrait> Display for Node<NT> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}A", self.0)
+        write!(f, "{}{}", self.0, NT::CHAR)
     }
 }
 
-impl Display for NodeB {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}B", self.0)
-    }
-}
-
-impl Debug for NodeA {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Display::fmt(self, f)
-    }
-}
-
-impl Debug for NodeB {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Display::fmt(self, f)
-    }
-}
-
-impl Step for NodeA {
+impl<NT: NodeTrait> Step for Node<NT> {
     fn steps_between(start: &Self, end: &Self) -> Option<usize> {
         Step::steps_between(&start.0, &end.0)
     }
 
     fn forward_checked(start: Self, count: usize) -> Option<Self> {
-        usize::forward_checked(start.0, count).map(NodeA)
+        usize::forward_checked(start.0, count).map(|x| Self(x, PhantomData))
     }
 
     fn backward_checked(start: Self, count: usize) -> Option<Self> {
-        Step::backward_checked(start.0, count).map(NodeA)
-    }
-}
-
-impl Step for NodeB {
-    fn steps_between(start: &Self, end: &Self) -> Option<usize> {
-        Step::steps_between(&start.0, &end.0)
-    }
-
-    fn forward_checked(start: Self, count: usize) -> Option<Self> {
-        usize::forward_checked(start.0, count).map(NodeB)
-    }
-
-    fn backward_checked(start: Self, count: usize) -> Option<Self> {
-        Step::backward_checked(start.0, count).map(NodeB)
+        Step::backward_checked(start.0, count).map(|x| Self(x, PhantomData))
     }
 }
 
 #[derive(Default, Debug, Clone)]
-pub struct VecA<T> {
+pub struct NodeVec<T, NT> {
     pub(crate) v: Vec<T>,
+    _marker: PhantomData<NT>,
 }
 
-#[derive(Default, Debug, Clone)]
-pub struct VecB<T> {
-    pub(crate) v: Vec<T>,
-}
+pub type VecA<T> = NodeVec<T, AT>;
+pub type VecB<T> = NodeVec<T, BT>;
 
 /// Vector of A nodes.
 /// Indexing is unchecked by default.
-impl<T: Default + Clone> VecA<T> {
-    pub fn new(a: NodeA) -> Self {
-        VecA {
+impl<NT: NodeTrait, T: Default + Clone> NodeVec<T, NT> {
+    pub fn from(v: Vec<T>) -> Self {
+        NodeVec {
+            v,
+            _marker: PhantomData,
+        }
+    }
+    pub fn new(a: Node<NT>) -> Self {
+        NodeVec {
             v: vec![T::default(); a.0],
+            _marker: PhantomData,
         }
     }
-    pub fn len(&self) -> NodeA {
-        NodeA(self.v.len())
+    pub fn len(&self) -> Node<NT> {
+        Node(self.v.len(), PhantomData)
     }
-    pub fn push(&mut self) -> NodeA {
+    pub fn push(&mut self) -> Node<NT> {
         let id = self.len();
         self.v.push(T::default());
         id
     }
 }
-impl VecA<Vec<NodeB>> {
-    pub fn b_len(&self) -> NodeB {
+impl<NT1: NodeTrait, NT2: NodeTrait> NodeVec<Vec<Node<NT2>>, NT1> {
+    pub fn nb_len(&self) -> Node<NT2> {
         Step::forward(
             *self.iter().filter_map(|x| x.iter().max()).max().unwrap(),
             1,
@@ -101,33 +107,7 @@ impl VecA<Vec<NodeB>> {
     }
 }
 
-/// Vector of B nodes.
-/// Indexing is unchecked by default.
-impl<T: Default + Clone> VecB<T> {
-    pub fn new(b: NodeB) -> Self {
-        VecB {
-            v: vec![T::default(); b.0],
-        }
-    }
-    pub fn len(&self) -> NodeB {
-        NodeB(self.v.len())
-    }
-    pub fn push(&mut self) -> NodeB {
-        let id = self.len();
-        self.v.push(T::default());
-        id
-    }
-}
-impl VecB<Vec<NodeA>> {
-    pub fn a_len(&self) -> NodeA {
-        Step::forward(
-            *self.iter().filter_map(|x| x.iter().max()).max().unwrap(),
-            1,
-        )
-    }
-}
-
-impl<T> Deref for VecA<T> {
+impl<NT: NodeTrait, T> Deref for NodeVec<T, NT> {
     type Target = Vec<T>;
 
     fn deref(&self) -> &Self::Target {
@@ -135,30 +115,16 @@ impl<T> Deref for VecA<T> {
     }
 }
 
-impl<T> DerefMut for VecA<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.v
-    }
-}
-
-impl<T> Deref for VecB<T> {
-    type Target = Vec<T>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.v
-    }
-}
-
-impl<T> DerefMut for VecB<T> {
+impl<NT: NodeTrait, T> DerefMut for NodeVec<T, NT> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.v
     }
 }
 
 /// Unchecked indexing.
-impl<T> Index<NodeA> for VecA<T> {
+impl<NT: NodeTrait, T> Index<Node<NT>> for NodeVec<T, NT> {
     type Output = T;
-    fn index(&self, index: NodeA) -> &Self::Output {
+    fn index(&self, index: Node<NT>) -> &Self::Output {
         #[cfg(not(debug_assertions))]
         unsafe {
             self.v.get_unchecked(index.0)
@@ -169,33 +135,8 @@ impl<T> Index<NodeA> for VecA<T> {
 }
 
 /// Unchecked indexing.
-impl<T> IndexMut<NodeA> for VecA<T> {
-    fn index_mut(&mut self, index: NodeA) -> &mut Self::Output {
-        #[cfg(not(debug_assertions))]
-        unsafe {
-            self.v.get_unchecked_mut(index.0)
-        }
-        #[cfg(debug_assertions)]
-        &mut self.v[index.0]
-    }
-}
-
-/// Unchecked indexing.
-impl<T> Index<NodeB> for VecB<T> {
-    type Output = T;
-    fn index(&self, index: NodeB) -> &Self::Output {
-        #[cfg(not(debug_assertions))]
-        unsafe {
-            self.v.get_unchecked(index.0)
-        }
-        #[cfg(debug_assertions)]
-        &self.v[index.0]
-    }
-}
-
-/// Unchecked indexing.
-impl<T> IndexMut<NodeB> for VecB<T> {
-    fn index_mut(&mut self, index: NodeB) -> &mut Self::Output {
+impl<NT: NodeTrait, T> IndexMut<Node<NT>> for NodeVec<T, NT> {
+    fn index_mut(&mut self, index: Node<NT>) -> &mut Self::Output {
         #[cfg(not(debug_assertions))]
         unsafe {
             self.v.get_unchecked_mut(index.0)
