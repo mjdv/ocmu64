@@ -422,6 +422,10 @@ impl<'a> Bb<'a> {
             unsafe { self.tail_mask.set_unchecked(u.0, false) };
 
             if self.branch_and_bound() {
+                // When moving u to the optimal insertion point, the optimal score can actually beat the known lower bound.
+                // This is OK though; inserting points in order of optimal
+                // solution will always append them at the back, and in that
+                // situation the lower bound will be valid.
                 if get_flag("no_optimal_insert") {
                     assert!(
                         my_lower_bound <= self.best_score,
