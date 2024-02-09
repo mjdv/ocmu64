@@ -1,5 +1,6 @@
 use std::{
     path::{Path, PathBuf},
+    process::Stdio,
     sync::{Arc, Mutex},
     time::Instant,
 };
@@ -106,49 +107,58 @@ fn solve_graph(g: GraphBuilder, args: &Args) -> Option<u64> {
         g.connections_a.iter().map(|x| x.len()).sum::<usize>()
     );
     let output = one_sided_crossing_minimization(g, args.upper_bound);
-    if let Some((_solution, score)) = output {
-        eprintln!("SCORE: {score}");
+    let score = output.map(|x| x.1);
+    if let Some(score) = score {
+        info!("SCORE: {score}");
     } else {
-        eprintln!("No solution found?!");
+        info!("No solution found?!");
     }
-}
-
-fn set_limits(args: &Args) {
-    let set = |res, limit| {
-        let rlimit = libc::rlimit {
-            rlim_cur: limit as _,
-            rlim_max: limit as _,
-        };
-        unsafe {
-            libc::setrlimit(res, &rlimit);
-        }
-    };
-    if let Some(time) = args.timelimit {
-        set(libc::RLIMIT_CPU, time);
-    }
+    score
 }
 
 /// When running as a subprocess, read a path and print the score to stdout as json.
 fn main_subprocess(args: &Args) {
+    let time = args.timelimit.unwrap();
+    unsafe {
+        libc::setrlimit(
+            libc::RLIMIT_CPU,
+            &libc::rlimit {
+                rlim_cur: time,
+                rlim_max: time,
+            },
+        );
+    }
+
     let g = GraphBuilder::from_file(
         args.input
             .as_ref()
             .expect("Input path must be given for subprocess."),
     )
     .expect("Unable to read graph from file.");
-    let output = one_sided_crossing_minimization(g, args.upper_bound);
-    let score = output.map(|x| x.1);
+    let score = solve_graph(g, args);
     serde_json::to_writer(std::io::stdout(), &score).unwrap();
 }
 
+/// If a timelimit is set, run in a subprocess.
 fn call_subprocess(path: &Path, args: &Args) -> Option<u64> {
+    let Some(time) = args.timelimit else {
+        // When no timelimit is set, just run directly in the same process.
+        let g = GraphBuilder::from_file(path).expect("Unable to read graph from file.");
+        return solve_graph(g, args);
+    };
+
     let mut arg = std::process::Command::new(std::env::current_exe().unwrap());
     arg.arg("--subprocess");
     arg.arg("--input").arg(path);
-    if let Some(time) = args.timelimit {
-        arg.arg("--timelimit").arg(time.to_string());
+    arg.arg("--timelimit").arg(time.to_string());
+    if let Some(ub) = args.upper_bound {
+        arg.arg("--upper-bound").arg(ub.to_string());
+    }
+    if log::log_enabled!(log::Level::Info) {
+        arg.arg("--verbose");
     }
     arg.args(&args.flags);
+    arg.stderr(Stdio::inherit());
     let output = arg.output().expect("Failed to execute subprocess.");
     if !output.status.success() {
         return None;
