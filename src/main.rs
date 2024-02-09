@@ -360,31 +360,37 @@ fn process_dir(mut paths: Vec<PathBuf>, args: &Args) -> Option<()> {
         .unwrap();
     }
 
-    paths.into_iter().par_bridge().for_each_init(
-        || {
-            set_flags(&args.flags);
-        },
-        |_init, p| {
-            if args.skip {
-                if db.lock().unwrap().get_score(&p).is_some() {
-                    return;
-                }
+    let process_path = |p: PathBuf| {
+        if args.skip {
+            if db.lock().unwrap().get_score(&p).is_some() {
+                return;
             }
+        }
 
-            let start = std::time::Instant::now();
-            update(&state, &p, State::Running(start));
-            print_state(&state.lock().unwrap());
-            let score = call_subprocess(&p, &args);
-            let duration = start.elapsed().as_secs();
-            db.lock().unwrap().add_result(&p, duration, score);
-            if score.is_some() {
-                update(&state, &p, State::Solved(duration));
-            } else {
-                update(&state, &p, State::Failed(duration));
-            }
-            print_state(&state.lock().unwrap());
-        },
-    );
+        let start = std::time::Instant::now();
+        update(&state, &p, State::Running(start));
+        print_state(&state.lock().unwrap());
+        let score = call_subprocess(&p, &args);
+        let duration = start.elapsed().as_secs();
+        db.lock().unwrap().add_result(&p, duration, score);
+        if score.is_some() {
+            update(&state, &p, State::Solved(duration));
+        } else {
+            update(&state, &p, State::Failed(duration));
+        }
+        print_state(&state.lock().unwrap());
+    };
+
+    if paths.len() == 1 {
+        process_path(paths.pop().unwrap());
+    } else {
+        paths.into_iter().par_bridge().for_each_init(
+            || {
+                set_flags(&args.flags);
+            },
+            |_init, p| process_path(p),
+        );
+    }
     print_state(&state.lock().unwrap());
     eprintln!();
     Some(())
