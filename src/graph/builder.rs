@@ -397,6 +397,7 @@ impl GraphBuilder {
 
         let mut dominating_pairs = 0;
         let mut strong_dominating_pairs = 0;
+        let mut stronger_dominating_pairs = 0;
 
         self.sort_edges();
         for u in NodeB(0)..self.b {
@@ -415,6 +416,7 @@ impl GraphBuilder {
                             if zip(&self[u], &self[v]).all(|(x, y)| x <= y) {
                                 must_come_before[v].push(u);
                                 strong_dominating_pairs += 1;
+                                continue;
                             }
                         } else {
                             // u < v if the last v.len() of nbs(u) <= nbs(v).
@@ -422,7 +424,19 @@ impl GraphBuilder {
                             {
                                 must_come_before[v].push(u);
                                 strong_dominating_pairs += 1;
+                                continue;
                             }
+                        }
+                    }
+                    if get_flag("stronger_dominating_pairs") {
+                        if (0..self[u].len()).all(|i| {
+                            // u[i] must be smaller than v[j]
+                            // for all j>=floor(i*vl/ul)
+                            let j = (i * self[v].len()) / self[u].len();
+                            self[u][i] < self[v][j]
+                        }) {
+                            must_come_before[v].push(u);
+                            stronger_dominating_pairs += 1;
                         }
                     }
                     continue;
@@ -439,6 +453,7 @@ impl GraphBuilder {
         }
         info!("Found {dominating_pairs} dominating pairs");
         info!("Found {strong_dominating_pairs} strong dominating pairs");
+        info!("Found {stronger_dominating_pairs} stronger dominating pairs");
         must_come_before
     }
 
