@@ -104,6 +104,13 @@ impl Database {
         results.runs.push(result);
         if let Some(new_score) = score {
             if let Some(existing_score) = &results.score {
+                assert_eq!(
+                    new_score,
+                    *existing_score,
+                    "New score {new_score} does not equal existing score {existing_score} for {}.\nOld results:\n{:?}",
+                    results.path.display(),
+                    results
+                );
                 results.score = Some(new_score.min(*existing_score));
             } else {
                 results.score = Some(new_score);
