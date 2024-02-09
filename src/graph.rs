@@ -7,7 +7,7 @@ use std::{
 
 use bitvec::prelude::*;
 pub use builder::GraphBuilder;
-use log::info;
+use log::*;
 
 mod builder;
 mod io;
