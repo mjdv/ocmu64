@@ -366,7 +366,6 @@ impl<'a> Bb<'a> {
 
         let mut solution = false;
         // If we skipped some children because of local pruning, do not update the lower bound for this tail.
-        let mut skips = false;
         // Try each of the tail nodes as next node.
         'u: for i in self.solution_len..self.solution.len() {
             // Swap the next tail node to the front of the tail.
@@ -380,27 +379,9 @@ impl<'a> Bb<'a> {
                 continue;
             }
 
-            // SIBLINGS: u must come after all the v listed here.
-            // NOTE: It turns out this is not a valid optimization sadly.
             for v in &self.g.must_come_before[u] {
                 if unsafe { *self.tail_mask.get_unchecked(v.0) } {
                     continue 'u;
-                }
-            }
-
-            // NOTE: It's faster to not skip local inefficiencies, because then
-            // we are guaranteed to have a valid lower bound on the tail that
-            // can used for pruning.
-            if get_flag("skip_local") {
-                // If this node commutes with the last one, fix their ordering.
-                if let Some(&last) = self.solution.get(self.solution_len.wrapping_sub(1)) {
-                    if self.g.node_score(last, u) > self.g.node_score(u, last)
-                        // NOTE(ragnar): What is this check doing?
-                        && self.upper_bound < 90000
-                    {
-                        skips = true;
-                        continue;
-                    }
                 }
             }
 
@@ -483,22 +464,20 @@ states {}
         assert_eq!(self.solution_len, old_solution_len);
         debug_assert_eq!(self.tail_mask.count_zeros(), self.solution_len);
         self.solution[self.solution_len..].copy_from_slice(&old_tail);
-        if !skips {
-            if old_score < self.upper_bound {
-                let tail_excess = self.upper_bound - old_score;
-                // TODO: Count updates and sets.
-                match self.lower_bound_for_tail.entry(self.tail_mask.clone()) {
-                    Entry::Occupied(mut e) => {
-                        // We did a search without success so the value must grow.
-                        // assert!(tail_excess > *e.get());
-                        if tail_excess > *e.get() {
-                            *e.get_mut() = tail_excess;
-                            self.lb_updates += 1;
-                        }
+        if old_score < self.upper_bound {
+            let tail_excess = self.upper_bound - old_score;
+            // TODO: Count updates and sets.
+            match self.lower_bound_for_tail.entry(self.tail_mask.clone()) {
+                Entry::Occupied(mut e) => {
+                    // We did a search without success so the value must grow.
+                    // assert!(tail_excess > *e.get());
+                    if tail_excess > *e.get() {
+                        *e.get_mut() = tail_excess;
+                        self.lb_updates += 1;
                     }
-                    Entry::Vacant(e) => {
-                        e.insert(tail_excess);
-                    }
+                }
+                Entry::Vacant(e) => {
+                    e.insert(tail_excess);
                 }
             }
         }
