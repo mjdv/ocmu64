@@ -154,10 +154,15 @@ impl GraphBuilder {
                 i = j;
                 continue;
             }
+            let start = intervals[NodeB(i)].start.0;
             // Convert the component into a Graph on its own.
-            let g = GraphBuilder::new(VecB {
-                v: self.connections_b.v[i..j].to_vec(),
-            });
+            let mut new_cb = self.connections_b.v[i..j].to_vec();
+            for l in &mut new_cb {
+                for x in l {
+                    *x = NodeA(x.0 - start);
+                }
+            }
+            let g = GraphBuilder::new(VecB { v: new_cb });
             graphs.push(g);
             i = j;
         }
