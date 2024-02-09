@@ -374,8 +374,9 @@ impl<'a> Bb<'a> {
             let u = self.solution[self.solution_len];
 
             // INTERVALS: Do not yet try vertices that start after some other vertex ends.
-            // TODO: Think about the equality case.
-            if self.g.intervals[u].start > least_end {
+            let u_range = &self.g.intervals[u];
+            if u_range.start > least_end || (u_range.start == least_end && u_range.end > least_end)
+            {
                 continue;
             }
 
