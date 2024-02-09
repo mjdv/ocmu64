@@ -401,33 +401,58 @@ impl<'a> Bb<'a> {
                 }
             }
 
+            // NOTE: Adjust the score as if u was inserted in the optimal place in the prefix.
+            let mut best_delta = 0;
+            let mut best_i = self.solution_len;
+            if get_flag("optimal_insert") {
+                let mut cur_delta = 0i64;
+                for (i, v) in self.solution[..self.solution_len].iter().enumerate().rev() {
+                    cur_delta += self.g.node_score(*v, u) as i64 - self.g.node_score(u, *v) as i64;
+                    if cur_delta > best_delta as i64 {
+                        best_delta = cur_delta as u64;
+                        best_i = i;
+                    }
+                }
+                if best_delta > 0 {
+                    // warn!("best_delta: {}", best_delta);
+                    // Rotate u into place.
+                    self.solution[best_i..=self.solution_len].rotate_right(1);
+                }
+            }
+
             self.score = old_score;
+
+            let my_lower_bound = my_lower_bound - best_delta;
 
             // Increment score for the new node, and decrement tail_lower_bound.
             // TODO: Early break once the upper_bound is hit.
-            self.score += self.g.partial_score(
-                self.solution[self.solution_len],
-                &self.solution[self.solution_len + 1..],
-            );
+            let partial_score = self
+                .g
+                .partial_score(u, &self.solution[self.solution_len + 1..]);
+
+            self.score -= best_delta;
+            self.score += partial_score;
 
             self.solution_len += 1;
             debug_assert!(self.tail_mask[u.0]);
             unsafe { self.tail_mask.set_unchecked(u.0, false) };
 
             if self.branch_and_bound() {
-                assert!(
-                    my_lower_bound <= self.best_score,
-                    "Found a solution with score {} but lower bound is {}
+                if !get_flag("optimal_insert") {
+                    assert!(
+                        my_lower_bound <= self.best_score,
+                        "Found a solution with score {} but lower bound is {}
 tail  {:?}
-bound  {}
+bound  {:?}
 states {}
 ",
-                    self.best_score,
-                    my_lower_bound,
-                    &self.solution[self.solution_len - 1..],
-                    self.lower_bound_for_tail[&self.tail_mask],
-                    self.states
-                );
+                        self.best_score,
+                        my_lower_bound,
+                        &self.solution[self.solution_len - 1..],
+                        self.lower_bound_for_tail.get(&self.tail_mask),
+                        self.states
+                    );
+                }
                 assert_eq!(self.upper_bound, self.best_score);
                 solution = true;
                 // Early exit?
@@ -437,7 +462,8 @@ states {}
                     debug_assert!(!self.tail_mask[u.0]);
                     unsafe { self.tail_mask.set_unchecked(u.0, true) };
                     assert_eq!(self.solution_len, old_solution_len);
-                    // self.solution[self.solution_len..=i].rotate_left(1);
+                    // Rotate u back.
+                    self.solution[best_i..=self.solution_len].rotate_left(1);
                     self.solution[self.solution_len..].copy_from_slice(&old_tail);
                     self.lb_hit += 1;
                     return true;
@@ -446,25 +472,30 @@ states {}
             self.solution_len -= 1;
             debug_assert!(!self.tail_mask[u.0]);
             unsafe { self.tail_mask.set_unchecked(u.0, true) };
+            // Rotate u back.
+            self.solution[best_i..=self.solution_len].rotate_left(1);
         }
 
         // Restore the tail.
         assert_eq!(self.solution_len, old_solution_len);
         debug_assert_eq!(self.tail_mask.count_zeros(), self.solution_len);
-        // self.solution[self.solution_len..].rotate_left(1);
         self.solution[self.solution_len..].copy_from_slice(&old_tail);
-        let tail_excess = self.upper_bound - old_score;
         if !skips {
-            // TODO: Count updates and sets.
-            match self.lower_bound_for_tail.entry(self.tail_mask.clone()) {
-                Entry::Occupied(mut e) => {
-                    // We did a search without success so the value must grow.
-                    assert!(tail_excess > *e.get());
-                    self.lb_updates += 1;
-                    *e.get_mut() = tail_excess;
-                }
-                Entry::Vacant(e) => {
-                    e.insert(tail_excess);
+            if old_score < self.upper_bound {
+                let tail_excess = self.upper_bound - old_score;
+                // TODO: Count updates and sets.
+                match self.lower_bound_for_tail.entry(self.tail_mask.clone()) {
+                    Entry::Occupied(mut e) => {
+                        // We did a search without success so the value must grow.
+                        // assert!(tail_excess > *e.get());
+                        if tail_excess > *e.get() {
+                            *e.get_mut() = tail_excess;
+                            self.lb_updates += 1;
+                        }
+                    }
+                    Entry::Vacant(e) => {
+                        e.insert(tail_excess);
+                    }
                 }
             }
         }
