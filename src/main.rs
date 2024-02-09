@@ -32,26 +32,28 @@ struct Args {
     subprocess: bool,
     #[clap(short, long, global = true)]
     verbose: bool,
+    #[clap(short, long, global = true)]
+    print: bool,
     #[clap(global = true)]
     flags: Vec<String>,
 }
 
 /// Logging is only enabled when there is only a single testcase.
-fn init_log() {
+fn init_log(args: &Args) {
     stderrlog::new()
-        .verbosity(2)
+        .verbosity(if args.print { 3 } else { 2 })
         .show_level(false)
         .init()
         .unwrap();
 }
 
 fn main() {
-    let args = Args::parse();
+    let args = &Args::parse();
     set_flags(&args.flags);
 
     if args.subprocess {
         if args.verbose {
-            init_log();
+            init_log(args);
         }
         main_subprocess(&args);
         return;
@@ -60,19 +62,19 @@ fn main() {
     match (&args.generate, &args.input) {
         (Some(_), Some(_)) => panic!("Cannot generate and read a graph at the same time."),
         (Some(gt), None) => {
-            init_log();
+            init_log(args);
             let g = gt.generate(args.seed);
             solve_graph(g, &args);
         }
         (None, None) => {
-            init_log();
+            init_log(args);
             let g = GraphBuilder::from_stdin()
                 .expect("Did not get a graph in the correct format on stdin.");
             solve_graph(g, &args);
         }
         (None, Some(path)) => {
             let paths = if path.is_file() {
-                init_log();
+                init_log(args);
                 vec![path.to_path_buf()]
             } else {
                 std::fs::read_dir(path)
