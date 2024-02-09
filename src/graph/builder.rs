@@ -404,6 +404,10 @@ impl GraphBuilder {
                 if u == v {
                     continue;
                 }
+                // Already handled elsewhere.
+                if self[u].last() < self[v].first() {
+                    continue;
+                }
                 if self[u].len() != self[v].len() {
                     if get_flag("strong_dominating_pairs") {
                         if self[u].len() < self[v].len() {
