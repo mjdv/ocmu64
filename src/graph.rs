@@ -7,6 +7,7 @@ use std::{
 
 use bitvec::prelude::*;
 pub use builder::GraphBuilder;
+use log::info;
 
 mod builder;
 mod io;
@@ -127,15 +128,24 @@ fn initial_solution(g: &Graph) -> Vec<NodeB> {
 fn oscm_part(g: &Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
     let initial_solution = initial_solution(g);
     let mut initial_score = g.score(&initial_solution);
-    // eprintln!("Initial solution found, with score {initial_score}.");
+    info!("Initial solution found, with score {initial_score}.");
     if let Some(bound) = bound {
         if bound < initial_score {
             initial_score = bound;
-            // eprintln!("Set bound to {initial_score}.");
+            info!("Set bound to {initial_score}.");
         }
     }
     let mut bb = Bb::new(g, initial_score);
-    if bb.branch_and_bound() {
+    let solution_found = bb.branch_and_bound();
+    info!("");
+    info!("Sols found    : {:>9}", bb.sols_found);
+    info!("B&B States    : {:>9}", bb.states);
+    info!("LB exceeded 1 : {:>9}", bb.lb_exceeded_1);
+    info!("LB exceeded 2 : {:>9}", bb.lb_exceeded_2);
+    info!("LB updates    : {:>9}", bb.lb_updates);
+    info!("Unique subsets: {:>9}", bb.lower_bound_for_tail.len());
+    info!("LB matching   : {:>9}", bb.lb_hit);
+    if solution_found {
         Some((bb.best_solution, bb.best_score))
     } else {
         Some((initial_solution, initial_score))
@@ -148,24 +158,20 @@ pub fn one_sided_crossing_minimization(
 ) -> Option<(Vec<Solution>, u64)> {
     let mut score = g.self_crossings;
     let gs = g.build();
-    // eprintln!(
-    //     "Part sizes: {:?}",
-    //     gs.iter().map(|g| g.b.0).collect::<Vec<_>>()
-    // );
 
     let sol = 'sol: {
         let mut solutions = vec![];
         for (i, g) in gs.iter().enumerate() {
             let Some((part_sol, part_score)) = oscm_part(g, bound) else {
-                eprintln!("No solution for part {i} of {}.", gs.len());
+                info!("No solution for part {i} of {}.", gs.len());
                 break 'sol None;
             };
             score += part_score;
             solutions.push(part_sol);
             if let Some(bound) = bound.as_mut() {
                 if *bound < part_score {
-                    eprintln!("Ran out of bound at part {i} of {}.", gs.len());
-                    eprintln!("{g:?}");
+                    info!("Ran out of bound at part {i} of {}.", gs.len());
+                    info!("{g:?}");
                     break 'sol None;
                 }
                 *bound -= part_score;
@@ -173,16 +179,6 @@ pub fn one_sided_crossing_minimization(
         }
         Some((solutions, score))
     };
-
-    // Clear the \r line.
-    // eprintln!();
-    // eprintln!("Sols found    : {:>9}", bb.sols_found);
-    // eprintln!("B&B States    : {:>9}", bb.states);
-    // eprintln!("LB exceeded 1 : {:>9}", bb.lb_exceeded_1);
-    // eprintln!("LB exceeded 2 : {:>9}", bb.lb_exceeded_2);
-    // eprintln!("LB updates    : {:>9}", bb.lb_updates);
-    // eprintln!("Unique subsets: {:>9}", bb.lower_bound_for_tail.len());
-    // eprintln!("LB matching   : {:>9}", bb.lb_hit);
     sol
 }
 
@@ -242,6 +238,8 @@ impl<'a> Bb<'a> {
             }
         }
 
+        info!("Score lower bound: {score}");
+
         Self {
             g,
             solution_len: 0,
@@ -298,7 +296,9 @@ impl<'a> Bb<'a> {
             debug_assert_eq!(self.score, self.g.score(&self.solution));
             let score = self.score;
             if score < self.upper_bound {
-                // eprint!("Best score: {score:>9}\r");
+                if log::log_enabled!(log::Level::Info) {
+                    eprint!("Best score: {score:>9}\r");
+                }
                 assert!(score < self.best_score);
                 self.best_score = score;
                 self.best_solution = self.solution.clone();

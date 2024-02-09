@@ -159,6 +159,10 @@ impl GraphBuilder {
             graphs.push(g);
             i = j;
         }
+        info!(
+            "Split into parts with sizes: {:?}",
+            graphs.iter().map(|g| (g.a.0, g.b.0)).collect::<Vec<_>>()
+        );
         graphs
     }
 
@@ -209,11 +213,11 @@ impl GraphBuilder {
         self.connections_a.retain(|a| !a.is_empty());
         self.reconstruct_b();
         self.sort_edges();
-        let _da = Step::steps_between(&self.connections_a.len(), &self.a).unwrap();
-        let _db = Step::steps_between(&self.connections_b.len(), &self.b).unwrap();
-        // if da > 0 || db > 0 {
-        //     eprintln!("Dropped {da} and {db} singletons",);
-        // }
+        let da = Step::steps_between(&self.connections_a.len(), &self.a).unwrap();
+        let db = Step::steps_between(&self.connections_b.len(), &self.b).unwrap();
+        if da > 0 || db > 0 {
+            info!("Dropped {da} and {db} singletons",);
+        }
     }
 
     /// Merge vertices with the same set of neighbours.
@@ -233,7 +237,6 @@ impl GraphBuilder {
                     let pairs = cnt * (cnt - 1) / 2;
                     let incr = Self::edge_list_crossings(&key, &key) * pairs as u64;
                     self_crossings += incr;
-                    // eprintln!("Keys: {:?} cnt {cnt} incr {incr}", key);
                     key.iter()
                         .flat_map(|x| std::iter::repeat(*x).take(cnt))
                         .collect()
@@ -241,10 +244,10 @@ impl GraphBuilder {
                 .collect(),
         };
         self.self_crossings += self_crossings;
-        // eprintln!(
-        //     "Merged {} twins; {self_crossings} self crossings",
-        //     Step::steps_between(&self.connections_b.len(), &self.b).unwrap()
-        // );
+        info!(
+            "Merged {} twins; {self_crossings} self crossings",
+            Step::steps_between(&self.connections_b.len(), &self.b).unwrap()
+        );
         self.reconstruct_a();
     }
 
@@ -257,9 +260,9 @@ impl GraphBuilder {
         // eprint!("Siblings..\r");
         let intervals = self.intervals();
         let c = self.crossings().0;
-        let mut _siblings = 0;
-        let mut _rev_siblings = 0;
-        let mut _rev_sibling_weight = 0;
+        let mut siblings = 0;
+        let mut rev_siblings = 0;
+        let mut rev_sibling_weight = 0;
         // For each node, the other nodes that must come before it.
         let mut must_come_before: VecB<Vec<NodeB>> = VecB::new(self.b);
         for u in NodeB(0)..self.b {
@@ -282,16 +285,16 @@ impl GraphBuilder {
                 }
                 // if c[u][v] < c[v][u] || (c[u][v] == c[v][u] && u < v) {
                 if c[u][v] < c[v][u] {
-                    _siblings += 1;
+                    siblings += 1;
                     must_come_before[v].push(u);
                 } else {
-                    _rev_siblings += 1;
-                    _rev_sibling_weight += c[u][v] - c[v][u];
+                    rev_siblings += 1;
+                    rev_sibling_weight += c[u][v] - c[v][u];
                 }
             }
         }
-        // eprintln!("Found {siblings} siblings");
-        // eprintln!("Surprises: {rev_siblings} of total score {rev_sibling_weight}");
+        info!("Found {siblings} siblings");
+        info!("Surprises: {rev_siblings} of total score {rev_sibling_weight}");
         must_come_before
     }
 
@@ -357,7 +360,6 @@ impl GraphBuilder {
     }
 
     fn crossings(&self) -> (VecB<VecB<u64>>, VecB<VecB<u64>>) {
-        // eprintln!("Crossings..");
         let mut crossings: VecB<VecB<u64>> = VecB {
             v: vec![VecB::new(self.b); self.b.0],
         };
