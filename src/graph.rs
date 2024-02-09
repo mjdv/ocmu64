@@ -377,11 +377,9 @@ impl<'a> Bb<'a> {
 
             // SIBLINGS: u must come after all the v listed here.
             // NOTE: It turns out this is not a valid optimization sadly.
-            if get_flag("siblings") {
-                for v in &self.g.must_come_before[u] {
-                    if unsafe { *self.tail_mask.get_unchecked(v.0) } {
-                        continue 'u;
-                    }
+            for v in &self.g.must_come_before[u] {
+                if unsafe { *self.tail_mask.get_unchecked(v.0) } {
+                    continue 'u;
                 }
             }
 
