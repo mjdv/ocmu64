@@ -127,15 +127,17 @@ fn initial_solution(g: &Graph) -> Vec<NodeB> {
 
 fn oscm_part(g: &Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
     let initial_solution = initial_solution(g);
-    let mut initial_score = g.score(&initial_solution);
+    let initial_score = g.score(&initial_solution);
     info!("Initial solution found, with score {initial_score}.");
-    if let Some(bound) = bound {
-        if bound < initial_score {
-            initial_score = bound;
-            info!("Set bound to {initial_score}.");
-        }
+    let bound = if let Some(bound) = bound {
+        min(bound, initial_score)
+    } else {
+        initial_score
+    };
+    if bound < initial_score {
+        info!("Set bound to {bound}.");
     }
-    let mut bb = Bb::new(g, initial_score);
+    let mut bb = Bb::new(g, bound);
     let solution_found = bb.branch_and_bound();
     info!("");
     info!("Sols found    : {:>9}", bb.sols_found);
@@ -148,7 +150,11 @@ fn oscm_part(g: &Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
     if solution_found {
         Some((bb.best_solution, bb.best_score))
     } else {
-        Some((initial_solution, initial_score))
+        if initial_score <= bound {
+            Some((initial_solution, initial_score))
+        } else {
+            None
+        }
     }
 }
 
@@ -382,7 +388,7 @@ impl<'a> Bb<'a> {
             // NOTE: It's faster to not skip local inefficiencies, because then
             // we are guaranteed to have a valid lower bound on the tail that
             // can used for pruning.
-            if false {
+            if get_flag("skip_local") {
                 // If this node commutes with the last one, fix their ordering.
                 if let Some(&last) = self.solution.get(self.solution_len.wrapping_sub(1)) {
                     if self.g.node_score(last, u) > self.g.node_score(u, last)
