@@ -7,6 +7,7 @@ use std::{
 use clap::Parser;
 use colored::Colorize;
 use itertools::Itertools;
+use log::info;
 use ocmu64::{database::Database, generate::GraphType, graph::*, set_flags};
 use rayon::prelude::*;
 
@@ -28,17 +29,29 @@ struct Args {
     timelimit: Option<u64>,
     #[clap(long, global = true)]
     subprocess: bool,
+    #[clap(short, long, global = true)]
+    verbose: bool,
     #[clap(global = true)]
     flags: Vec<String>,
+}
+
+/// Logging is only enabled when there is only a single testcase.
+fn init_log() {
+    stderrlog::new()
+        .verbosity(2)
+        .show_level(false)
+        .init()
+        .unwrap();
 }
 
 fn main() {
     let args = Args::parse();
     set_flags(&args.flags);
 
-    set_limits(&args);
-
     if args.subprocess {
+        if args.verbose {
+            init_log();
+        }
         main_subprocess(&args);
         return;
     }
@@ -46,16 +59,19 @@ fn main() {
     match (&args.generate, &args.input) {
         (Some(_), Some(_)) => panic!("Cannot generate and read a graph at the same time."),
         (Some(gt), None) => {
+            init_log();
             let g = gt.generate(args.seed);
             solve_graph(g, &args);
         }
         (None, None) => {
+            init_log();
             let g = GraphBuilder::from_stdin()
                 .expect("Did not get a graph in the correct format on stdin.");
             solve_graph(g, &args);
         }
         (None, Some(path)) => {
             let paths = if path.is_file() {
+                init_log();
                 vec![path.to_path_buf()]
             } else {
                 std::fs::read_dir(path)
@@ -81,8 +97,8 @@ fn main() {
 }
 
 /// Solve a single graph.
-fn solve_graph(g: GraphBuilder, args: &Args) {
-    eprintln!(
+fn solve_graph(g: GraphBuilder, args: &Args) -> Option<u64> {
+    info!(
         "Read A={:?} B={:?}, {} nodes, {} edges",
         g.a,
         g.b,
@@ -279,6 +295,7 @@ fn process_exact_files(mut paths: Vec<PathBuf>, args: &Args) {
         let cnt = state.iter().filter(|x| x.2.solved()).count();
         let total = state.len();
         eprint!("{cnt:>3}/{total:>3} {summary}\r");
+        log::info!("");
     }
 
     fn update(state: &Mutex<Vec<(PathBuf, OldState, State)>>, p: &Path, new_state: State) {
