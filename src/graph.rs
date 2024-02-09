@@ -32,6 +32,10 @@ pub struct Graph {
 pub type Graphs = Vec<Graph>;
 
 impl Graph {
+    pub fn num_edges(&self) -> usize {
+        self.connections_a.iter().map(|x| x.len()).sum()
+    }
+
     /// Crossings by having b1 before b2.
     fn node_score(&self, b1: NodeB, b2: NodeB) -> u64 {
         if let Some(crossings) = &self.crossings {
