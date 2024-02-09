@@ -99,13 +99,7 @@ fn main() {
 
 /// Solve a single graph.
 fn solve_graph(g: GraphBuilder, args: &Args) -> Option<u64> {
-    info!(
-        "Read A={:?} B={:?}, {} nodes, {} edges",
-        g.a,
-        g.b,
-        g.a.0 + g.b.0,
-        g.connections_a.iter().map(|x| x.len()).sum::<usize>()
-    );
+    info!("Read A={:?} B={:?}, {} edges", g.a, g.b, g.num_edges());
     let output = one_sided_crossing_minimization(g, args.upper_bound);
     let score = output.map(|x| x.1);
     if let Some(score) = score {

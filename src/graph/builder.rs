@@ -139,6 +139,7 @@ impl GraphBuilder {
 
         let mut graphs = vec![];
         let mut i = 0;
+        let mut size_1 = 0;
         while i < self.b.0 {
             // Find the component starting at intervals[i].
             let mut j = i + 1;
@@ -149,6 +150,7 @@ impl GraphBuilder {
             }
             // Size-1 components can be skipped.
             if j == i + 1 {
+                size_1 += 1;
                 i = j;
                 continue;
             }
@@ -159,11 +161,16 @@ impl GraphBuilder {
             graphs.push(g);
             i = j;
         }
+        info!("Singleton parts: {}", size_1);
         info!(
             "Split into parts with sizes: {:?}",
-            graphs.iter().map(|g| (g.a.0, g.b.0)).collect::<Vec<_>>()
+            graphs.iter().map(|g| (g.a, g.b)).collect::<Vec<_>>()
         );
         graphs
+    }
+
+    pub fn num_edges(&self) -> usize {
+        self.connections_a.iter().map(|x| x.len()).sum::<usize>()
     }
 
     fn to_graph(&self) -> Graph {
@@ -208,13 +215,15 @@ impl GraphBuilder {
 
     /// Drop all nodes of degree 0.
     fn drop_singletons(&mut self) {
+        let a_old = self.a;
+        let b_old = self.b;
         self.connections_b.retain(|b| !b.is_empty());
         self.reconstruct_a();
         self.connections_a.retain(|a| !a.is_empty());
         self.reconstruct_b();
         self.sort_edges();
-        let da = Step::steps_between(&self.connections_a.len(), &self.a).unwrap();
-        let db = Step::steps_between(&self.connections_b.len(), &self.b).unwrap();
+        let da = Step::steps_between(&self.a, &a_old).unwrap();
+        let db = Step::steps_between(&self.b, &b_old).unwrap();
         if da > 0 || db > 0 {
             info!("Dropped {da} and {db} singletons",);
         }
