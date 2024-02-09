@@ -406,7 +406,7 @@ impl<'a> Bb<'a> {
             // NOTE: Adjust the score as if u was inserted in the optimal place in the prefix.
             let mut best_delta = 0;
             let mut best_i = self.solution_len;
-            if get_flag("optimal_insert") {
+            if !get_flag("no_optimal_insert") {
                 let mut cur_delta = 0i64;
                 for (i, v) in self.solution[..self.solution_len].iter().enumerate().rev() {
                     cur_delta += self.g.node_score(*v, u) as i64 - self.g.node_score(u, *v) as i64;
@@ -440,7 +440,7 @@ impl<'a> Bb<'a> {
             unsafe { self.tail_mask.set_unchecked(u.0, false) };
 
             if self.branch_and_bound() {
-                if !get_flag("optimal_insert") {
+                if get_flag("no_optimal_insert") {
                     assert!(
                         my_lower_bound <= self.best_score,
                         "Found a solution with score {} but lower bound is {}
