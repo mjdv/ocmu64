@@ -252,6 +252,7 @@ impl GraphBuilder {
     pub fn build(mut self) -> Graphs {
         self.drop_singletons();
         self.merge_twins();
+        self.merge_adjacent_edges();
         self.sort_edges();
         self.permute(initial_solution(&self.to_quick_graph()));
         self.sort_edges();
@@ -315,6 +316,59 @@ impl GraphBuilder {
             Step::steps_between(&self.connections_b.len(), &self.b).unwrap()
         );
         self.reconstruct_a();
+    }
+
+    /// Given two adjacent nodes (u,v) in A.
+    /// If the nbs of u and v are *only* connected to u and v, then we can merge u and v, and we can merge their neighbours.
+    fn merge_adjacent_edges(&mut self) {
+        self.sort_edges();
+
+        let mut merged = 0;
+        for ((x, cl), (y, cr)) in (NodeA(0)..self.a)
+            .zip(self.connections_a.iter())
+            .filter(|(_, cl)| !cl.is_empty())
+            .tuple_windows()
+        {
+            if cl.is_empty() || cr.is_empty() {
+                continue;
+            }
+            // Single nb each.
+            if cl.first() != cl.last() {
+                continue;
+            }
+            if cr.first() != cr.last() {
+                continue;
+            }
+
+            let u = cl.first().unwrap();
+            let v = cr.first().unwrap();
+
+            if self[*u].is_empty() || self[*v].is_empty() {
+                continue;
+            }
+
+            // Those nbs must only connect to cl and cr.
+            if self[*u].first() != self[*u].last() {
+                continue;
+            }
+            if self[*v].first() != self[*v].last() {
+                continue;
+            }
+
+            assert_eq!(self[*u][0], x);
+            assert_eq!(self[*v][0], y);
+
+            // Merge u into v.
+            assert!(self[y].len() == self[*v].len());
+            let l = self[*u].len();
+            self.connections_b[*u].clear();
+            self.connections_b[*v].extend((0..l).map(|_| y));
+            merged += 1;
+        }
+
+        info!("Merged {merged} adjacent edges",);
+        self.reconstruct_a();
+        self.drop_singletons();
     }
 
     /// Count pairs (u,v) such that u must always be left of v:
