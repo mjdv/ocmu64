@@ -173,12 +173,24 @@ fn display_solution(g: &Graph, solution: &Solution) -> String {
                 0 => colored::Color::White,
                 1.. => colored::Color::Green,
             };
+            let forced = u != v
+                && (g.intervals[u].end <= g.intervals[v].start
+                    || g.must_come_before[v].iter().find(|&&x| x == u).is_some()
+                    || g.intervals[v].end <= g.intervals[u].start
+                    || g.must_come_before[u].iter().find(|&&x| x == v).is_some());
             let c = if c.abs() < 10 {
-                b'0' + c.abs() as u8
+                b'0' as i64 + c.abs()
             } else {
-                (b'A' - 10 + c.abs() as u8).min(b'Z')
-            } as char;
-            s.push_str(&format!("{}", format!("{}", c).color(color)));
+                (b'A' as i64 - 10 + c.abs()).min(b'Z' as i64)
+            } as u8 as char;
+            if forced {
+                s.push_str(&format!(
+                    "{}",
+                    format!("{}", c).color(colored::Color::Black)
+                ));
+            } else {
+                s.push_str(&format!("{}", format!("{}", c).color(color)));
+            }
         }
         s.push('\n');
     }
