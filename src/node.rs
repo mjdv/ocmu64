@@ -11,9 +11,7 @@ pub trait NodeTrait: Copy + PartialEq + Eq + PartialOrd + Ord + Default + Serial
     const T: PhantomData<Self> = PhantomData;
 }
 
-#[derive(
-    Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Default, Hash, Serialize, Deserialize,
-)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Default, Hash, Serialize, Deserialize)]
 pub struct Node<NT>(pub usize, pub PhantomData<NT>);
 
 #[derive(
@@ -43,6 +41,12 @@ pub fn NodeA(v: usize) -> NodeA {
 #[allow(non_snake_case)]
 pub fn NodeB(v: usize) -> NodeB {
     Node(v, PhantomData)
+}
+
+impl<NT: NodeTrait> Debug for Node<NT> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}{}", self.0, NT::CHAR)
+    }
 }
 
 impl<NT: NodeTrait> Display for Node<NT> {

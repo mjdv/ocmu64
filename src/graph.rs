@@ -2,11 +2,14 @@ use crate::{get_flag, node::*};
 use std::{
     cmp::min,
     collections::{hash_map::Entry, HashMap},
+    iter::Step,
     ops::{Deref, DerefMut, Index, IndexMut, Range},
 };
 
 use bitvec::prelude::*;
 pub use builder::GraphBuilder;
+use colored::Colorize;
+use itertools::Itertools;
 use log::*;
 
 mod builder;
@@ -37,13 +40,13 @@ impl Graph {
     }
 
     /// Crossings by having b1 before b2.
-    fn node_score(&self, b1: NodeB, b2: NodeB) -> u64 {
+    fn node_score(&self, u: NodeB, v: NodeB) -> u64 {
         if let Some(crossings) = &self.crossings {
-            crossings[b1][b2]
+            crossings[u][v]
         } else {
             let mut count = 0;
-            for edge_i in &self.connections_b[b1] {
-                for edge_j in &self.connections_b[b2] {
+            for edge_i in &self.connections_b[u] {
+                for edge_j in &self.connections_b[v] {
                     if edge_i > edge_j {
                         count += 1;
                     }
@@ -51,6 +54,52 @@ impl Graph {
             }
             count
         }
+    }
+
+    /// Min score of positioning u and v.
+    fn commute_2(&self, u: NodeB, v: NodeB) -> u64 {
+        min(self.node_score(u, v), self.node_score(v, u))
+    }
+
+    /// Min score of positioning u, v, and w, above the pairwise commute_2 terms.
+    fn commute_3(&self, u: NodeB, v: NodeB, w: NodeB, print: bool) -> u64 {
+        let c2 = self.commute_2(u, v) + self.commute_2(v, w) + self.commute_2(u, w);
+        let orders = [
+            (u, v, w),
+            (u, w, v),
+            (v, u, w),
+            (v, w, u),
+            (w, u, v),
+            (w, v, u),
+        ];
+        let c3 = orders
+            .into_iter()
+            .map(|(u, v, w)| {
+                let s = self.node_score(u, v) + self.node_score(v, w) + self.node_score(u, w);
+                // warn!("Order [{u}, {v}, {w}]: {s}");
+                s
+            })
+            .min()
+            .unwrap();
+        assert!(c3 >= c2);
+        if self.intervals[u].end < self.intervals[w].start {
+            assert!(c3 == c2);
+        }
+        if c3 > c2 && print {
+            debug!(
+                "{u:>4} {v:>4} {w:>4}: {:>3} - {:>3} = {:>3}   {:>2} {:>2} {:>2} {:>2} | {:>2} {:>2}",
+                c3,
+                c2,
+                c3 - c2,
+                self.node_score(u, v),
+                self.node_score(v, u),
+                self.node_score(v, w),
+                self.node_score(w, v),
+                self.node_score(u, w),
+                self.node_score(w, u),
+            );
+        }
+        c3 - c2
     }
 
     /// The score of a solution.
@@ -65,7 +114,7 @@ impl Graph {
     }
 
     /// Compute the increase of score from fixing u before the tail.
-    fn partial_score(&self, u: NodeB, tail: &[NodeB]) -> u64 {
+    fn partial_score_2(&self, u: NodeB, tail: &[NodeB]) -> u64 {
         let rc = self
             .reduced_crossings
             .as_ref()
@@ -75,6 +124,29 @@ impl Graph {
             score += rc[u][v];
         }
         score
+    }
+
+    /// Compute the increase of score from fixing u before the tail.
+    fn partial_score_3(&self, u: NodeB, tail: &[NodeB]) -> u64 {
+        let rc = self
+            .reduced_crossings
+            .as_ref()
+            .expect("Must have crossings.");
+        let mut score = 0;
+        for &v in tail {
+            score += rc[u][v];
+        }
+        let mut edge_scores = HashMap::new();
+        for (v, w) in tail.iter().copied().tuple_combinations() {
+            let min = u.min(v).min(w);
+            let max = u.max(v).max(w);
+            let c = self.commute_3(u, v, w, false);
+            if c > 0 {
+                let v = edge_scores.entry((min, max)).or_insert(0u64);
+                *v = (*v).max(c);
+            }
+        }
+        score - edge_scores.values().sum::<u64>()
     }
 }
 
@@ -242,13 +314,41 @@ impl<'a> Bb<'a> {
 
         let mut score = g.self_crossings;
         let tail = &initial_solution;
-        for (i2, &b2) in tail.iter().enumerate() {
-            for &b1 in &tail[..i2] {
-                score += min(g.node_score(b1, b2), g.node_score(b2, b1));
+        let commute_2 = tail
+            .iter()
+            .copied()
+            .tuple_combinations()
+            .map(|(u, v)| g.commute_2(u, v))
+            .sum::<u64>();
+        score += commute_2;
+        info!("Commute 2: {commute_2}");
+
+        if get_flag("c3") {
+            let mut edge_scores = HashMap::new();
+            for (u, v, w) in tail.iter().copied().tuple_combinations() {
+                let c = g.commute_3(u, v, w, true);
+                if c > 0 {
+                    let v = edge_scores.entry((u, w)).or_insert(0u64);
+                    *v = (*v).max(c);
+                }
             }
+            let commute_3 = edge_scores.values().sum::<u64>();
+            // let commute_3 = tail
+            //     .iter()
+            //     .copied()
+            //     .tuple_combinations()
+            //     .map(|(u, v, w)| g.commute_3(u, v, w))
+            //     .sum::<u64>();
+            // score += commute_3;
+            info!("Commute 3: {commute_3}");
         }
 
         info!("Score lower bound: {score}");
+
+        assert2::assert!(
+            score <= initial_score,
+            "Score lower bound is more than initial solution!"
+        );
 
         Self {
             g,
@@ -410,9 +510,13 @@ impl<'a> Bb<'a> {
 
             // Increment score for the new node, and decrement tail_lower_bound.
             // TODO: Early break once the upper_bound is hit.
-            let partial_score = self
-                .g
-                .partial_score(u, &self.solution[self.solution_len + 1..]);
+            let partial_score = if false && get_flag("c3") {
+                self.g
+                    .partial_score_3(u, &self.solution[self.solution_len + 1..])
+            } else {
+                self.g
+                    .partial_score_2(u, &self.solution[self.solution_len + 1..])
+            };
 
             self.score -= best_delta;
             self.score += partial_score;
