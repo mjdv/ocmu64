@@ -107,9 +107,8 @@ impl Database {
                 assert_eq!(
                     new_score,
                     *existing_score,
-                    "New score {new_score} does not equal existing score {existing_score} for {}.\nOld results:\n{:?}",
+                    "New score {new_score} does not equal existing score {existing_score} for {}.",
                     results.path.display(),
-                    results
                 );
                 results.score = Some(new_score.min(*existing_score));
             } else {
