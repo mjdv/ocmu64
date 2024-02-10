@@ -152,6 +152,40 @@ impl Graph {
 
 pub type Solution = Vec<NodeB>;
 
+fn display_solution(g: &Graph, solution: &Solution) -> String {
+    let mut s = String::new();
+    solution
+        .group_by(|l, r| Step::forward(*l, 1) == *r)
+        .for_each(|slice| {
+            if slice.len() == 1 {
+                s.push_str(&format!("{} ", slice[0].0));
+            } else {
+                s.push_str(&format!("{}-{} ", slice[0].0, slice.last().unwrap().0));
+            }
+        });
+    s.push('\n');
+
+    for &u in solution {
+        for &v in solution {
+            let c = g.node_score(u, v) as i64 - g.node_score(v, u) as i64;
+            let color = match c {
+                ..=-1 => colored::Color::Red,
+                0 => colored::Color::White,
+                1.. => colored::Color::Green,
+            };
+            let c = if c.abs() < 10 {
+                b'0' + c.abs() as u8
+            } else {
+                (b'A' - 10 + c.abs() as u8).min(b'Z')
+            } as char;
+            s.push_str(&format!("{}", format!("{}", c).color(color)));
+        }
+        s.push('\n');
+    }
+
+    s
+}
+
 /// Naive recursive b! search.
 #[allow(unused)]
 pub fn extend_solution_recursive(g: &Graph, solution: &mut Solution) -> (u64, Vec<NodeB>) {
@@ -223,6 +257,8 @@ fn oscm_part(g: &Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
     info!("LB updates    : {:>9}", bb.lb_updates);
     info!("Unique subsets: {:>9}", bb.lower_bound_for_tail.len());
     info!("LB matching   : {:>9}", bb.lb_hit);
+    info!("Initial sol   : {}", display_solution(g, &initial_solution));
+    info!("Solution      : {}", display_solution(g, &bb.best_solution));
     if solution_found {
         Some((bb.best_solution, bb.best_score))
     } else {
