@@ -240,16 +240,58 @@ fn commute_adjacent(g: &Graph, vec: &mut [NodeB]) {
     }
 }
 
+/// Keep iterating to find nodes that can be moved elsewhere.
+fn optimal_insert(g: &Graph, sol: &mut [NodeB]) {
+    let mut changed = true;
+    while changed {
+        changed = false;
+        // Try to move i elsewhere.
+        for i in 0..sol.len() {
+            let u = sol[i];
+            let mut best_delta = 0;
+            let mut best_j = i;
+            // move left
+            let mut cur_delta = 0;
+            for (j, &v) in sol[..i].iter().enumerate().rev() {
+                cur_delta += g.node_score(v, u) as i64 - g.node_score(u, v) as i64;
+                if cur_delta > best_delta {
+                    best_delta = cur_delta;
+                    best_j = j;
+                }
+            }
+            // move right
+            let mut cur_delta = 0;
+            for (j, &v) in sol.iter().enumerate().skip(i + 1) {
+                cur_delta += g.node_score(u, v) as i64 - g.node_score(v, u) as i64;
+                if cur_delta > best_delta {
+                    best_delta = cur_delta;
+                    best_j = j;
+                }
+            }
+            if best_j > i {
+                sol[i..=best_j].rotate_left(1);
+                changed = true;
+            }
+            if best_j < i {
+                sol[best_j..=i].rotate_right(1);
+                changed = true;
+            }
+        }
+    }
+}
+
 fn initial_solution(g: &Graph) -> Vec<NodeB> {
     let mut initial_solution = (NodeB(0)..g.b).collect::<Vec<_>>();
     sort_by_median(g, &mut initial_solution);
     commute_adjacent(g, &mut initial_solution);
+    optimal_insert(g, &mut initial_solution);
     initial_solution
 }
 
 fn oscm_part(g: &Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
     let initial_solution = initial_solution(g);
     let initial_score = g.score(&initial_solution);
+    info!("Initial sol   : {}", display_solution(g, &initial_solution));
     info!("Initial solution found, with score {initial_score}.");
     let bound = if let Some(bound) = bound {
         min(bound, initial_score)
@@ -269,7 +311,6 @@ fn oscm_part(g: &Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
     info!("LB updates    : {:>9}", bb.lb_updates);
     info!("Unique subsets: {:>9}", bb.lower_bound_for_tail.len());
     info!("LB matching   : {:>9}", bb.lb_hit);
-    info!("Initial sol   : {}", display_solution(g, &initial_solution));
     info!("Solution      : {}", display_solution(g, &bb.best_solution));
     if solution_found {
         Some((bb.best_solution, bb.best_score))
