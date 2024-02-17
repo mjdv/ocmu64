@@ -463,6 +463,7 @@ impl GraphBuilder {
     /// 1. cvw < cwv => cuw <= cwu (if v before w, than so u)
     /// 2. cwu < cuw => cwv <= cvw (if u after w, than so v)
     /// 3. cuv <= cvu
+    /// NOTE: THIS IS A BROKEN OPTIMIZATION AND DOES NOT GUARANTEE EXACT RESULTS.
     fn find_siblings(&self) -> VecB<Vec<NodeB>> {
         // For each node, the other nodes that must come before it.
         let mut must_come_before: VecB<Vec<NodeB>> = VecB::new(self.b);
