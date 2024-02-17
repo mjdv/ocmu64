@@ -43,7 +43,11 @@ impl GraphBuilder {
             } else {
                 let mut words = line.split_ascii_whitespace();
                 let x = words.next().unwrap().parse::<usize>().unwrap();
-                let y = words.next().unwrap().parse::<usize>().unwrap();
+                let next = words.next();
+                if next.is_none() {
+                    continue;
+                }
+                let y = next.unwrap().parse::<usize>().unwrap();
                 assert!(
                     1 <= x && x <= a.0 && a.0 + 1 <= y && y <= a.0 + connections_b.len().0,
                     "Bad edge {x} {y} with |A|={} |B|={}",
