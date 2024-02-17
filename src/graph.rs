@@ -155,7 +155,7 @@ pub type Solution = Vec<NodeB>;
 fn display_solution(g: &Graph, solution: &Solution) -> String {
     let mut s = String::new();
     solution
-        .group_by(|l, r| Step::forward(*l, 1) == *r)
+        .chunk_by(|l, r| Step::forward(*l, 1) == *r)
         .for_each(|slice| {
             if slice.len() == 1 {
                 s.push_str(&format!("{} ", slice[0].0));
