@@ -126,6 +126,7 @@ impl GraphBuilder {
 
         let mut graphs = vec![];
         let mut i = 0;
+        let mut last_a_range: Option<(NodeA, NodeA)> = None;
         while i < self.b.0 {
             // Find the component starting at intervals[i].
             let mut j = i + 1;
@@ -142,6 +143,21 @@ impl GraphBuilder {
                     *x = NodeA(x.0 - start);
                 }
             }
+
+            // Make sure the new range is disjoint with the previous one and that a split is allowed here.
+            if let Some(new_a_range) = new_cb
+                .iter()
+                .flat_map(|x| x.iter())
+                .cloned()
+                .minmax()
+                .into_option()
+            {
+                if let Some(last_a_range) = last_a_range {
+                    assert!(last_a_range.1 <= new_a_range.0);
+                }
+                last_a_range = Some(new_a_range);
+            }
+
             let g = GraphBuilder::new(VecB::from(new_cb));
             graphs.push(g);
             i = j;
