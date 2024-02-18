@@ -740,7 +740,7 @@ impl DerefMut for MyBitVec {
 
 #[cfg(test)]
 mod test {
-    use crate::{clear_flags, generate::GraphType, node::NodeB, set_flags};
+    use crate::{clear_flags, generate::GraphType, set_flags};
 
     use super::one_sided_crossing_minimization;
 
@@ -799,14 +799,10 @@ mod test {
     #[test]
     fn bad_siblings() {
         let mut ok = true;
-        for (t, seed, drop) in [
-            (GraphType::Star { n: 25, k: 4 }, 490, vec![]),
-            (GraphType::Fan { n: 12, extra: 8 }, 7071, vec![]),
-            (
-                GraphType::Fan { n: 30, extra: 9 },
-                7203,
-                [0, 2, 5, 6, 7, 9, 10, 11].map(NodeB).to_vec(),
-            ),
+        for (t, seed) in [
+            (GraphType::Star { n: 25, k: 4 }, 490),
+            (GraphType::Fan { n: 12, extra: 8 }, 7071),
+            (GraphType::Fan { n: 30, extra: 9 }, 7203),
             (
                 GraphType::LowCrossing {
                     n: 685,
@@ -814,7 +810,6 @@ mod test {
                     p: 0.5,
                 },
                 2,
-                vec![],
             ),
             (
                 GraphType::LowCrossing {
@@ -823,11 +818,9 @@ mod test {
                     p: 0.5,
                 },
                 46,
-                vec![],
             ),
         ] {
-            let mut g = t.generate(Some(seed));
-            g.drop_b(&drop);
+            let g = t.generate(Some(seed));
             clear_flags();
             let (sol1, score1) =
                 one_sided_crossing_minimization(g.clone(), None).expect("no solution found!");

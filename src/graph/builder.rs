@@ -68,24 +68,6 @@ impl GraphBuilder {
         }
     }
 
-    pub fn drop_a(&mut self, a: &[NodeA]) {
-        let mut a = a.to_vec();
-        a.sort();
-        for &a in a.iter().rev() {
-            self.connections_a.remove(a.0);
-        }
-        self.reconstruct_b();
-    }
-
-    pub fn drop_b(&mut self, b: &[NodeB]) {
-        let mut b = b.to_vec();
-        b.sort();
-        for &b in b.iter().rev() {
-            self.connections_b.remove(b.0);
-        }
-        self.reconstruct_a();
-    }
-
     pub fn new(connections_b: VecB<Vec<NodeA>>) -> GraphBuilder {
         let a = Step::forward(
             *connections_b
