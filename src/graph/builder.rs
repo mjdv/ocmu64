@@ -126,7 +126,6 @@ impl GraphBuilder {
 
         let mut graphs = vec![];
         let mut i = 0;
-        let mut size_1 = 0;
         while i < self.b.0 {
             // Find the component starting at intervals[i].
             let mut j = i + 1;
@@ -134,12 +133,6 @@ impl GraphBuilder {
             while j < self.b.0 && intervals[NodeB(j)].start < end {
                 end = max(end, intervals[NodeB(j)].end);
                 j += 1;
-            }
-            // Size-1 components can be skipped.
-            if j == i + 1 {
-                size_1 += 1;
-                i = j;
-                continue;
             }
             let start = intervals[NodeB(i)].start.0;
             // Convert the component into a Graph on its own.
@@ -153,7 +146,6 @@ impl GraphBuilder {
             graphs.push(g);
             i = j;
         }
-        info!("Singleton parts: {}", size_1);
         info!(
             "Split into parts with sizes: {:?}",
             graphs.iter().map(|g| (g.a, g.b)).collect::<Vec<_>>()
