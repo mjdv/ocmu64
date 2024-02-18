@@ -360,6 +360,8 @@ fn process_dir(mut paths: Vec<PathBuf>, args: &Args) -> Option<()> {
         .unwrap();
     }
 
+    let total_score = Mutex::new(Some(0));
+
     let process_path = |p: PathBuf| {
         if args.skip {
             if db.lock().unwrap().get_score(&p).is_some() {
@@ -375,8 +377,12 @@ fn process_dir(mut paths: Vec<PathBuf>, args: &Args) -> Option<()> {
         db.lock().unwrap().add_result(&p, duration, score);
         if score.is_some() {
             update(&state, &p, State::Solved(duration));
+            if let Some(total_score) = total_score.lock().unwrap().as_mut() {
+                *total_score += score.unwrap();
+            }
         } else {
             update(&state, &p, State::Failed(duration));
+            *total_score.lock().unwrap() = None;
         }
         print_state(&state.lock().unwrap());
     };
@@ -393,5 +399,9 @@ fn process_dir(mut paths: Vec<PathBuf>, args: &Args) -> Option<()> {
     }
     print_state(&state.lock().unwrap());
     eprintln!();
+
+    if let Some(ts) = total_score.into_inner().unwrap() {
+        eprintln!("TOTAL SCORE: {ts}");
+    }
     Some(())
 }
