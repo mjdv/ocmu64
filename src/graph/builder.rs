@@ -240,6 +240,9 @@ impl GraphBuilder {
     /// TODO: Store metadata to be able to invert the final solution.
     /// TODO: Allow customizing whether crossings are built.
     pub fn build(mut self) -> Graphs {
+        if get_flag("no_transform") {
+            return vec![self.to_graph()];
+        }
         self.drop_singletons();
         self.merge_twins();
         self.merge_adjacent_edges();
@@ -249,9 +252,7 @@ impl GraphBuilder {
         self.print_stats();
         self.split().into_iter().map(|g| g.to_graph()).collect()
     }
-}
 
-impl GraphBuilder {
     fn sort_edges(&mut self) {
         for l in self.connections_a.iter_mut() {
             l.sort();
@@ -522,7 +523,7 @@ impl GraphBuilder {
         VecB::from(
             self.connections_b
                 .iter()
-                .map(|b| (*b.iter().min().unwrap()..*b.iter().max().unwrap()))
+                .map(|b| *b.iter().min().unwrap()..*b.iter().max().unwrap())
                 .collect(),
         )
     }
