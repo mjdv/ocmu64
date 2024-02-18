@@ -16,6 +16,9 @@ pub struct GraphBuilder {
     pub connections_b: VecB<Vec<NodeA>>,
     /// The number of crossings from merging twins.
     pub self_crossings: u64,
+
+    /// The inverse to map a solution for the reduced graph back to the original graph.
+    pub inverse: Inverse,
 }
 
 impl Graph {
@@ -26,6 +29,7 @@ impl Graph {
             connections_a: self.connections_a.clone(),
             connections_b: self.connections_b.clone(),
             self_crossings: self.self_crossings,
+            inverse: Inverse::new(self.b),
         }
     }
 }
@@ -38,6 +42,7 @@ impl GraphBuilder {
             connections_a: VecA::new(a),
             connections_b: VecB::new(b),
             self_crossings: 0,
+            inverse: Inverse::new(b),
         }
     }
     /// Returns the id of the pushed node (not the length).
@@ -51,6 +56,7 @@ impl GraphBuilder {
     pub fn push_node_b(&mut self) -> NodeB {
         let id = self.connections_b.push();
         self.b = self.connections_b.len();
+        self.inverse.original.push();
         id
     }
 
@@ -69,6 +75,13 @@ impl GraphBuilder {
     }
 
     pub fn new(connections_b: VecB<Vec<NodeA>>) -> GraphBuilder {
+        let inv = (NodeB(0)..connections_b.len())
+            .map(|x| vec![x])
+            .collect_vec();
+        Self::new_with_inv(connections_b, &inv)
+    }
+
+    pub fn new_with_inv(connections_b: VecB<Vec<NodeA>>, inv: &[Vec<NodeB>]) -> GraphBuilder {
         let a = Step::forward(
             *connections_b
                 .iter()
@@ -77,12 +90,14 @@ impl GraphBuilder {
                 .unwrap(),
             1,
         );
+        let b = connections_b.len();
         let mut g = Self {
             a,
-            b: connections_b.len(),
+            b,
             connections_a: Default::default(),
             connections_b,
             self_crossings: 0,
+            inverse: Inverse::new_with_inv(inv),
         };
         g.reconstruct_a();
         g
@@ -138,27 +153,30 @@ impl GraphBuilder {
             let start = intervals[NodeB(i)].start.0;
             // Convert the component into a Graph on its own.
             let mut new_cb = self.connections_b.v[i..j].to_vec();
-            for l in &mut new_cb {
-                for x in l {
-                    *x = NodeA(x.0 - start);
-                }
-            }
+            let new_inv = self.inverse.original.v[i..j].to_vec();
 
             // Make sure the new range is disjoint with the previous one and that a split is allowed here.
-            if let Some(new_a_range) = new_cb
+            let new_a_range = new_cb
                 .iter()
                 .flat_map(|x| x.iter())
                 .cloned()
                 .minmax()
-                .into_option()
-            {
+                .into_option();
+            if let Some(new_a_range) = new_a_range {
                 if let Some(last_a_range) = last_a_range {
-                    assert!(last_a_range.1 <= new_a_range.0);
+                    assert2::assert!(last_a_range.1 <= new_a_range.0);
                 }
                 last_a_range = Some(new_a_range);
             }
 
-            let g = GraphBuilder::new(VecB::from(new_cb));
+            // Adjust A coordinates.
+            for l in &mut new_cb {
+                for x in l {
+                    assert!(start <= x.0);
+                    *x = NodeA(x.0 - start);
+                }
+            }
+            let g = GraphBuilder::new_with_inv(VecB::from(new_cb), &new_inv);
             graphs.push(g);
             i = j;
         }
@@ -282,6 +300,19 @@ impl GraphBuilder {
     fn drop_singletons(&mut self) {
         let a_old = self.a;
         let b_old = self.b;
+        {
+            let mut b = NodeB(0);
+            let mut dropped: Vec<NodeB> = vec![];
+            self.inverse.original.retain(|inv| {
+                let retain = !self.connections_b[b].is_empty();
+                if !retain {
+                    dropped.extend(inv);
+                }
+                b = Step::forward(b, 1);
+                retain
+            });
+            self.inverse.original[NodeB(0)].extend(dropped);
+        }
         self.connections_b.retain(|b| !b.is_empty());
         self.reconstruct_a();
         self.connections_a.retain(|a| !a.is_empty());
@@ -297,26 +328,36 @@ impl GraphBuilder {
     /// Merge vertices with the same set of neighbours.
     fn merge_twins(&mut self) {
         self.sort_edges();
-        self.connections_b.sort();
+        let mut perm = (NodeB(0)..self.b).collect_vec();
+        perm.sort_by_key(|&x| &self.connections_b[x]);
+        let inv_len = self.inverse.original.iter().flatten().count();
         let mut self_crossings = 0;
-        self.connections_b = VecB::from(
-            (NodeB(0)..self.b)
-                .group_by(|x| self[*x].clone())
-                .into_iter()
-                .map(|(key, group)| {
-                    let cnt = group.into_iter().count();
-                    if cnt == 1 {
-                        return key;
-                    }
-                    let pairs = cnt * (cnt - 1) / 2;
-                    let incr = Self::edge_list_crossings(&key, &key) * pairs as u64;
-                    self_crossings += incr;
+        assert_eq!(self.b, self.inverse.original.len());
+        let (new_b, new_inv) = (0..self.b.0)
+            .group_by(|x| self.connections_b[perm[*x]].clone())
+            .into_iter()
+            .map(|(key, group)| {
+                let mut cnt = 0;
+                let new_inverse = group
+                    .inspect(|_| cnt += 1)
+                    .flat_map(|x| &self.inverse.original[perm[x]])
+                    .cloned()
+                    .collect();
+                let pairs = cnt * (cnt - 1) / 2;
+                let incr = Self::edge_list_crossings(&key, &key) * pairs as u64;
+                self_crossings += incr;
+                (
                     key.iter()
                         .flat_map(|x| std::iter::repeat(*x).take(cnt))
-                        .collect()
-                })
-                .collect(),
-        );
+                        .collect(),
+                    new_inverse,
+                )
+            })
+            .unzip();
+        self.connections_b = VecB::from(new_b);
+        self.inverse.original = VecB::from(new_inv);
+        let new_inv_len = self.inverse.original.iter().flatten().count();
+        assert_eq!(inv_len, new_inv_len);
         self.self_crossings += self_crossings;
         info!(
             "Merged {} twins; {self_crossings} self crossings",
@@ -370,6 +411,12 @@ impl GraphBuilder {
             let l = self[*u].len();
             self.connections_b[*u].clear();
             self.connections_b[*v].extend((0..l).map(|_| y));
+            // NOTE: We preserve order of the inverse.original mapping.
+            // Since u is left of v, the preimage of u must come before the preimage of v.
+            let mut inv_u = std::mem::take(&mut self.inverse.original[*u]);
+            let inv_v = std::mem::take(&mut self.inverse.original[*v]);
+            inv_u.extend(inv_v);
+            self.inverse.original[*v] = inv_u;
             merged += 1;
         }
 
@@ -526,6 +573,12 @@ impl GraphBuilder {
 
     /// Permute the nodes of B such that the given solution is simply 0..b.
     fn permute(&mut self, solution: Solution) {
+        self.inverse.original = VecB::from(
+            solution
+                .iter()
+                .map(|&b| std::mem::take(&mut self.inverse.original[b]))
+                .collect(),
+        );
         self.connections_b = VecB::from(
             solution
                 .iter()
@@ -574,6 +627,46 @@ impl GraphBuilder {
             }
         }
         (crossings, reduced_crossings)
+    }
+
+    pub fn invert(&self, solution: Solution) -> Solution {
+        self.inverse.invert(solution)
+    }
+}
+
+/// Maps the B indices of a solution for the reduced graph back to the original graph.
+#[derive(Debug, Default, Clone)]
+pub struct Inverse {
+    original: VecB<Vec<NodeB>>,
+}
+
+impl Inverse {
+    fn new(b: NodeB) -> Inverse {
+        Self {
+            original: VecB::from((NodeB(0)..b).map(|x| vec![x]).collect_vec()),
+        }
+    }
+    fn new_with_inv(inv: &[Vec<NodeB>]) -> Inverse {
+        Self {
+            original: VecB::from(inv.to_vec()),
+        }
+    }
+
+    pub fn push(&mut self, b: NodeB) {
+        assert_eq!(self.original.len(), b);
+        self.original.push();
+        self.original[b] = vec![b];
+    }
+    pub fn invert(&self, solution: Solution) -> Solution {
+        assert_eq!(
+            solution.len(),
+            self.original.len().0,
+            "Cannot invert solution with wrong length"
+        );
+        solution
+            .iter()
+            .flat_map(|&b| self.original[b].clone())
+            .collect()
     }
 }
 
