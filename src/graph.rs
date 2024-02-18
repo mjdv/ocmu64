@@ -324,31 +324,36 @@ fn oscm_part(g: &Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
 }
 
 pub fn one_sided_crossing_minimization(
-    g: GraphBuilder,
+    mut gb: GraphBuilder,
     mut bound: Option<u64>,
-) -> Option<(Vec<Solution>, u64)> {
-    let mut score = g.self_crossings;
-    let gs = g.build();
+) -> Option<(Solution, u64)> {
+    let mut score = gb.self_crossings;
+    let g = gb.to_graph();
+    let graph_builders = gb.build();
+    let num_parts = graph_builders.len();
 
     let sol = 'sol: {
-        let mut solutions = vec![];
-        for (i, g) in gs.iter().enumerate() {
-            let Some((part_sol, part_score)) = oscm_part(g, bound) else {
-                info!("No solution for part {i} of {}.", gs.len());
+        let mut solution = Solution::default();
+        for (i, mut gb) in graph_builders.into_iter().enumerate() {
+            let g = gb.to_graph();
+            let Some((part_sol, part_score)) = oscm_part(&g, bound) else {
+                info!("No solution for part {i} of {num_parts}.");
                 break 'sol None;
             };
+            assert_eq!(part_score, g.score(&part_sol));
             score += part_score;
-            solutions.push(part_sol);
+            solution.extend(gb.invert(part_sol));
             if let Some(bound) = bound.as_mut() {
                 if *bound < part_score {
-                    info!("Ran out of bound at part {i} of {}.", gs.len());
-                    info!("{g:?}");
+                    info!("Ran out of bound at part {i} of {num_parts}.");
+                    info!("{gb:?}");
                     break 'sol None;
                 }
                 *bound -= part_score;
             }
         }
-        Some((solutions, score))
+        assert_eq!(score, g.score(&solution));
+        Some((solution, score))
     };
     sol
 }

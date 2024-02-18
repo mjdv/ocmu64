@@ -191,7 +191,7 @@ impl GraphBuilder {
         self.connections_a.iter().map(|x| x.len()).sum::<usize>()
     }
 
-    fn to_graph(mut self) -> Graph {
+    pub fn to_graph(&mut self) -> Graph {
         let (crossings, reduced_crossings) = self.crossings();
         let mut must_come_before = self.find_siblings();
         let must_come_before_2 = self.dominating_pairs();
@@ -273,9 +273,9 @@ impl GraphBuilder {
     /// Permute the vertices of the graph so that B is roughly increasing.
     /// TODO: Store metadata to be able to invert the final solution.
     /// TODO: Allow customizing whether crossings are built.
-    pub fn build(mut self) -> Graphs {
+    pub fn build(mut self) -> Vec<GraphBuilder> {
         if get_flag("no_transform") {
-            return vec![self.to_graph()];
+            return vec![self];
         }
         self.drop_singletons();
         self.merge_twins();
@@ -284,7 +284,7 @@ impl GraphBuilder {
         self.permute(initial_solution(&self.to_quick_graph()));
         self.sort_edges();
         self.print_stats();
-        self.split().into_iter().map(|g| g.to_graph()).collect()
+        self.split()
     }
 
     fn sort_edges(&mut self) {
