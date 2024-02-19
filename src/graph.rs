@@ -104,6 +104,7 @@ impl Graph {
 
     /// The score of a solution.
     fn score(&self, solution: &[NodeB]) -> u64 {
+        assert_eq!(solution.len(), self.b.0, "Solution has wrong length.");
         let mut score = self.self_crossings;
         for (j, &b2) in solution.iter().enumerate() {
             for &b1 in &solution[..j] {
@@ -328,7 +329,7 @@ pub fn one_sided_crossing_minimization(
     mut bound: Option<u64>,
 ) -> Option<(Solution, u64)> {
     let mut score = gb.self_crossings;
-    let g = gb.to_graph();
+    let g0 = gb.to_graph();
     let graph_builders = gb.build();
     let num_parts = graph_builders.len();
 
@@ -340,7 +341,7 @@ pub fn one_sided_crossing_minimization(
                 info!("No solution for part {i} of {num_parts}.");
                 break 'sol None;
             };
-            assert_eq!(part_score, g.score(&part_sol));
+            assert_eq!(part_score, g.score(&part_sol), "WRONG SCORE FOR PART");
             score += part_score;
             solution.extend(gb.invert(part_sol));
             if let Some(bound) = bound.as_mut() {
@@ -352,7 +353,7 @@ pub fn one_sided_crossing_minimization(
                 *bound -= part_score;
             }
         }
-        assert_eq!(score, g.score(&solution));
+        assert_eq!(score, g0.score(&solution), "WRONG SCORE FOR FINAL SOLUTION");
         Some((solution, score))
     };
     sol
