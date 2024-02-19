@@ -274,10 +274,10 @@ impl GraphBuilder {
     /// TODO: Store metadata to be able to invert the final solution.
     /// TODO: Allow customizing whether crossings are built.
     pub fn build(mut self) -> Vec<GraphBuilder> {
+        self.drop_singletons();
         if get_flag("no_transform") {
             return vec![self];
         }
-        self.drop_singletons();
         self.merge_twins();
         self.merge_adjacent_edges();
         self.sort_edges();
