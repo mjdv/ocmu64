@@ -291,7 +291,7 @@ fn initial_solution(g: &Graph) -> Vec<NodeB> {
 fn oscm_part(g: &Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
     let initial_solution = initial_solution(g);
     let initial_score = g.score(&initial_solution);
-    info!("Initial sol   : {}", display_solution(g, &initial_solution));
+    debug!("Initial sol   : {}", display_solution(g, &initial_solution));
     info!("Initial solution found, with score {initial_score}.");
     let bound = if let Some(bound) = bound {
         min(bound, initial_score)
@@ -311,7 +311,7 @@ fn oscm_part(g: &Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
     info!("LB updates    : {:>9}", bb.lb_updates);
     info!("Unique subsets: {:>9}", bb.lower_bound_for_tail.len());
     info!("LB matching   : {:>9}", bb.lb_hit);
-    info!("Solution      : {}", display_solution(g, &bb.best_solution));
+    debug!("Solution      : {}", display_solution(g, &bb.best_solution));
     if solution_found {
         Some((bb.best_solution, bb.best_score))
     } else {
