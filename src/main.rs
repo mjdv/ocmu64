@@ -42,9 +42,14 @@ struct Args {
 }
 
 /// Logging is only enabled when there is only a single testcase.
-fn init_log(args: &Args) {
+fn init_log(args: &Args, verbose: bool) {
+    let verbosity = match (verbose, args.print) {
+        (false, _) => 1,
+        (true, false) => 2,
+        (true, true) => 3,
+    };
     stderrlog::new()
-        .verbosity(if args.print { 3 } else { 2 })
+        .verbosity(verbosity)
         .show_level(false)
         .init()
         .unwrap();
@@ -55,9 +60,7 @@ fn main() {
     set_flags(&args.flags);
 
     if args.subprocess {
-        if args.verbose {
-            init_log(args);
-        }
+        init_log(args, args.verbose);
         main_subprocess(&args);
         return;
     }
@@ -65,21 +68,22 @@ fn main() {
     match (&args.generate, &args.input) {
         (Some(_), Some(_)) => panic!("Cannot generate and read a graph at the same time."),
         (Some(gt), None) => {
-            init_log(args);
+            init_log(args, true);
             let g = gt.generate(args.seed);
             solve_graph(g, &args);
         }
         (None, None) => {
-            init_log(args);
+            init_log(args, true);
             let g = GraphBuilder::from_stdin()
                 .expect("Did not get a graph in the correct format on stdin.");
             solve_graph(g, &args);
         }
         (None, Some(path)) => {
             let mut paths = if path.is_file() {
-                init_log(args);
+                init_log(args, true);
                 vec![path.to_path_buf()]
             } else {
+                init_log(args, false);
                 std::fs::read_dir(path)
                     .unwrap()
                     .map(|x| x.unwrap().path())
