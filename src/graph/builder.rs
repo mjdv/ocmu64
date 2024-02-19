@@ -21,6 +21,12 @@ pub struct GraphBuilder {
     pub inverse: Inverse,
 }
 
+/// Maps the B indices of a solution for the reduced graph back to the original graph.
+type Inverse = VecB<Vec<NodeB>>;
+fn new_inverse(b: NodeB) -> Inverse {
+    VecB::from((NodeB(0)..b).map(|x| vec![x]).collect())
+}
+
 impl Graph {
     pub fn builder(&self) -> GraphBuilder {
         GraphBuilder {
@@ -29,7 +35,7 @@ impl Graph {
             connections_a: self.connections_a.clone(),
             connections_b: self.connections_b.clone(),
             self_crossings: self.self_crossings,
-            inverse: Inverse::new(self.b),
+            inverse: new_inverse(self.b),
         }
     }
 }
@@ -42,7 +48,7 @@ impl GraphBuilder {
             connections_a: VecA::new(a),
             connections_b: VecB::new(b),
             self_crossings: 0,
-            inverse: Inverse::new(b),
+            inverse: new_inverse(b),
         }
     }
     /// Returns the id of the pushed node (not the length).
@@ -56,7 +62,9 @@ impl GraphBuilder {
     pub fn push_node_b(&mut self) -> NodeB {
         let id = self.connections_b.push();
         self.b = self.connections_b.len();
-        self.inverse.original.push();
+        assert_eq!(self.inverse.len(), id);
+        self.inverse.push();
+        self.inverse[id] = vec![id];
         id
     }
 
@@ -97,7 +105,7 @@ impl GraphBuilder {
             connections_a: Default::default(),
             connections_b,
             self_crossings: 0,
-            inverse: Inverse::new_with_inv(inv),
+            inverse: VecB::from(inv.to_vec()),
         };
         g.reconstruct_a();
         g
@@ -153,7 +161,7 @@ impl GraphBuilder {
             let start = intervals[NodeB(i)].start.0;
             // Convert the component into a Graph on its own.
             let mut new_cb = self.connections_b.v[i..j].to_vec();
-            let new_inv = self.inverse.original.v[i..j].to_vec();
+            let new_inv = self.inverse.v[i..j].to_vec();
 
             // Make sure the new range is disjoint with the previous one and that a split is allowed here.
             let new_a_range = new_cb
@@ -309,7 +317,7 @@ impl GraphBuilder {
         {
             let mut b = NodeB(0);
             let mut dropped: Vec<NodeB> = vec![];
-            self.inverse.original.retain(|inv| {
+            self.inverse.retain(|inv| {
                 let retain = !self.connections_b[b].is_empty();
                 if !retain {
                     dropped.extend(inv);
@@ -317,7 +325,7 @@ impl GraphBuilder {
                 b = Step::forward(b, 1);
                 retain
             });
-            self.inverse.original[NodeB(0)].extend(dropped);
+            self.inverse[NodeB(0)].extend(dropped);
         }
         self.connections_b.retain(|b| !b.is_empty());
         self.reconstruct_a();
@@ -336,9 +344,9 @@ impl GraphBuilder {
         self.sort_edges();
         let mut perm = (NodeB(0)..self.b).collect_vec();
         perm.sort_by_key(|&x| &self.connections_b[x]);
-        let inv_len = self.inverse.original.iter().flatten().count();
+        let inv_len = self.inverse.iter().flatten().count();
         let mut self_crossings = 0;
-        assert_eq!(self.b, self.inverse.original.len());
+        assert_eq!(self.b, self.inverse.len());
         let (new_b, new_inv) = (0..self.b.0)
             .group_by(|x| self.connections_b[perm[*x]].clone())
             .into_iter()
@@ -346,7 +354,7 @@ impl GraphBuilder {
                 let mut cnt = 0;
                 let new_inverse = group
                     .inspect(|_| cnt += 1)
-                    .flat_map(|x| &self.inverse.original[perm[x]])
+                    .flat_map(|x| &self.inverse[perm[x]])
                     .cloned()
                     .collect();
                 let pairs = cnt * (cnt - 1) / 2;
@@ -361,8 +369,8 @@ impl GraphBuilder {
             })
             .unzip();
         self.connections_b = VecB::from(new_b);
-        self.inverse.original = VecB::from(new_inv);
-        let new_inv_len = self.inverse.original.iter().flatten().count();
+        self.inverse = VecB::from(new_inv);
+        let new_inv_len = self.inverse.iter().flatten().count();
         assert_eq!(inv_len, new_inv_len);
         self.self_crossings += self_crossings;
         info!(
@@ -417,12 +425,12 @@ impl GraphBuilder {
             let l = self[*u].len();
             self.connections_b[*u].clear();
             self.connections_b[*v].extend((0..l).map(|_| y));
-            // NOTE: We preserve order of the inverse.original mapping.
+            // NOTE: We preserve order of the inverse mapping.
             // Since u is left of v, the preimage of u must come before the preimage of v.
-            let mut inv_u = std::mem::take(&mut self.inverse.original[*u]);
-            let inv_v = std::mem::take(&mut self.inverse.original[*v]);
+            let mut inv_u = std::mem::take(&mut self.inverse[*u]);
+            let inv_v = std::mem::take(&mut self.inverse[*v]);
             inv_u.extend(inv_v);
-            self.inverse.original[*v] = inv_u;
+            self.inverse[*v] = inv_u;
             merged += 1;
         }
 
@@ -579,10 +587,10 @@ impl GraphBuilder {
 
     /// Permute the nodes of B such that the given solution is simply 0..b.
     fn permute(&mut self, solution: Solution) {
-        self.inverse.original = VecB::from(
+        self.inverse = VecB::from(
             solution
                 .iter()
-                .map(|&b| std::mem::take(&mut self.inverse.original[b]))
+                .map(|&b| std::mem::take(&mut self.inverse[b]))
                 .collect(),
         );
         self.connections_b = VecB::from(
@@ -598,7 +606,15 @@ impl GraphBuilder {
         VecB::from(
             self.connections_b
                 .iter()
-                .map(|b| *b.iter().min().unwrap()..*b.iter().max().unwrap())
+                .map(|b| {
+                    let (min, max) = b
+                        .iter()
+                        .copied()
+                        .minmax()
+                        .into_option()
+                        .unwrap_or((NodeA(0), NodeA(0)));
+                    min..max
+                })
                 .collect(),
         )
     }
@@ -636,42 +652,14 @@ impl GraphBuilder {
     }
 
     pub fn invert(&self, solution: Solution) -> Solution {
-        self.inverse.invert(solution)
-    }
-}
-
-/// Maps the B indices of a solution for the reduced graph back to the original graph.
-#[derive(Debug, Default, Clone)]
-pub struct Inverse {
-    original: VecB<Vec<NodeB>>,
-}
-
-impl Inverse {
-    fn new(b: NodeB) -> Inverse {
-        Self {
-            original: VecB::from((NodeB(0)..b).map(|x| vec![x]).collect_vec()),
-        }
-    }
-    fn new_with_inv(inv: &[Vec<NodeB>]) -> Inverse {
-        Self {
-            original: VecB::from(inv.to_vec()),
-        }
-    }
-
-    pub fn push(&mut self, b: NodeB) {
-        assert_eq!(self.original.len(), b);
-        self.original.push();
-        self.original[b] = vec![b];
-    }
-    pub fn invert(&self, solution: Solution) -> Solution {
         assert_eq!(
             solution.len(),
-            self.original.len().0,
+            self.inverse.len().0,
             "Cannot invert solution with wrong length"
         );
         solution
             .iter()
-            .flat_map(|&b| self.original[b].clone())
+            .flat_map(|&b| self.inverse[b].clone())
             .collect()
     }
 }
