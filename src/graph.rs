@@ -328,10 +328,10 @@ pub fn one_sided_crossing_minimization(
     mut gb: GraphBuilder,
     mut bound: Option<u64>,
 ) -> Option<(Solution, u64)> {
-    let mut score = gb.self_crossings;
     let g0 = gb.to_graph();
     let graph_builders = gb.build();
     let num_parts = graph_builders.len();
+    let mut score = gb.self_crossings;
 
     let sol = 'sol: {
         let mut solution = Solution::default();

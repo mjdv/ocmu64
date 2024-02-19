@@ -273,10 +273,10 @@ impl GraphBuilder {
     /// Permute the vertices of the graph so that B is roughly increasing.
     /// TODO: Store metadata to be able to invert the final solution.
     /// TODO: Allow customizing whether crossings are built.
-    pub fn build(mut self) -> Vec<GraphBuilder> {
+    pub fn build(&mut self) -> Vec<GraphBuilder> {
         self.drop_singletons();
         if get_flag("no_transform") {
-            return vec![self];
+            return vec![self.clone()];
         }
         self.merge_twins();
         self.merge_adjacent_edges();
@@ -284,7 +284,13 @@ impl GraphBuilder {
         self.permute(initial_solution(&self.to_quick_graph()));
         self.sort_edges();
         self.print_stats();
-        self.split()
+        if get_flag("no_split") {
+            let copy = self.clone();
+            self.self_crossings = 0;
+            vec![copy]
+        } else {
+            self.split()
+        }
     }
 
     fn sort_edges(&mut self) {
