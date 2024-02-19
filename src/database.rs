@@ -60,6 +60,8 @@ impl Database {
     }
 
     pub fn save(&self) {
+        let prefix = self.path.parent().unwrap();
+        std::fs::create_dir_all(prefix).unwrap();
         let file = std::fs::File::create(&self.path).unwrap();
         serde_json::to_writer(std::io::BufWriter::new(file), &self.data).unwrap();
     }
