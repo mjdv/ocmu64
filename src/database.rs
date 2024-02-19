@@ -1,8 +1,12 @@
+use colored::Colorize;
+use log::error;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
 };
+
+use crate::get_flag;
 
 /// Data stored per testcase.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -104,13 +108,26 @@ impl Database {
         results.runs.push(result);
         if let Some(new_score) = score {
             if let Some(existing_score) = &results.score {
-                assert_eq!(
-                    new_score,
-                    *existing_score,
-                    "New score {new_score} does not equal existing score {existing_score} for {}.",
-                    results.path.display(),
-                );
-                results.score = Some(new_score.min(*existing_score));
+                if get_flag("update_db_score") {
+                    if new_score != *existing_score {
+                        let msg = format!(
+                            "\nUpdating score for {} from {} to {}.\n",
+                            input.display(),
+                            existing_score,
+                            new_score
+                        );
+                        error!("{}", msg.red());
+                        results.score = Some(new_score);
+                    }
+                } else {
+                    assert_eq!(
+                        new_score,
+                        *existing_score,
+                        "New score {new_score} does not equal existing score {existing_score} for {}.",
+                        results.path.display(),
+                    );
+                    results.score = Some(new_score.min(*existing_score));
+                }
             } else {
                 results.score = Some(new_score);
             }
