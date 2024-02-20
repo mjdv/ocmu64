@@ -1,7 +1,7 @@
 use std::{
     iter::zip,
     path::{Path, PathBuf},
-    process::Stdio,
+    process::{exit, Stdio},
     sync::{Arc, Mutex},
     time::Instant,
 };
@@ -343,7 +343,10 @@ fn process_dir(mut paths: Vec<PathBuf>, args: &Args) -> Option<()> {
         let state = state.clone();
 
         ctrlc::set_handler(move || {
-            let mut db = db.lock().unwrap();
+            let mut db = db.lock().unwrap_or_else(|_| {
+                eprintln!("DB LOCK POISONED");
+                exit(1)
+            });
 
             // Update pending runs in database.
             let mut state = state.lock().unwrap();
@@ -378,7 +381,12 @@ fn process_dir(mut paths: Vec<PathBuf>, args: &Args) -> Option<()> {
         print_state(&state.lock().unwrap());
         let score = call_subprocess(&p, &args);
         let duration = start.elapsed().as_secs();
-        db.lock().unwrap().add_result(&p, duration, score);
+        db.lock()
+            .unwrap_or_else(|_| {
+                eprintln!("DB LOCK POISONED");
+                exit(1)
+            })
+            .add_result(&p, duration, score);
         if score.is_some() {
             update(&state, &p, State::Solved(duration));
             if let Some(total_score) = total_score.lock().unwrap().as_mut() {
