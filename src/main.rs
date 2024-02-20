@@ -34,6 +34,8 @@ struct Args {
     #[clap(short, long, global = true)]
     verbose: bool,
     #[clap(short, long, global = true)]
+    debug: bool,
+    #[clap(short, long, global = true)]
     print: bool,
     #[clap(long, global = true)]
     statsonly: bool,
@@ -43,10 +45,11 @@ struct Args {
 
 /// Logging is only enabled when there is only a single testcase.
 fn init_log(args: &Args, verbose: bool) {
-    let verbosity = match (verbose, args.print) {
-        (false, _) => 1,
-        (true, false) => 2,
-        (true, true) => 3,
+    let verbosity = match (verbose, args.print, args.debug) {
+        (false, _, _) => 1,
+        (_, _, true) => 4,
+        (_, true, _) => 3,
+        (_, false, _) => 2,
     };
     stderrlog::new()
         .verbosity(verbosity)
@@ -169,6 +172,9 @@ fn call_subprocess(path: &Path, args: &Args) -> Option<u64> {
     }
     if log::log_enabled!(log::Level::Info) {
         arg.arg("--verbose");
+    }
+    if log::log_enabled!(log::Level::Debug) {
+        arg.arg("--debug");
     }
     arg.args(&args.flags);
     arg.stderr(Stdio::inherit());
