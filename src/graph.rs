@@ -153,7 +153,7 @@ impl Graph {
 
 pub type Solution = Vec<NodeB>;
 
-fn display_solution(g: &Graph, solution: &Solution) -> String {
+fn display_solution(g: &Graph, solution: &Solution, matrix: bool) -> String {
     let mut s = String::new();
     solution
         .chunk_by(|l, r| Step::forward(*l, 1) == *r)
@@ -165,6 +165,10 @@ fn display_solution(g: &Graph, solution: &Solution) -> String {
             }
         });
     s.push('\n');
+
+    if !matrix {
+        return s;
+    }
 
     for &u in solution {
         for &v in solution {
@@ -241,6 +245,22 @@ fn commute_adjacent(g: &Graph, vec: &mut [NodeB]) {
     }
 }
 
+/// Sort adjacent nodes if they can be swapped without decreasing the score.
+fn sort_adjacent(g: &Graph, sol: &mut [NodeB]) {
+    let mut changed = true;
+    while changed {
+        changed = false;
+        for i in 1..sol.len() {
+            if g.node_score(sol[i - 1], sol[i]) >= g.node_score(sol[i], sol[i - 1])
+                && sol[i - 1] > sol[i]
+            {
+                (sol[i - 1], sol[i]) = (sol[i], sol[i - 1]);
+                changed = true;
+            }
+        }
+    }
+}
+
 /// Keep iterating to find nodes that can be moved elsewhere.
 fn optimal_insert(g: &Graph, sol: &mut [NodeB]) {
     let mut changed = true;
@@ -292,7 +312,10 @@ fn initial_solution(g: &Graph) -> Vec<NodeB> {
 fn oscm_part(g: &Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
     let initial_solution = initial_solution(g);
     let initial_score = g.score(&initial_solution);
-    debug!("Initial sol   : {}", display_solution(g, &initial_solution));
+    debug!(
+        "Initial sol   : {}",
+        display_solution(g, &initial_solution, true)
+    );
     info!("Initial solution found, with score {initial_score}.");
     let bound = if let Some(bound) = bound {
         min(bound, initial_score)
@@ -304,6 +327,7 @@ fn oscm_part(g: &Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
     }
     let mut bb = Bb::new(g, bound);
     let solution_found = bb.branch_and_bound();
+    sort_adjacent(g, &mut bb.best_solution);
     info!("");
     info!("Sols found    : {:>9}", bb.sols_found);
     info!("B&B States    : {:>9}", bb.states);
@@ -312,7 +336,10 @@ fn oscm_part(g: &Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
     info!("LB updates    : {:>9}", bb.lb_updates);
     info!("Unique subsets: {:>9}", bb.lower_bound_for_tail.len());
     info!("LB matching   : {:>9}", bb.lb_hit);
-    debug!("Solution      : {}", display_solution(g, &bb.best_solution));
+    debug!(
+        "Solution      : {}",
+        display_solution(g, &bb.best_solution, true)
+    );
     if solution_found {
         Some((bb.best_solution, bb.best_score))
     } else {
@@ -342,6 +369,13 @@ pub fn one_sided_crossing_minimization(
                 break 'sol None;
             };
             assert_eq!(part_score, g.score(&part_sol), "WRONG SCORE FOR PART");
+            // Make sure that all `must_come_before` constraints are satisfied.
+            for (u, v) in part_sol.iter().copied().tuple_combinations() {
+                if g.must_come_before[u].iter().find(|&&x| x == v).is_some() {
+                    info!("Part {i} of {num_parts} violates must_come_before constraints.");
+                    break 'sol None;
+                }
+            }
             score += part_score;
             solution.extend(gb.invert(part_sol));
             if let Some(bound) = bound.as_mut() {
@@ -353,6 +387,7 @@ pub fn one_sided_crossing_minimization(
                 *bound -= part_score;
             }
         }
+        info!("{}", display_solution(&g0, &solution, false));
         assert_eq!(score, g0.score(&solution), "WRONG SCORE FOR FINAL SOLUTION");
         Some((solution, score))
     };
