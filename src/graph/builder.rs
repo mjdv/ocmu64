@@ -206,6 +206,7 @@ impl GraphBuilder {
         for (a, b) in must_come_before.iter_mut().zip(must_come_before_2.iter()) {
             a.extend(b);
         }
+        self.boundary_pairs(&mut must_come_before);
 
         Graph {
             a: self.a,
@@ -522,6 +523,44 @@ impl GraphBuilder {
         info!("Found {stronger_dominating_pairs} stronger dominating pairs");
         info!("Found {strongest_dominating_pairs} strongest dominating pairs");
         must_come_before
+    }
+
+    /// When a cell is green and there is not a single red cell left-below it, fix the order of the pair.
+    /// I.e.: When u < v in the current order, and for all (x,y) with x <= u < v <= y we want x < y, then fix u < v.
+    fn boundary_pairs(&mut self, must_come_before: &mut VecB<Vec<NodeB>>) {
+        if !get_flag("boundary_pairs") {
+            info!("Found 0 boundary pairs (skipped)");
+            return;
+        }
+
+        let mut boundary_pairs = 0;
+
+        self.sort_edges();
+
+        let mut leftmost_red = self.b;
+
+        for v in (NodeB(0)..self.b).rev() {
+            leftmost_red = min(leftmost_red, v);
+
+            for u in NodeB(0)..leftmost_red {
+                if self[u].last() < self[v].first() {
+                    continue;
+                }
+                if must_come_before[v].contains(&u) {
+                    continue;
+                }
+                // TODO: Also handle equality cases properly.
+                if self.one_node_crossings(u, v) < self.one_node_crossings(v, u) {
+                    must_come_before[v].push(u);
+                    boundary_pairs += 1;
+                } else {
+                    leftmost_red = u;
+                    break;
+                }
+            }
+        }
+
+        info!("Found {boundary_pairs} boundary pairs");
     }
 
     /// Count pairs (u,v) such that u must always be left of v:
