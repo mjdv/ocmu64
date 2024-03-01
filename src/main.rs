@@ -408,6 +408,11 @@ fn process_dir(mut paths: Vec<PathBuf>, args: &Args) -> Option<()> {
     if paths.len() == 1 {
         process_path(paths.pop().unwrap());
     } else {
+        rayon::ThreadPoolBuilder::new()
+            .stack_size(20 * 1024 * 1024)
+            .build_global()
+            .unwrap();
+
         paths.into_iter().par_bridge().for_each_init(
             || {
                 set_flags(&args.flags);
