@@ -350,7 +350,7 @@ fn process_dir(mut paths: Vec<PathBuf>, args: &Args) -> Option<()> {
 
         ctrlc::set_handler(move || {
             let mut db = db.lock().unwrap_or_else(|_| {
-                eprintln!("DB LOCK POISONED");
+                eprintln!("POISONED LOCK. ANOTHER THREAD PANICKED.");
                 exit(1)
             });
 
@@ -389,7 +389,7 @@ fn process_dir(mut paths: Vec<PathBuf>, args: &Args) -> Option<()> {
         let duration = start.elapsed().as_secs();
         db.lock()
             .unwrap_or_else(|_| {
-                eprintln!("DB LOCK POISONED");
+                eprintln!("POISONED LOCK. ANOTHER THREAD PANICKED.");
                 exit(1)
             })
             .add_result(&p, duration, score);

@@ -1,12 +1,5 @@
-use itertools::Itertools;
-
 use super::*;
-use std::{
-    self,
-    cmp::max,
-    iter::{zip, Step},
-    ops::Range,
-};
+use std::{cmp::max, iter::zip};
 
 #[derive(Debug, Default, Clone)]
 pub struct GraphBuilder {
