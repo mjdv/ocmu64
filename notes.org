@@ -134,3 +134,25 @@ Also runs in $2^c\cdot poly(n,c)$ for max cut-width $c$.
 
   - 32, 19, 28, 31, 33, 43, 23, 29, 50, 34, 20, 25
   - 31, 32, 33, 43, 23, 50, 34, 19, 20, 25, 28, 29
+
+* Flags
+
+- update_db_score: when score differs from stored score, overwrite instead of panic
+
+** Safe
+Flags named =no_...= disable features that should just work and not give contradictions.
+
+- no_optimal_insert: disable optimal insert, which inserts new states in the
+  optimal position in the already placed list.
+- no_transform: disable graph simplifications (merging nodes / splitting components)
+- no_split: disable splitting the graph in small parts
+- no_dominating_pairs: disable =last(u) < first(v)= check
+- no_strong_dominating_pairs: disable =u_i < v_i= check, allowing extra prefix/suffix.
+- no_stronger_dominating_pairs: disable =u_i < v_{j*n/i}= check.
+
+** Unsafe / broken
+- siblings: if for every w, v<w => u<w, and u>w => v>w, and cuv < cvu, then u < v.
+- strongest_dominating_pairs: if more than half of u comes before first(v).
+
+** New
+- boundary_pairs: fix vertices that only have green left/below them.
