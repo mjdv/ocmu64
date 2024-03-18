@@ -1,7 +1,7 @@
-use crate::{get_flag, node::*};
+use crate::{get_flag, node::*, pattern_search::pattern_search};
 use std::{
     cmp::min,
-    collections::{hash_map::Entry, HashMap},
+    collections::{hash_map::Entry, BTreeMap, HashMap},
     iter::Step,
     ops::{Deref, DerefMut, Index, IndexMut, Range},
 };
@@ -40,7 +40,7 @@ impl Graph {
     }
 
     /// Crossings by having b1 before b2.
-    fn node_score(&self, u: NodeB, v: NodeB) -> u64 {
+    pub fn node_score(&self, u: NodeB, v: NodeB) -> u64 {
         if let Some(crossings) = &self.crossings {
             crossings[u][v]
         } else {
@@ -178,17 +178,23 @@ fn display_solution(g: &Graph, solution: &Solution, matrix: bool) -> String {
                 0 => colored::Color::White,
                 1.. => colored::Color::Green,
             };
-            let forced = u != v
+            let forceduv = u != v
                 && (g.intervals[u].end <= g.intervals[v].start
-                    || g.must_come_before[v].iter().find(|&&x| x == u).is_some()
-                    || g.intervals[v].end <= g.intervals[u].start
+                    || g.must_come_before[v].iter().find(|&&x| x == u).is_some());
+            let forcedvu = u != v
+                && (g.intervals[v].end <= g.intervals[u].start
                     || g.must_come_before[u].iter().find(|&&x| x == v).is_some());
             let c = if c.abs() < 10 {
                 b'0' as i64 + c.abs()
             } else {
                 (b'A' as i64 - 10 + c.abs()).min(b'Z' as i64)
             } as u8 as char;
-            if forced {
+            if forceduv {
+                s.push_str(&format!(
+                    "{}",
+                    format!("{}", c).color(colored::Color::Black)
+                ));
+            } else if forcedvu {
                 s.push_str(&format!(
                     "{}",
                     format!("{}", c).color(colored::Color::Black)
@@ -196,6 +202,16 @@ fn display_solution(g: &Graph, solution: &Solution, matrix: bool) -> String {
             } else {
                 s.push_str(&format!("{}", format!("{}", c).color(color)));
             }
+            // s.push_str(&format!(
+            //     "{}",
+            //     format!("{}", c).color(color).on_color(if forceduv {
+            //         colored::Color::Red
+            //     } else if forcedvu {
+            //         colored::Color::Green
+            //     } else {
+            //         colored::Color::Black
+            //     },)
+            // ));
         }
         s.push('\n');
     }
