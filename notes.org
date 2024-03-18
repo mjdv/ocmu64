@@ -135,9 +135,17 @@ Also runs in $2^c\cdot poly(n,c)$ for max cut-width $c$.
   - 32, 19, 28, 31, 33, 43, 23, 29, 50, 34, 20, 25
   - 31, 32, 33, 43, 23, 50, 34, 19, 20, 25, 28, 29
 
+** TODO
+- 'practical dominating': u < v if cuv < cvu and there is no set of vertices X such that vXu
+  is the optimal rotation, ie better than uvX and Xuv.
+- 'optimal insert': instead of optimally inserting and then continuing, prune
+  those branches.
+
 * Flags
 
+** Misc
 - update_db_score: when score differs from stored score, overwrite instead of panic
+- pattern_search: search for 'weird' patterns in the solution.
 
 ** Safe
 Flags named =no_...= disable features that should just work and not give contradictions.
@@ -149,10 +157,10 @@ Flags named =no_...= disable features that should just work and not give contrad
 - no_dominating_pairs: disable =last(u) < first(v)= check
 - no_strong_dominating_pairs: disable =u_i < v_i= check, allowing extra prefix/suffix.
 - no_stronger_dominating_pairs: disable =u_i < v_{j*n/i}= check.
+- no_boundary_pairs: fix vertices that only have green left/below them.
 
 ** Unsafe / broken
 - siblings: if for every w, v<w => u<w, and u>w => v>w, and cuv < cvu, then u < v.
 - strongest_dominating_pairs: if more than half of u comes before first(v).
-
-** New
-- boundary_pairs: fix vertices that only have green left/below them.
+- c3: add min score of (u,v,w) if larger than pairwise min(cuv, cvu) scores.
+- eq_boundary_pairs: stronger version to force equal cases. Broken on exact/049.gr.
