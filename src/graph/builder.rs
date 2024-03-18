@@ -197,6 +197,7 @@ impl GraphBuilder {
         let before = self.dominating_pairs();
         // TODO: Practical dominating pairs.
         // self.boundary_pairs(&mut before);
+        Self::transitive_closure(&mut before);
 
         Graph {
             a: self.a,
@@ -482,6 +483,33 @@ impl GraphBuilder {
         }
 
         info!("Found {boundary_pairs} boundary pairs");
+    }
+
+    // This is quite slow.
+    // TODO: Does it contribute anything at all anyway?
+    fn transitive_closure(before: &mut Before) {
+        if !get_flag("tc") {
+            return;
+        }
+        let mut changed = true;
+        let mut transitive_pairs = 0;
+        while changed {
+            changed = false;
+            for i in NodeB(0)..before.len() {
+                for j in NodeB(0)..before.len() {
+                    if before[i][j] {
+                        for k in NodeB(0)..before.len() {
+                            if before[j][k] && !before[i][k] {
+                                before[i][k] = true;
+                                changed = true;
+                                transitive_pairs += 1;
+                            }
+                        }
+                    }
+                }
+            }
+            info!("Found {transitive_pairs} transitive pairs");
+        }
     }
 
     /// Reconstruct `connections_a`, given `connections_b`.
