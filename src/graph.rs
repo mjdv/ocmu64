@@ -15,6 +15,11 @@ use log::*;
 mod builder;
 mod io;
 
+/// Before[u][v] is true if u must come before v.
+/// Before[u][u] is always false.
+// TODO: Use bitvec instead?
+pub type Before = VecB<VecB<bool>>;
+
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct Graph {
@@ -29,7 +34,7 @@ pub struct Graph {
     /// Stores max(cuv - cvu, 0).
     pub reduced_crossings: Option<VecB<VecB<u64>>>,
     pub self_crossings: u64,
-    pub must_come_before: VecB<Vec<NodeB>>,
+    pub before: Before,
 }
 
 pub type Graphs = Vec<Graph>;
@@ -178,12 +183,8 @@ fn display_solution(g: &Graph, solution: &Solution, matrix: bool) -> String {
                 0 => colored::Color::White,
                 1.. => colored::Color::Green,
             };
-            let forceduv = u != v
-                && (g.intervals[u].end <= g.intervals[v].start
-                    || g.must_come_before[v].iter().find(|&&x| x == u).is_some());
-            let forcedvu = u != v
-                && (g.intervals[v].end <= g.intervals[u].start
-                    || g.must_come_before[u].iter().find(|&&x| x == v).is_some());
+            let forceduv = g.before[u][v];
+            let forcedvu = g.before[v][u];
             let c = if c.abs() < 10 {
                 b'0' as i64 + c.abs()
             } else {
@@ -389,7 +390,7 @@ pub fn one_sided_crossing_minimization(
             info!("{part_sol:?}");
             // Make sure that all `must_come_before` constraints are satisfied.
             for (u, v) in part_sol.iter().copied().tuple_combinations() {
-                if g.must_come_before[u].iter().find(|&&x| x == v).is_some() {
+                if g.before[v][u] {
                     info!("Part {i} of {num_parts} violates must_come_before constraints.");
                     info!("{u} {v}");
                     break 'sol None;
@@ -632,8 +633,9 @@ impl<'a> Bb<'a> {
                 continue;
             }
 
-            for v in &self.g.must_come_before[u] {
-                if unsafe { *self.tail_mask.get_unchecked(v.0) } {
+            let tail = &self.solution[self.solution_len + 1..];
+            for &v in tail {
+                if self.g.before[v][u] {
                     continue 'u;
                 }
             }
