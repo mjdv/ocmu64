@@ -393,14 +393,18 @@ impl GraphBuilder {
     fn dominating_pairs(&mut self) -> Before {
         let mut before = Before::from(vec![VecB::from(vec![false; self.b.0]); self.b.0]);
 
+        let mut disjoint_pairs = 0;
+
         // Set the trivial ones.
         for u in NodeB(0)..self.b {
             for v in NodeB(0)..self.b {
                 if self[u].last() < self[v].first() {
                     before[u][v] = true;
+                    disjoint_pairs += 1;
                 }
             }
         }
+        info!("Found {disjoint_pairs} disjoint pairs");
 
         if get_flag("no_dominating_pairs") {
             return before;
