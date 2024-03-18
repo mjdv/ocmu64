@@ -196,10 +196,6 @@ impl GraphBuilder {
         let (crossings, reduced_crossings) = self.crossings();
         let before = self.dominating_pairs();
         // TODO: Practical dominating pairs.
-        // let mut before = self.find_siblings();
-        // for (a, b) in before.iter_mut().zip(before2.iter()) {
-        //     a.extend(b);
-        // }
         // self.boundary_pairs(&mut before);
 
         Graph {
@@ -486,57 +482,6 @@ impl GraphBuilder {
         }
 
         info!("Found {boundary_pairs} boundary pairs");
-    }
-
-    /// Count pairs (u,v) such that u must always be left of v:
-    /// 0. Exclude pairs with disjoint intervals; they are not interesting.
-    /// 1. cvw < cwv => cuw <= cwu (if v before w, than so u)
-    /// 2. cwu < cuw => cwv <= cvw (if u after w, than so v)
-    /// 3. cuv <= cvu
-    /// NOTE: THIS IS A BROKEN OPTIMIZATION AND DOES NOT GUARANTEE EXACT RESULTS.
-    fn find_siblings(&self) -> VecB<Vec<NodeB>> {
-        // For each node, the other nodes that must come before it.
-        let mut must_come_before: VecB<Vec<NodeB>> = VecB::new(self.b);
-        if !get_flag("siblings") {
-            return must_come_before;
-        }
-
-        let intervals = self.intervals();
-        let c = self.crossings().0;
-        let mut siblings = 0;
-        let mut rev_siblings = 0;
-        let mut rev_sibling_weight = 0;
-        for u in NodeB(0)..self.b {
-            'pairs: for v in NodeB(0)..self.b {
-                if u == v {
-                    continue;
-                }
-                // Disjoint intervals?
-                if intervals[u].end <= intervals[v].start || intervals[v].end <= intervals[u].start
-                {
-                    continue;
-                }
-                for w in NodeB(0)..self.b {
-                    if c[v][w] < c[w][v] && c[u][w] > c[w][u] {
-                        continue 'pairs;
-                    }
-                    if c[w][u] < c[u][w] && c[w][v] > c[v][w] {
-                        continue 'pairs;
-                    }
-                }
-                // if c[u][v] < c[v][u] || (c[u][v] == c[v][u] && u < v) {
-                if c[u][v] < c[v][u] {
-                    siblings += 1;
-                    must_come_before[v].push(u);
-                } else {
-                    rev_siblings += 1;
-                    rev_sibling_weight += c[u][v] - c[v][u];
-                }
-            }
-        }
-        info!("Found {siblings} siblings");
-        info!("Surprises: {rev_siblings} of total score {rev_sibling_weight}");
-        must_come_before
     }
 
     /// Reconstruct `connections_a`, given `connections_b`.
