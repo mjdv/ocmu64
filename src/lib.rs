@@ -2,6 +2,7 @@
 pub mod database;
 pub mod generate;
 pub mod graph;
+mod knapsack;
 pub mod node;
 mod pattern_search;
 
