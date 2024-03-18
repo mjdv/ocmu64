@@ -306,6 +306,7 @@ fn initial_solution(g: &Graph) -> Vec<NodeB> {
     sort_by_median(g, &mut initial_solution);
     commute_adjacent(g, &mut initial_solution);
     optimal_insert(g, &mut initial_solution);
+    sort_adjacent(g, &mut initial_solution);
     initial_solution
 }
 
@@ -394,6 +395,7 @@ pub fn one_sided_crossing_minimization(
         }
         info!("{}", display_solution(&g0, &solution, false));
         assert_eq!(score, g0.score(&solution), "WRONG SCORE FOR FINAL SOLUTION");
+
         Some((solution, score))
     };
     sol
@@ -933,5 +935,76 @@ mod test {
                 }
             }
         }
+    }
+}
+
+pub fn draw(connections: &[Vec<NodeA>], sort: bool) {
+    // Compress.
+    let mut h: BTreeMap<NodeA, NodeA> = connections
+        .iter()
+        .flat_map(|x| x.iter().copied())
+        .map(|x| (x, x))
+        .collect();
+    let mut a = NodeA(0);
+    for x in h.values_mut() {
+        *x = a;
+        a = Step::forward(a, 1);
+    }
+
+    let mut connections: Vec<Vec<NodeA>> = connections
+        .iter()
+        .map(|x| x.iter().map(|x| *h.get(x).unwrap()).collect())
+        .collect();
+
+    let a = connections
+        .iter()
+        .map(|x| x.iter().map(|x| x.0).max().unwrap_or(0))
+        .max()
+        .unwrap_or(0)
+        + 1;
+
+    if sort {
+        connections.sort_by_key(|x| {
+            assert!(x.is_sorted());
+            (
+                // First by length 0 and 1.
+                (x.last().unwrap().0 - x.first().unwrap().0).min(2),
+                // Then by start pos.
+                x.first().unwrap().0,
+                // Then by end pos.
+                x.last().unwrap().0,
+            )
+        });
+    }
+
+    let mut rows: Vec<Vec<Vec<NodeA>>> = vec![];
+    for cs in connections.iter() {
+        let first = cs.first().unwrap();
+        let row = rows
+            .iter_mut()
+            .find(|r| r.last().is_some_and(|l| l.last().unwrap().0 + 1 < first.0));
+        let row = match (sort, row) {
+            (true, Some(row)) => row,
+            _ => {
+                rows.push(vec![]);
+                rows.last_mut().unwrap()
+            }
+        };
+        row.push(cs.clone());
+    }
+    debug!("Neighbours:");
+    for row in rows {
+        let mut line = vec![b' '; a];
+        for cs in row {
+            line[cs.first().unwrap().0..=cs.last().unwrap().0].fill(b'-');
+            for c in cs {
+                line[c.0] = match line[c.0] {
+                    b'-' => b'x',
+                    b'x' => b'2',
+                    c => c + 1,
+                };
+            }
+        }
+        debug!("{}", String::from_utf8_lossy(&line));
     }
 }

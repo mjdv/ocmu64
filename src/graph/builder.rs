@@ -227,49 +227,7 @@ impl GraphBuilder {
         let degs = self.connections_b.iter().map(|x| x.len()).join(",");
         debug!("Degrees:\n{degs}");
 
-        let mut connections = self.connections_b.clone();
-        connections.sort_by_key(|x| {
-            assert!(x.is_sorted());
-            (
-                // First by length 0 and 1.
-                (x.last().unwrap().0 - x.first().unwrap().0).min(2),
-                // Then by start pos.
-                x.first().unwrap().0,
-                // Then by end pos.
-                x.last().unwrap().0,
-            )
-        });
-
-        let mut rows: Vec<Vec<Vec<NodeA>>> = vec![];
-        for cs in connections.iter() {
-            let first = cs.first().unwrap();
-            let row = rows
-                .iter_mut()
-                .find(|r| r.last().is_some_and(|l| l.last().unwrap().0 + 1 < first.0));
-            let row = match row {
-                Some(row) => row,
-                None => {
-                    rows.push(vec![]);
-                    rows.last_mut().unwrap()
-                }
-            };
-            row.push(cs.clone());
-        }
-        debug!("Neighbours:");
-        for row in rows {
-            let mut line = vec![b' '; self.a.0];
-            for cs in row {
-                line[cs.first().unwrap().0..=cs.last().unwrap().0].fill(b'-');
-                for c in cs {
-                    line[c.0] = match line[c.0] {
-                        b'-' => b'x',
-                        b'x' => b'2',
-                        c => c + 1,
-                    };
-                }
-            }
-            debug!("{}", String::from_utf8_lossy(&line));
-        }
+        draw(&self.connections_b, true);
     }
 
     /// Permute the vertices of the graph so that B is roughly increasing.
