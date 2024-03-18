@@ -1,5 +1,5 @@
 use super::*;
-use std::{cmp::max, iter::zip};
+use std::cmp::max;
 
 #[derive(Debug, Default, Clone)]
 pub struct GraphBuilder {
@@ -116,7 +116,7 @@ impl GraphBuilder {
             reduced_crossings: None,
             intervals: self.intervals(),
             self_crossings: self.self_crossings,
-            must_come_before: VecB::new(self.b),
+            before: VecB::new(self.b),
         }
     }
 
@@ -194,12 +194,13 @@ impl GraphBuilder {
 
     pub fn to_graph(&mut self) -> Graph {
         let (crossings, reduced_crossings) = self.crossings();
-        let mut must_come_before = self.find_siblings();
-        let must_come_before_2 = self.dominating_pairs();
-        for (a, b) in must_come_before.iter_mut().zip(must_come_before_2.iter()) {
-            a.extend(b);
-        }
-        self.boundary_pairs(&mut must_come_before);
+        let before = self.dominating_pairs();
+        // TODO: Practical dominating pairs.
+        // let mut before = self.find_siblings();
+        // for (a, b) in before.iter_mut().zip(before2.iter()) {
+        //     a.extend(b);
+        // }
+        // self.boundary_pairs(&mut before);
 
         Graph {
             a: self.a,
@@ -212,7 +213,7 @@ impl GraphBuilder {
             reduced_crossings: Some(reduced_crossings),
             intervals: self.intervals(),
             self_crossings: self.self_crossings,
-            must_come_before,
+            before,
         }
     }
 
@@ -392,75 +393,44 @@ impl GraphBuilder {
     }
 
     /// Find pairs (u,v) with equal degree and neighbours(u) <= neighbours(v).
-    fn dominating_pairs(&mut self) -> VecB<Vec<NodeB>> {
-        // For each node, the other nodes that must come before it.
-        let mut must_come_before: VecB<Vec<NodeB>> = VecB::new(self.b);
+    fn dominating_pairs(&mut self) -> Before {
+        let mut before = Before::from(vec![VecB::from(vec![false; self.b.0]); self.b.0]);
+
+        // Set the trivial ones.
+        for u in NodeB(0)..self.b {
+            for v in NodeB(0)..self.b {
+                if self[u].last() < self[v].first() {
+                    before[u][v] = true;
+                }
+            }
+        }
+
         if get_flag("no_dominating_pairs") {
-            return must_come_before;
+            return before;
         }
 
         let mut dominating_pairs = 0;
-        let mut strong_dominating_pairs = 0;
-        let mut stronger_dominating_pairs = 0;
 
         self.sort_edges();
         for u in NodeB(0)..self.b {
             for v in NodeB(0)..self.b {
-                if u == v {
+                if u == v || before[u][v] || before[v][u] || self[u] == self[v] {
                     continue;
                 }
-                // Already handled elsewhere.
-                if self[u].last() < self[v].first() {
-                    continue;
-                }
-                if self[u].len() != self[v].len() {
-                    if get_flag("no_strong_dominating_pairs") {
-                        continue;
-                    }
-                    if self[u].len() < self[v].len() {
-                        // u < v if nbs(u) <= the first u.len() of nbs(v).
-                        if zip(&self[u], &self[v]).all(|(x, y)| x <= y) {
-                            must_come_before[v].push(u);
-                            strong_dominating_pairs += 1;
-                            continue;
-                        }
-                    } else {
-                        // u < v if the last v.len() of nbs(u) <= nbs(v).
-                        if zip(self[u].iter().rev(), self[v].iter().rev()).all(|(x, y)| x <= y) {
-                            must_come_before[v].push(u);
-                            strong_dominating_pairs += 1;
-                            continue;
-                        }
-                    }
-                    if get_flag("no_stronger_dominating_pairs") {
-                        continue;
-                    }
-                    if (0..self[u].len()).all(|i| {
-                        // u[i] must be smaller than v[j]
-                        // for all j>=floor(i*vl/ul)
-                        let j = (i * self[v].len()) / self[u].len();
-                        self[u][i] <= self[v][j]
-                    }) {
-                        must_come_before[v].push(u);
-                        stronger_dominating_pairs += 1;
-                    }
 
-                    continue;
-                }
-                if self[u] == self[v] {
-                    if u < v {
-                        must_come_before[v].push(u);
-                    }
-                } else if zip(&self[u], &self[v]).all(|(x, y)| x <= y) {
-                    must_come_before[v].push(u);
+                if (0..self[u].len()).all(|i| {
+                    // u[i] must be smaller than v[j]
+                    // for all j>=floor(i*vl/ul)
+                    let j = (i * self[v].len()) / self[u].len();
+                    self[u][i] <= self[v][j]
+                }) {
+                    before[u][v] = true;
                     dominating_pairs += 1;
                 }
             }
         }
         info!("Found {dominating_pairs} dominating pairs");
-        info!("Found {strong_dominating_pairs} strong dominating pairs");
-        info!("Found {stronger_dominating_pairs} stronger dominating pairs");
-        must_come_before
+        before
     }
 
     /// When a cell is green and there is not a single red cell left-below it, fix the order of the pair.
