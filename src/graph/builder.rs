@@ -402,7 +402,6 @@ impl GraphBuilder {
         let mut dominating_pairs = 0;
         let mut strong_dominating_pairs = 0;
         let mut stronger_dominating_pairs = 0;
-        let mut strongest_dominating_pairs = 0;
 
         self.sort_edges();
         for u in NodeB(0)..self.b {
@@ -445,17 +444,6 @@ impl GraphBuilder {
                         must_come_before[v].push(u);
                         stronger_dominating_pairs += 1;
                     }
-                    if !get_flag("strongest_dominating_pairs") {
-                        continue;
-                    }
-                    // u < v if strictly more than half of the vertices of u comes before the first vertex of v.
-                    // FALSE FIXME
-                    let vl = self[v].first().unwrap();
-                    if 2 * self[u].iter().filter(|&x| x < vl).count() > self[u].len() {
-                        assert!(self.one_node_crossings(u, v) <= self.one_node_crossings(v, u));
-                        must_come_before[v].push(u);
-                        strongest_dominating_pairs += 1;
-                    }
 
                     continue;
                 }
@@ -472,7 +460,6 @@ impl GraphBuilder {
         info!("Found {dominating_pairs} dominating pairs");
         info!("Found {strong_dominating_pairs} strong dominating pairs");
         info!("Found {stronger_dominating_pairs} stronger dominating pairs");
-        info!("Found {strongest_dominating_pairs} strongest dominating pairs");
         must_come_before
     }
 

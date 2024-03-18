@@ -161,6 +161,5 @@ Flags named =no_...= disable features that should just work and not give contrad
 
 ** Unsafe / broken
 - siblings: if for every w, v<w => u<w, and u>w => v>w, and cuv < cvu, then u < v.
-- strongest_dominating_pairs: if more than half of u comes before first(v).
 - c3: add min score of (u,v,w) if larger than pairwise min(cuv, cvu) scores.
 - eq_boundary_pairs: stronger version to force equal cases. Broken on exact/049.gr.
