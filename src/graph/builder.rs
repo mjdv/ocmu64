@@ -1,3 +1,5 @@
+use crate::knapsack::{knapsack, P};
+
 use super::*;
 use std::cmp::max;
 
@@ -436,82 +438,96 @@ impl GraphBuilder {
 
     fn practical_dominating_pairs(&mut self, before: &mut Before) {
         if get_flag("no_pd") {
+            info!("Found 0 practical dominating pairs (skipped)");
             return;
         }
 
         let mut practical_dominating_pairs = 0;
         let mut not_practical_dominating_pairs = 0;
-        let mut practical_dominating_pairs_too_long = 0;
 
         self.sort_edges();
 
         let c = self.crossings().0;
 
+        let xs = (NodeB(0)..self.b).collect_vec();
+
         for u in NodeB(0)..self.b {
-            'uv: for v in NodeB(0)..self.b {
-                if u == v || before[u][v] || before[v][u] || self[u] == self[v] {
-                    continue;
+            for v in NodeB(0)..self.b {
+                if self.is_practically_dominating_pair(before, u, v, &c, &xs) {
+                    practical_dominating_pairs += 1;
+                    before[u][v] = true;
+                } else {
+                    not_practical_dominating_pairs += 1;
                 }
-
-                // We want to prove that u < v.
-
-                // Try to find a set X such that vXu is the strictly optimal rotation.
-                // If no such set exists, then u < v.
-
-                // TODO: Better handle this equality case. We have to be careful
-                // to not introduce cycles.
-                if c[u][v] == c[v][u] {
-                    continue;
-                }
-
-                // We do not consider x that must be before u and v, or after u and v.
-                let xs = (NodeB(0)..self.b)
-                    .filter(|&x| {
-                        if x == u || x == v {
-                            return false;
-                        }
-                        // x must be left of u and v.
-                        if before[x][u] && before[x][v] {
-                            return false;
-                        }
-                        // x must be right of u and v.
-                        if before[u][x] && before[v][x] {
-                            return false;
-                        }
-                        // x that want to be between u and v (as in uxv) are not useful here.
-                        if c[u][x] <= c[x][u] && c[x][v] <= c[v][x] {
-                            return false;
-                        }
-                        true
-                    })
-                    .collect_vec();
-                // skip large sets.
-                if xs.len() > 10 {
-                    practical_dominating_pairs_too_long += 1;
-                    // eprintln!("Skipping too long set {}", xs.len());
-                    continue;
-                }
-
-                // Loop over all subsets.
-                for x in xs.iter().powerset() {
-                    // Compute score of vXu, uvX, Xuv.
-                    let vxu = c[v][u] + x.iter().map(|&&x| c[v][x] + c[x][u]).sum::<u64>();
-                    let uvx = c[u][v] + x.iter().map(|&&x| c[u][x] + c[v][x]).sum::<u64>();
-                    let xuv = c[u][v] + x.iter().map(|&&x| c[x][u] + c[x][v]).sum::<u64>();
-
-                    if vxu <= uvx && vxu <= xuv {
-                        not_practical_dominating_pairs += 1;
-                        continue 'uv;
-                    }
-                }
-
-                before[u][v] = true;
-                practical_dominating_pairs += 1;
             }
         }
-        info!("Skipped {practical_dominating_pairs_too_long} too long practical dominating pairs");
         info!("Dropped {not_practical_dominating_pairs} candidate practical dominating pairs");
         info!("Found {practical_dominating_pairs} practical dominating pairs");
+    }
+
+    // Is u forced before v because there is no separating set?
+    fn is_practically_dominating_pair(
+        &self,
+        before: &Before,
+        u: NodeB,
+        v: NodeB,
+        c: &VecB<VecB<u64>>,
+        xs: &[NodeB],
+    ) -> bool {
+        if u == v || before[u][v] || before[v][u] || self[u] == self[v] {
+            return false;
+        }
+
+        // We want to prove that u < v.
+
+        // Try to find a set X such that vXu is the strictly optimal rotation.
+        // If no such set exists, then u < v.
+
+        // TODO: Better handle this equality case. We have to be careful
+        // to not introduce cycles.
+        if c[u][v] >= c[v][u] {
+            return false;
+        }
+
+        // We do not consider x that must be before u and v, or after u and v.
+        let xs = xs
+            .iter()
+            .filter(|&&x| {
+                if x == u || x == v {
+                    return false;
+                }
+                // x must be left of u and v.
+                if before[x][u] && before[x][v] {
+                    return false;
+                }
+                // x must be right of u and v.
+                if before[u][x] && before[v][x] {
+                    return false;
+                }
+                // x that want to be between u and v (as in uxv) are not useful here.
+                if c[u][x] <= c[x][u] && c[x][v] <= c[v][x] {
+                    return false;
+                }
+                true
+            })
+            .collect_vec();
+
+        // knapsack
+        let target = P(
+            c[u][v] as i32 - c[v][u] as i32,
+            c[u][v] as i32 - c[v][u] as i32,
+        );
+        let points = xs
+            .iter()
+            .map(|&&x| {
+                P(
+                    c[x][u] as i32 - c[u][x] as i32,
+                    c[v][x] as i32 - c[x][v] as i32,
+                )
+            })
+            .collect::<Vec<_>>();
+
+        !knapsack(target, &points)
     }
 
     /// When a cell is green and there is not a single red cell left-below it, fix the order of the pair.
