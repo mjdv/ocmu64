@@ -1,8 +1,9 @@
-#![feature(step_trait, is_sorted)]
+#![feature(step_trait, is_sorted, let_chains)]
 pub mod database;
 pub mod generate;
 pub mod graph;
 pub mod node;
+mod pattern_search;
 
 thread_local! {
     pub static FLAGS: std::cell::RefCell<Vec<String>> = std::cell::RefCell::new(Vec::new());
