@@ -156,9 +156,7 @@ Flags named =no_...= disable features that should just work and not give contrad
 - no_split: disable splitting the graph in small parts
 - no_dominating_pairs: disable =u_i < v_{j*n/i}= check.
 
-** Disabled
-- no_boundary_pairs: fix vertices that only have green left/below them.
-
 ** Unsafe / broken
+- boundary_pairs: fix vertices that only have green left/below them.
 - c3: add min score of (u,v,w) if larger than pairwise min(cuv, cvu) scores.
 - eq_boundary_pairs: stronger version to force equal cases. Broken on exact/049.gr.
