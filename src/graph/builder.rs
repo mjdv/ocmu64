@@ -521,10 +521,12 @@ impl GraphBuilder {
     /// When a cell is green and there is not a single red cell left-below it, fix the order of the pair.
     /// I.e.: When u < v in the current order, and for all (x,y) with x <= u < v <= y we want x < y, then fix u < v.
     fn boundary_pairs(&mut self, must_come_before: &mut VecB<Vec<NodeB>>) {
-        if !get_flag("boundary_pairs") {
+        if get_flag("no_boundary_pairs") {
             info!("Found 0 boundary pairs (skipped)");
             return;
         }
+
+        let eq_boundary_pairs = get_flag("eq_boundary_pairs");
 
         let mut boundary_pairs = 0;
 
@@ -535,6 +537,8 @@ impl GraphBuilder {
         for v in (NodeB(0)..self.b).rev() {
             leftmost_red = min(leftmost_red, v);
 
+            let mut pending = None;
+
             for u in NodeB(0)..leftmost_red {
                 if self[u].last() < self[v].first() {
                     continue;
@@ -543,7 +547,20 @@ impl GraphBuilder {
                     continue;
                 }
                 // TODO: Also handle equality cases properly.
-                if self.one_node_crossings(u, v) < self.one_node_crossings(v, u) {
+                if self.one_node_crossings(u, v) == self.one_node_crossings(v, u) {
+                    if pending.is_none() {
+                        pending = Some(u);
+                    }
+                } else if self.one_node_crossings(u, v) < self.one_node_crossings(v, u) {
+                    if let Some(pending) = pending
+                        && eq_boundary_pairs
+                    {
+                        for u in pending..u {
+                            must_come_before[v].push(u);
+                            boundary_pairs += 1;
+                        }
+                    }
+                    pending = None;
                     must_come_before[v].push(u);
                     boundary_pairs += 1;
                 } else {
