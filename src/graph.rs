@@ -369,13 +369,18 @@ pub fn one_sided_crossing_minimization(
                 break 'sol None;
             };
             assert_eq!(part_score, g.score(&part_sol), "WRONG SCORE FOR PART");
+            info!("{part_sol:?}");
             // Make sure that all `must_come_before` constraints are satisfied.
             for (u, v) in part_sol.iter().copied().tuple_combinations() {
                 if g.must_come_before[u].iter().find(|&&x| x == v).is_some() {
                     info!("Part {i} of {num_parts} violates must_come_before constraints.");
+                    info!("{u} {v}");
                     break 'sol None;
                 }
             }
+
+            pattern_search(&g, &part_sol);
+
             score += part_score;
             solution.extend(gb.invert(part_sol));
             if let Some(bound) = bound.as_mut() {
