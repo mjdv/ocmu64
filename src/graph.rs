@@ -61,6 +61,11 @@ impl Graph {
         self.crossings[u][v] as _
     }
 
+    /// c(u,v) - c(v,u)
+    pub fn cr(&self, u: NodeB, v: NodeB) -> i64 {
+        self.reduced_crossings[u][v] as _
+    }
+
     /// Min score of positioning u and v.
     fn commute_2(&self, u: NodeB, v: NodeB) -> u64 {
         min(self.c(u, v), self.c(v, u))
@@ -173,7 +178,7 @@ fn display_solution(g: &Graph, solution: &Solution, matrix: bool) -> String {
 
     for &u in solution {
         for &v in solution {
-            let c = g.c(u, v) as i64 - g.c(v, u) as i64;
+            let c = g.cr(u, v) as i64;
             let color = match c {
                 ..=-1 => colored::Color::Red,
                 0 => colored::Color::White,
@@ -250,7 +255,7 @@ fn commute_adjacent(g: &Graph, vec: &mut [NodeB]) {
     while changed {
         changed = false;
         for i in 1..vec.len() {
-            if g.c(vec[i - 1], vec[i]) > g.c(vec[i], vec[i - 1]) {
+            if g.cr(vec[i - 1], vec[i]) > 0 {
                 (vec[i - 1], vec[i]) = (vec[i], vec[i - 1]);
                 changed = true;
             }
@@ -264,7 +269,7 @@ fn sort_adjacent(g: &Graph, sol: &mut [NodeB]) {
     while changed {
         changed = false;
         for i in 1..sol.len() {
-            if g.c(sol[i - 1], sol[i]) >= g.c(sol[i], sol[i - 1]) && sol[i - 1] > sol[i] {
+            if g.cr(sol[i - 1], sol[i]) >= 0 && sol[i - 1] > sol[i] {
                 (sol[i - 1], sol[i]) = (sol[i], sol[i - 1]);
                 changed = true;
             }
@@ -285,7 +290,7 @@ fn optimal_insert(g: &Graph, sol: &mut [NodeB]) {
             // move left
             let mut cur_delta = 0;
             for (j, &v) in sol[..i].iter().enumerate().rev() {
-                cur_delta += g.c(v, u) as i64 - g.c(u, v) as i64;
+                cur_delta -= g.cr(u, v);
                 if cur_delta > best_delta {
                     best_delta = cur_delta;
                     best_j = j;
@@ -294,7 +299,7 @@ fn optimal_insert(g: &Graph, sol: &mut [NodeB]) {
             // move right
             let mut cur_delta = 0;
             for (j, &v) in sol.iter().enumerate().skip(i + 1) {
-                cur_delta += g.c(u, v) as i64 - g.c(v, u) as i64;
+                cur_delta -= g.cr(v, u);
                 if cur_delta > best_delta {
                     best_delta = cur_delta;
                     best_j = j;
@@ -701,7 +706,7 @@ impl<'a> Bb<'a> {
                                     v,
                                     u,
                                     &self.g.before,
-                                    &self.g.crossings,
+                                    &self.g.reduced_crossings,
                                     tail,
                                 ) {
                                     builder::IsPDP::Skip => self.pdp_skip += 1,
@@ -750,7 +755,7 @@ impl<'a> Bb<'a> {
             if !get_flag("no_optimal_insert") {
                 let mut cur_delta = 0i64;
                 for (i, v) in self.solution[..self.solution_len].iter().enumerate().rev() {
-                    cur_delta += self.g.c(*v, u) as i64 - self.g.c(u, *v) as i64;
+                    cur_delta -= self.g.cr(u, *v);
                     if cur_delta > best_delta as i64 {
                         best_delta = cur_delta as u64;
                         best_i = i;
