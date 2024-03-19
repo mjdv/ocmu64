@@ -780,25 +780,18 @@ states {}
                 }
                 assert_eq!(self.upper_bound, self.best_score);
                 solution = true;
-                // Early exit?
-                if my_lower_bound == self.best_score {
-                    // Restore the tail.
-                    self.solution_len -= 1;
-                    debug_assert!(!self.tail_mask[u.0]);
-                    unsafe { self.tail_mask.set_unchecked(u.0, true) };
-                    assert_eq!(self.solution_len, old_solution_len);
-                    // Rotate u back.
-                    self.solution[best_i..=self.solution_len].rotate_left(1);
-                    self.solution[self.solution_len..].copy_from_slice(&old_tail);
-                    self.lb_hit += 1;
-                    return true;
-                }
             }
             self.solution_len -= 1;
             debug_assert!(!self.tail_mask[u.0]);
             unsafe { self.tail_mask.set_unchecked(u.0, true) };
             // Rotate u back.
             self.solution[best_i..=self.solution_len].rotate_left(1);
+
+            // Early exit?
+            if my_lower_bound == self.best_score {
+                self.lb_hit += 1;
+                break 'u;
+            }
         }
 
         // Restore the tail.
