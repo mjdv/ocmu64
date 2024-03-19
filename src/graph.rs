@@ -460,7 +460,7 @@ pub struct Bb<'a> {
     /// The bitmask only has to be as wide as the cutwidth of the graph.
     /// It could be a template parameter to use the smallest width that is sufficiently large.
     /// TODO: Make the score a u32 here?
-    tail_cache: HashMap<MyBitVec, (u64, (NodeB, Vec<NodeB>))>,
+    tail_cache: HashMap<MyBitVec, (u64, (usize, Vec<NodeB>))>,
 
     /// The number of states explored.
     states: u64,
@@ -621,7 +621,7 @@ impl<'a> Bb<'a> {
             .tail_cache
             .get(&self.tail_mask)
             .cloned()
-            .unwrap_or((0, (NodeB(0), vec![])));
+            .unwrap_or((0, (0, vec![])));
         let my_lower_bound = self.score + tail_excess;
 
         // We can not find a solution of score < upper_bound.
@@ -654,9 +654,6 @@ impl<'a> Bb<'a> {
 
         let bb_pd_flag = get_flag("bb_pd");
         let bb_pd_cache_flag = get_flag("bb_pd_cache");
-        if bb_pd_cache_flag {
-            assert!(self.solution[self.solution_len..].is_sorted());
-        }
 
         // If we skipped some children because of local pruning, do not update the lower bound for this tail.
         // Try each of the tail nodes as next node.
@@ -681,18 +678,7 @@ impl<'a> Bb<'a> {
             }
 
             if bb_pd_flag {
-                // Check if we already rejected this u because of a PDP with a v in the tail.
-                if bb_pd_cache_flag && u < last_pdp {
-                    if pdps.contains(&u) {
-                        // reject
-                        self.pdp_cache_yes += 1;
-                        continue 'u;
-                    }
-                    self.pdp_cache_no += 1;
-                } else {
-                    // Compute pdps for u below.
-                    last_pdp = NodeB(u.0 + 1);
-
+                let mut check_pdp = || {
                     for &v in tail {
                         match is_practically_dominating_pair(
                             v,
@@ -704,12 +690,34 @@ impl<'a> Bb<'a> {
                             builder::IsPDP::Skip => self.pdp_skip += 1,
                             builder::IsPDP::No => self.pdp_no += 1,
                             builder::IsPDP::Yes => {
-                                pdps.push(u);
                                 self.pdp_yes += 1;
-                                continue 'u;
+                                return true;
                             }
                         }
                     }
+                    return false;
+                };
+
+                // Check if we already rejected this u because of a PDP with a v in the tail.
+                // NOTE: The cache assumes that each time we process the same tail, the states are stored in the same order.
+                if bb_pd_cache_flag && i < last_pdp {
+                    if pdps.contains(&u) {
+                        // reject
+                        self.pdp_cache_yes += 1;
+                        // assert!(check_pdp());
+                        continue 'u;
+                    }
+                    self.pdp_cache_no += 1;
+                    // assert!(!check_pdp());
+                } else {
+                    // Compute pdps for u below.
+                    last_pdp = i + 1;
+
+                    if check_pdp() {
+                        pdps.push(u);
+                        continue 'u;
+                    }
+
                     self.pdp_computed_no += 1;
                 }
             }
