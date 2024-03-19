@@ -448,13 +448,13 @@ impl GraphBuilder {
 
         self.sort_edges();
 
-        let c = self.crossings().0;
+        let cr = self.crossings().1;
 
         let xs = (NodeB(0)..self.b).collect_vec();
 
         for u in NodeB(0)..self.b {
             for v in NodeB(0)..self.b {
-                match is_practically_dominating_pair(u, v, before, &c, &xs) {
+                match is_practically_dominating_pair(u, v, before, &cr, &xs) {
                     IsPDP::Skip => {}
                     IsPDP::No => {
                         not_practical_dominating_pairs += 1;
@@ -483,7 +483,7 @@ pub fn is_practically_dominating_pair(
     u: NodeB,
     v: NodeB,
     before: &Before,
-    c: &Crossings,
+    cr: &ReducedCrossings,
     xs: &[NodeB],
 ) -> IsPDP {
     if u == v || before[u][v] || before[v][u] {
@@ -497,15 +497,12 @@ pub fn is_practically_dominating_pair(
 
     // TODO: Better handle this equality case. We have to be careful
     // to not introduce cycles.
-    if c[u][v] >= c[v][u] {
+    if cr[u][v] >= 0 {
         return IsPDP::Skip;
     }
 
     // knapsack
-    let target = P(
-        c[u][v] as i32 - c[v][u] as i32,
-        c[u][v] as i32 - c[v][u] as i32,
-    );
+    let target = P(cr[u][v] as i32, cr[u][v] as i32);
 
     // We do not consider x that must be before u and v, or after u and v.
     let points = xs.iter().filter_map(|&x| {
@@ -521,13 +518,10 @@ pub fn is_practically_dominating_pair(
             return None;
         }
         // x that want to be between u and v (as in uxv) are not useful here.
-        if c[u][x] <= c[x][u] && c[x][v] <= c[v][x] {
+        if cr[u][x] <= 0 && cr[x][v] <= 0 {
             return None;
         }
-        Some(P(
-            c[x][u] as i32 - c[u][x] as i32,
-            c[v][x] as i32 - c[x][v] as i32,
-        ))
+        Some(P(cr[x][u] as i32, cr[v][x] as i32))
     });
 
     if !knapsack(target, points) {

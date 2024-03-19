@@ -21,10 +21,12 @@ pub fn pattern_search(g: &Graph, sol: &Solution) {
 
     // vxu < uvx && vxu < xuv
     let x_in_middle_is_optimal = |v, x, u| {
-        let vxu = g.c(v, x) + g.c(x, u) + g.c(v, u);
-        let uvx = g.c(u, v) + g.c(v, x) + g.c(u, x);
-        let xuv = g.c(x, u) + g.c(u, v) + g.c(x, v);
-        vxu <= uvx && vxu <= xuv
+        // let vxu = g.c(v, x) + g.c(x, u) + g.c(v, u);
+        // let uvx = g.c(u, v) + g.c(v, x) + g.c(u, x);
+        // let xuv = g.c(x, u) + g.c(u, v) + g.c(x, v);
+        // vxu <= uvx && vxu <= xuv;
+
+        -g.cr(u, x) + g.cr(v, u) <= 0 && g.cr(v, x) + g.cr(v, u) <= 0
     };
 
     // Loop over v..u at positions i < j.
@@ -34,7 +36,7 @@ pub fn pattern_search(g: &Graph, sol: &Solution) {
                 break;
             }
             // If v should anyway be before u, skip.
-            if g.c(v, u) <= g.c(u, v) {
+            if g.cr(u, v) >= 0 {
                 continue;
             }
 
