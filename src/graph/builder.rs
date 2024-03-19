@@ -107,6 +107,7 @@ impl GraphBuilder {
     }
 
     pub fn to_quick_graph(&self) -> Graph {
+        let (crossings, reduced_crossings) = self.crossings();
         Graph {
             a: self.a,
             b: self.b,
@@ -114,8 +115,8 @@ impl GraphBuilder {
             b_permutation: Default::default(),
             connections_a: self.connections_a.clone(),
             connections_b: self.connections_b.clone(),
-            crossings: None,
-            reduced_crossings: None,
+            crossings,
+            reduced_crossings,
             intervals: self.intervals(),
             self_crossings: self.self_crossings,
             before: VecB::new(self.b),
@@ -208,8 +209,8 @@ impl GraphBuilder {
             b_permutation: Default::default(),
             connections_a: self.connections_a.clone(),
             connections_b: self.connections_b.clone(),
-            crossings: Some(crossings),
-            reduced_crossings: Some(reduced_crossings),
+            crossings,
+            reduced_crossings,
             intervals: self.intervals(),
             self_crossings: self.self_crossings,
             before,
@@ -482,7 +483,7 @@ pub fn is_practically_dominating_pair(
     u: NodeB,
     v: NodeB,
     before: &Before,
-    c: &VecB<VecB<u64>>,
+    c: &Crossings,
     xs: &[NodeB],
 ) -> IsPDP {
     if u == v || before[u][v] || before[v][u] {
@@ -690,17 +691,20 @@ impl GraphBuilder {
         Self::edge_list_crossings(&self[i], &self[j])
     }
 
-    fn crossings(&self) -> (VecB<VecB<u64>>, VecB<VecB<u64>>) {
-        let mut crossings: VecB<VecB<u64>> = VecB::from(vec![VecB::new(self.b); self.b.0]);
+    fn crossings(&self) -> (Crossings, ReducedCrossings) {
+        let mut crossings = VecB::from(vec![VecB::new(self.b); self.b.0]);
         for node_i in NodeB(0)..self.b {
             for node_j in NodeB(0)..self.b {
-                crossings[node_i][node_j] = self.one_node_crossings(node_i, node_j);
+                crossings[node_i][node_j] =
+                    self.one_node_crossings(node_i, node_j).try_into().unwrap();
             }
         }
         let mut reduced_crossings = VecB::from(vec![VecB::new(self.b); self.b.0]);
         for i in NodeB(0)..self.b {
             for j in NodeB(0)..self.b {
-                reduced_crossings[i][j] = crossings[i][j].saturating_sub(crossings[j][i]);
+                reduced_crossings[i][j] = (crossings[i][j] as i64 - crossings[j][i] as i64)
+                    .try_into()
+                    .unwrap();
             }
         }
         (crossings, reduced_crossings)
