@@ -31,7 +31,7 @@ impl PartialOrd for P {
 /// - a target (-c,-c)
 /// - a list of points (xi, yi)
 /// returns whether there is a subset of points with sum <= target.
-pub fn knapsack(target: P, points: &[P]) -> bool {
+pub fn knapsack(target: P, mut points: Vec<P>) -> bool {
     // 1. Check if sum of negative x or sum of negative y is not small enough.
     if points.iter().map(|p| p.0.min(0)).sum::<i32>() > target.0
         || points.iter().map(|p| p.1.min(0)).sum::<i32>() > target.1
@@ -41,7 +41,7 @@ pub fn knapsack(target: P, points: &[P]) -> bool {
 
     // 2: add all points <= (0,0).
     let mut sum = P(0, 0);
-    for &p in points {
+    for &p in &points {
         if p <= P(0, 0) {
             sum += p;
         }
@@ -51,8 +51,11 @@ pub fn knapsack(target: P, points: &[P]) -> bool {
         return true;
     }
 
+    // Sort points by sum of coordinates.
+    points.sort_by_key(|&P(x, y)| (x + y, x, y));
+
     let mut front = vec![sum];
-    for &p in points {
+    for &p in &points {
         if p <= P(0, 0) {
             continue;
         }

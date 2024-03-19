@@ -453,83 +453,99 @@ impl GraphBuilder {
 
         for u in NodeB(0)..self.b {
             for v in NodeB(0)..self.b {
-                if self.is_practically_dominating_pair(before, u, v, &c, &xs) {
-                    practical_dominating_pairs += 1;
-                    before[u][v] = true;
-                } else {
-                    not_practical_dominating_pairs += 1;
+                match is_practically_dominating_pair(u, v, before, &c, &xs) {
+                    IsPDP::Skip => {}
+                    IsPDP::No => {
+                        not_practical_dominating_pairs += 1;
+                    }
+                    IsPDP::Yes => {
+                        practical_dominating_pairs += 1;
+                        before[u][v] = true;
+                    }
                 }
             }
         }
         info!("Dropped {not_practical_dominating_pairs} candidate practical dominating pairs");
         info!("Found {practical_dominating_pairs} practical dominating pairs");
     }
+}
 
-    // Is u forced before v because there is no separating set?
-    fn is_practically_dominating_pair(
-        &self,
-        before: &Before,
-        u: NodeB,
-        v: NodeB,
-        c: &VecB<VecB<u64>>,
-        xs: &[NodeB],
-    ) -> bool {
-        if u == v || before[u][v] || before[v][u] || self[u] == self[v] {
-            return false;
-        }
+pub enum IsPDP {
+    // Equivalent to No but not counted.
+    Skip,
+    No,
+    Yes,
+}
 
-        // We want to prove that u < v.
-
-        // Try to find a set X such that vXu is the strictly optimal rotation.
-        // If no such set exists, then u < v.
-
-        // TODO: Better handle this equality case. We have to be careful
-        // to not introduce cycles.
-        if c[u][v] >= c[v][u] {
-            return false;
-        }
-
-        // We do not consider x that must be before u and v, or after u and v.
-        let xs = xs
-            .iter()
-            .filter(|&&x| {
-                if x == u || x == v {
-                    return false;
-                }
-                // x must be left of u and v.
-                if before[x][u] && before[x][v] {
-                    return false;
-                }
-                // x must be right of u and v.
-                if before[u][x] && before[v][x] {
-                    return false;
-                }
-                // x that want to be between u and v (as in uxv) are not useful here.
-                if c[u][x] <= c[x][u] && c[x][v] <= c[v][x] {
-                    return false;
-                }
-                true
-            })
-            .collect_vec();
-
-        // knapsack
-        let target = P(
-            c[u][v] as i32 - c[v][u] as i32,
-            c[u][v] as i32 - c[v][u] as i32,
-        );
-        let points = xs
-            .iter()
-            .map(|&&x| {
-                P(
-                    c[x][u] as i32 - c[u][x] as i32,
-                    c[v][x] as i32 - c[x][v] as i32,
-                )
-            })
-            .collect::<Vec<_>>();
-
-        !knapsack(target, &points)
+// Is u forced before v because there is no separating set?
+pub fn is_practically_dominating_pair(
+    u: NodeB,
+    v: NodeB,
+    before: &Before,
+    c: &VecB<VecB<u64>>,
+    xs: &[NodeB],
+) -> IsPDP {
+    if u == v || before[u][v] || before[v][u] {
+        return IsPDP::Skip;
     }
 
+    // We want to prove that u < v.
+
+    // Try to find a set X such that vXu is the strictly optimal rotation.
+    // If no such set exists, then u < v.
+
+    // TODO: Better handle this equality case. We have to be careful
+    // to not introduce cycles.
+    if c[u][v] >= c[v][u] {
+        return IsPDP::Skip;
+    }
+
+    // We do not consider x that must be before u and v, or after u and v.
+    let xs = xs
+        .iter()
+        .filter(|&&x| {
+            if x == u || x == v {
+                return false;
+            }
+            // x must be left of u and v.
+            if before[x][u] && before[x][v] {
+                return false;
+            }
+            // x must be right of u and v.
+            if before[u][x] && before[v][x] {
+                return false;
+            }
+            // x that want to be between u and v (as in uxv) are not useful here.
+            if c[u][x] <= c[x][u] && c[x][v] <= c[v][x] {
+                return false;
+            }
+            true
+        })
+        .collect_vec();
+
+    // knapsack
+    let target = P(
+        c[u][v] as i32 - c[v][u] as i32,
+        c[u][v] as i32 - c[v][u] as i32,
+    );
+    let points = xs
+        .iter()
+        .map(|&&x| {
+            P(
+                c[x][u] as i32 - c[u][x] as i32,
+                c[v][x] as i32 - c[x][v] as i32,
+            )
+        })
+        .collect::<Vec<_>>();
+
+    if !knapsack(target, points) {
+        IsPDP::Yes
+    } else {
+        IsPDP::No
+    }
+}
+
+impl GraphBuilder {
     /// When a cell is green and there is not a single red cell left-below it, fix the order of the pair.
     /// I.e.: When u < v in the current order, and for all (x,y) with x <= u < v <= y we want x < y, then fix u < v.
     fn boundary_pairs(&mut self, before: &mut Before) {
