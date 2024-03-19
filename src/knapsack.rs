@@ -118,13 +118,18 @@ pub fn knapsack(mut target: P, points: impl Iterator<Item = P> + Clone) -> bool 
 
     let mut front = vec![P(0, 0)];
     // let mut new_front = vec![];
-    for (_j, &p) in points.iter().enumerate() {
+    #[allow(unused)]
+    for (j, &p) in points.iter().enumerate() {
         let l = front.len();
         front.reserve(l);
         for i in 0..l {
             let sum = front[i] + p;
             if sum <= target {
-                // eprintln!("Blocking set {sum:?} after {n} front size {}", front.len());
+                // eprintln!(
+                //     "Blocking set {sum:?} after {j}/{} front size {}",
+                //     points.len(),
+                //     front.len()
+                // );
                 return true;
             }
             front.push(sum);
@@ -148,7 +153,11 @@ pub fn knapsack(mut target: P, points: impl Iterator<Item = P> + Clone) -> bool 
         });
     }
 
-    // eprintln!("NO BLOCKING SET after {n} steps front size {}", front.len());
+    // eprintln!(
+    //     "NO BLOCKING SET after {} steps front size {}",
+    //     points.len(),
+    //     front.len()
+    // );
 
     false
 }
