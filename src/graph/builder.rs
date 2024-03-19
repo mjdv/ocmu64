@@ -500,43 +500,34 @@ pub fn is_practically_dominating_pair(
         return IsPDP::Skip;
     }
 
-    // We do not consider x that must be before u and v, or after u and v.
-    let xs = xs
-        .iter()
-        .filter(|&&x| {
-            if x == u || x == v {
-                return false;
-            }
-            // x must be left of u and v.
-            if before[x][u] && before[x][v] {
-                return false;
-            }
-            // x must be right of u and v.
-            if before[u][x] && before[v][x] {
-                return false;
-            }
-            // x that want to be between u and v (as in uxv) are not useful here.
-            if c[u][x] <= c[x][u] && c[x][v] <= c[v][x] {
-                return false;
-            }
-            true
-        })
-        .collect_vec();
-
     // knapsack
     let target = P(
         c[u][v] as i32 - c[v][u] as i32,
         c[u][v] as i32 - c[v][u] as i32,
     );
-    let points = xs
-        .iter()
-        .map(|&&x| {
-            P(
-                c[x][u] as i32 - c[u][x] as i32,
-                c[v][x] as i32 - c[x][v] as i32,
-            )
-        })
-        .collect::<Vec<_>>();
+
+    // We do not consider x that must be before u and v, or after u and v.
+    let points = xs.iter().filter_map(|&x| {
+        if x == u || x == v {
+            return None;
+        }
+        // x must be left of u and v.
+        if before[x][u] && before[x][v] {
+            return None;
+        }
+        // x must be right of u and v.
+        if before[u][x] && before[v][x] {
+            return None;
+        }
+        // x that want to be between u and v (as in uxv) are not useful here.
+        if c[u][x] <= c[x][u] && c[x][v] <= c[v][x] {
+            return None;
+        }
+        Some(P(
+            c[x][u] as i32 - c[u][x] as i32,
+            c[v][x] as i32 - c[x][v] as i32,
+        ))
+    });
 
     if !knapsack(target, points) {
         IsPDP::Yes

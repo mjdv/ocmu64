@@ -5,7 +5,7 @@ exact t='100':
 generate *args='':
     cargo run -r --bin generate -- {{args}}
 flamegraph *args='':
-    cargo flamegraph --open -- {{args}}
+    cargo flamegraph --open --skip-after 'ocmu64::graph::Bb::branch_and_bound'  -- {{args}}
 alias p := record
 record *args='':
     cargo build -r
