@@ -32,9 +32,12 @@ pub use BeforeType::*;
 pub type Before = VecB<VecB<BeforeType>>;
 
 /// Type for storing crossings count.
-type C = u16;
+/// u16 is not sufficient.
+/// TODO: Do not merge vertices when the degree goes above 128, and use u16/i16 here.
+type C = u32;
 /// Type for storing reduced crossings count.
-type CR = i8;
+/// i8 is not sufficient.
+type CR = i32;
 
 type Crossings = VecB<VecB<C>>;
 type ReducedCrossings = VecB<VecB<CR>>;
@@ -644,12 +647,14 @@ impl<'a> Bb<'a> {
         }
         assert!(my_lower_bound <= self.best_score);
 
+        // HOT: ~20% of B&B time is here.
         let least_end = tail.iter().map(|u| self.g.intervals[*u].end).min().unwrap();
 
         let old_tail = tail.to_vec();
         let old_solution_len = self.solution_len;
         let old_score = self.score;
 
+        // CAREFUL: Some optimizations may depend on the order of the tail!
         // TODO(ragnar): Test whether re-optimizing the tail actually improves performance.
         // Results seem mixed.
         //
@@ -698,6 +703,7 @@ impl<'a> Bb<'a> {
                 }
 
                 // Skip u for which another v must come before.
+                // HOT: ~20% of B&B time is here.
                 for &v in tail {
                     if self.g.before[u][v] == After {
                         continue 'u;
@@ -852,8 +858,14 @@ states {}
         assert_eq!(self.solution_len, old_solution_len);
         debug_assert_eq!(self.tail_mask.count_zeros(), self.solution_len);
         self.solution[self.solution_len..].copy_from_slice(&old_tail);
-        assert!(old_score <= self.upper_bound);
-        let tail_excess = self.upper_bound - old_score;
+
+        assert!(old_score.min(self.best_score) <= self.upper_bound);
+        // TODO: Can we bump the excess score to this value.
+        let tail_excess = if solution {
+            0
+        } else {
+            self.upper_bound.saturating_sub(old_score)
+        };
         match self.tail_cache.entry(self.tail_mask.clone()) {
             Entry::Occupied(mut e) => {
                 self.tail_update += 1;
