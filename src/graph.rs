@@ -323,7 +323,7 @@ fn initial_solution(g: &Graph) -> Vec<NodeB> {
     initial_solution
 }
 
-fn oscm_part(g: &Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
+fn oscm_part(g: &mut Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
     let initial_solution = initial_solution(g);
     let initial_score = g.score(&initial_solution);
     debug!(
@@ -341,7 +341,7 @@ fn oscm_part(g: &Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
     }
     let mut bb = Bb::new(g, bound);
     let solution_found = bb.branch_and_bound();
-    sort_adjacent(g, &mut bb.best_solution);
+
     info!("");
     info!("Sols found    : {:>9}", bb.sols_found);
     info!("B&B States    : {:>9}", bb.states);
@@ -359,12 +359,17 @@ fn oscm_part(g: &Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
     info!("tail update   : {:>9}", bb.tail_update);
     info!("tail insert   : {:>9}", bb.tail_insert);
     info!("tail skip     : {:>9}", bb.tail_skip);
+
+    let best_score = bb.best_score;
+    let mut best_solution = bb.best_solution;
+    sort_adjacent(g, &mut best_solution);
+
     debug!(
         "Solution      : {}",
-        display_solution(g, &bb.best_solution, true)
+        display_solution(g, &best_solution, true)
     );
     if solution_found {
-        Some((bb.best_solution, bb.best_score))
+        Some((best_solution, best_score))
     } else {
         if initial_score <= bound {
             Some((initial_solution, initial_score))
@@ -386,8 +391,8 @@ pub fn one_sided_crossing_minimization(
     let sol = 'sol: {
         let mut solution = Solution::default();
         for (i, mut gb) in graph_builders.into_iter().enumerate() {
-            let g = gb.to_graph();
-            let Some((part_sol, part_score)) = oscm_part(&g, bound) else {
+            let mut g = gb.to_graph();
+            let Some((part_sol, part_score)) = oscm_part(&mut g, bound) else {
                 info!("No solution for part {i} of {num_parts}.");
                 break 'sol None;
             };
@@ -425,7 +430,7 @@ pub fn one_sided_crossing_minimization(
 
 #[derive(Debug)]
 pub struct Bb<'a> {
-    pub g: &'a Graph,
+    pub g: &'a mut Graph,
     solution_len: usize,
     /// The first `solution_len` elements are fixed (the 'head').
     /// The remainder ('tail') is sorted in the initial order.
@@ -475,7 +480,7 @@ pub struct Bb<'a> {
 }
 
 impl<'a> Bb<'a> {
-    pub fn new(g: &'a Graph, upper_bound: u64) -> Self {
+    pub fn new(g: &'a mut Graph, upper_bound: u64) -> Self {
         // Start with a greedy solution.
         let initial_solution = initial_solution(g);
         let initial_score = g.score(&initial_solution);
@@ -519,10 +524,10 @@ impl<'a> Bb<'a> {
         );
 
         Self {
+            tail_mask: MyBitVec::new(true, g.b.0),
             g,
             solution_len: 0,
             solution: initial_solution.clone(),
-            tail_mask: MyBitVec::new(true, g.b.0),
             score,
             upper_bound: min(upper_bound, initial_score),
             best_solution: initial_solution,
