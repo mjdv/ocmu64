@@ -57,13 +57,13 @@ impl Graph {
     }
 
     /// Crossings by having b1 before b2.
-    pub fn node_score(&self, u: NodeB, v: NodeB) -> u64 {
+    pub fn c(&self, u: NodeB, v: NodeB) -> u64 {
         self.crossings[u][v] as _
     }
 
     /// Min score of positioning u and v.
     fn commute_2(&self, u: NodeB, v: NodeB) -> u64 {
-        min(self.node_score(u, v), self.node_score(v, u))
+        min(self.c(u, v), self.c(v, u))
     }
 
     /// Min score of positioning u, v, and w, above the pairwise commute_2 terms.
@@ -80,7 +80,7 @@ impl Graph {
         let c3 = orders
             .into_iter()
             .map(|(u, v, w)| {
-                let s = self.node_score(u, v) + self.node_score(v, w) + self.node_score(u, w);
+                let s = self.c(u, v) + self.c(v, w) + self.c(u, w);
                 // warn!("Order [{u}, {v}, {w}]: {s}");
                 s
             })
@@ -96,12 +96,12 @@ impl Graph {
                 c3,
                 c2,
                 c3 - c2,
-                self.node_score(u, v),
-                self.node_score(v, u),
-                self.node_score(v, w),
-                self.node_score(w, v),
-                self.node_score(u, w),
-                self.node_score(w, u),
+                self.c(u, v),
+                self.c(v, u),
+                self.c(v, w),
+                self.c(w, v),
+                self.c(u, w),
+                self.c(w, u),
             );
         }
         c3 - c2
@@ -113,7 +113,7 @@ impl Graph {
         let mut score = self.self_crossings;
         for (j, &b2) in solution.iter().enumerate() {
             for &b1 in &solution[..j] {
-                score += self.node_score(b1, b2);
+                score += self.c(b1, b2);
             }
         }
         score
@@ -173,7 +173,7 @@ fn display_solution(g: &Graph, solution: &Solution, matrix: bool) -> String {
 
     for &u in solution {
         for &v in solution {
-            let c = g.node_score(u, v) as i64 - g.node_score(v, u) as i64;
+            let c = g.c(u, v) as i64 - g.c(v, u) as i64;
             let color = match c {
                 ..=-1 => colored::Color::Red,
                 0 => colored::Color::White,
@@ -250,7 +250,7 @@ fn commute_adjacent(g: &Graph, vec: &mut [NodeB]) {
     while changed {
         changed = false;
         for i in 1..vec.len() {
-            if g.node_score(vec[i - 1], vec[i]) > g.node_score(vec[i], vec[i - 1]) {
+            if g.c(vec[i - 1], vec[i]) > g.c(vec[i], vec[i - 1]) {
                 (vec[i - 1], vec[i]) = (vec[i], vec[i - 1]);
                 changed = true;
             }
@@ -264,9 +264,7 @@ fn sort_adjacent(g: &Graph, sol: &mut [NodeB]) {
     while changed {
         changed = false;
         for i in 1..sol.len() {
-            if g.node_score(sol[i - 1], sol[i]) >= g.node_score(sol[i], sol[i - 1])
-                && sol[i - 1] > sol[i]
-            {
+            if g.c(sol[i - 1], sol[i]) >= g.c(sol[i], sol[i - 1]) && sol[i - 1] > sol[i] {
                 (sol[i - 1], sol[i]) = (sol[i], sol[i - 1]);
                 changed = true;
             }
@@ -287,7 +285,7 @@ fn optimal_insert(g: &Graph, sol: &mut [NodeB]) {
             // move left
             let mut cur_delta = 0;
             for (j, &v) in sol[..i].iter().enumerate().rev() {
-                cur_delta += g.node_score(v, u) as i64 - g.node_score(u, v) as i64;
+                cur_delta += g.c(v, u) as i64 - g.c(u, v) as i64;
                 if cur_delta > best_delta {
                     best_delta = cur_delta;
                     best_j = j;
@@ -296,7 +294,7 @@ fn optimal_insert(g: &Graph, sol: &mut [NodeB]) {
             // move right
             let mut cur_delta = 0;
             for (j, &v) in sol.iter().enumerate().skip(i + 1) {
-                cur_delta += g.node_score(u, v) as i64 - g.node_score(v, u) as i64;
+                cur_delta += g.c(u, v) as i64 - g.c(v, u) as i64;
                 if cur_delta > best_delta {
                     best_delta = cur_delta;
                     best_j = j;
@@ -752,7 +750,7 @@ impl<'a> Bb<'a> {
             if !get_flag("no_optimal_insert") {
                 let mut cur_delta = 0i64;
                 for (i, v) in self.solution[..self.solution_len].iter().enumerate().rev() {
-                    cur_delta += self.g.node_score(*v, u) as i64 - self.g.node_score(u, *v) as i64;
+                    cur_delta += self.g.c(*v, u) as i64 - self.g.c(u, *v) as i64;
                     if cur_delta > best_delta as i64 {
                         best_delta = cur_delta as u64;
                         best_i = i;
