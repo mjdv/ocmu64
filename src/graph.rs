@@ -357,10 +357,16 @@ fn oscm_part(g: &Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
     info!("LB exceeded 1 : {:>9}", bb.lb_exceeded_1);
     info!("LB exceeded 2 : {:>9}", bb.lb_exceeded_2);
     info!("LB updates    : {:>9}", bb.lb_updates);
-    info!("Unique subsets: {:>9}", bb.lower_bound_for_tail.len());
+    info!("Unique subsets: {:>9}", bb.tail_cache.len());
     info!("LB matching   : {:>9}", bb.lb_hit);
     info!("PDP yes       : {:>9}", bb.pdp_yes);
     info!("PDP no        : {:>9}", bb.pdp_no);
+    info!("PDP cache yes : {:>9}", bb.pdp_cache_yes);
+    info!("PDP cache no  : {:>9}", bb.pdp_cache_no);
+    info!("PDP skip      : {:>9}", bb.pdp_skip);
+    info!("tail update   : {:>9}", bb.tail_update);
+    info!("tail insert   : {:>9}", bb.tail_insert);
+    info!("tail skip     : {:>9}", bb.tail_skip);
     debug!(
         "Solution      : {}",
         display_solution(g, &bb.best_solution, true)
@@ -453,7 +459,7 @@ pub struct Bb<'a> {
     /// The bitmask only has to be as wide as the cutwidth of the graph.
     /// It could be a template parameter to use the smallest width that is sufficiently large.
     /// TODO: Make the score a u32 here?
-    lower_bound_for_tail: HashMap<MyBitVec, u64>,
+    tail_cache: HashMap<MyBitVec, (u64, (NodeB, Vec<NodeB>))>,
 
     /// The number of states explored.
     states: u64,
@@ -467,6 +473,12 @@ pub struct Bb<'a> {
     lb_exceeded_2: u64,
     pdp_yes: u64,
     pdp_no: u64,
+    pdp_skip: u64,
+    pdp_cache_no: u64,
+    pdp_cache_yes: u64,
+    tail_update: u64,
+    tail_insert: u64,
+    tail_skip: u64,
 }
 
 impl<'a> Bb<'a> {
@@ -522,7 +534,7 @@ impl<'a> Bb<'a> {
             upper_bound: min(upper_bound, initial_score),
             best_solution: initial_solution,
             best_score: initial_score,
-            lower_bound_for_tail: HashMap::default(),
+            tail_cache: HashMap::default(),
             states: 0,
             sols_found: 0,
             lb_exceeded_1: 0,
@@ -531,6 +543,12 @@ impl<'a> Bb<'a> {
             lb_hit: 0,
             pdp_yes: 0,
             pdp_no: 0,
+            pdp_skip: 0,
+            pdp_cache_no: 0,
+            pdp_cache_yes: 0,
+            tail_update: 0,
+            tail_insert: 0,
+            tail_skip: 0,
         }
     }
 
@@ -596,11 +614,11 @@ impl<'a> Bb<'a> {
         // of the tail exceeds the trivial lower bound, use that.
         // TODO: Find the largest suffix of `tail` that is a subset of tail_mask
         // and use that if no bound is available for `tail_mask`.
-        let tail_excess = self
-            .lower_bound_for_tail
+        let (tail_excess, (mut last_pdp, mut pdps)) = self
+            .tail_cache
             .get(&self.tail_mask)
-            .copied()
-            .unwrap_or_default();
+            .cloned()
+            .unwrap_or((0, (NodeB(0), vec![])));
         let my_lower_bound = self.score + tail_excess;
 
         // We can not find a solution of score < upper_bound.
@@ -632,6 +650,8 @@ impl<'a> Bb<'a> {
         let mut solution = false;
         // If we skipped some children because of local pruning, do not update the lower bound for this tail.
         // Try each of the tail nodes as next node.
+        assert!(self.solution[self.solution_len..].is_sorted());
+        let bb_pd_flag = get_flag("bb_pd");
         'u: for i in self.solution_len..self.solution.len() {
             // Swap the next tail node to the front of the tail.
             self.solution.swap(self.solution_len, i);
@@ -645,23 +665,41 @@ impl<'a> Bb<'a> {
             }
 
             let tail = &self.solution[self.solution_len + 1..];
+
             for &v in tail {
                 if self.g.before[v][u] {
                     continue 'u;
                 }
-                if get_flag("bb_pd") {
-                    match is_practically_dominating_pair(
-                        v,
-                        u,
-                        &self.g.before,
-                        self.g.crossings.as_ref().unwrap(),
-                        tail,
-                    ) {
-                        builder::IsPDP::Skip => {}
-                        builder::IsPDP::No => self.pdp_no += 1,
-                        builder::IsPDP::Yes => {
-                            self.pdp_yes += 1;
-                            continue 'u;
+            }
+
+            if bb_pd_flag {
+                // Check if we already rejected this u because of a PDP with a v in the tail.
+                if u < last_pdp {
+                    if pdps.contains(&u) {
+                        // reject
+                        self.pdp_cache_yes += 1;
+                        continue 'u;
+                    }
+                    self.pdp_cache_no += 1;
+                } else {
+                    // Compute pdps for u below.
+                    last_pdp = NodeB(u.0 + 1);
+
+                    for &v in tail {
+                        match is_practically_dominating_pair(
+                            v,
+                            u,
+                            &self.g.before,
+                            self.g.crossings.as_ref().unwrap(),
+                            tail,
+                        ) {
+                            builder::IsPDP::Skip => self.pdp_skip += 1,
+                            builder::IsPDP::No => self.pdp_no += 1,
+                            builder::IsPDP::Yes => {
+                                pdps.push(u);
+                                self.pdp_yes += 1;
+                                continue 'u;
+                            }
                         }
                     }
                 }
@@ -723,7 +761,7 @@ states {}
                         self.best_score,
                         my_lower_bound,
                         &self.solution[self.solution_len - 1..],
-                        self.lower_bound_for_tail.get(&self.tail_mask),
+                        self.tail_cache.get(&self.tail_mask).map(|x| x.0),
                         self.states
                     );
                 }
@@ -756,20 +794,25 @@ states {}
         self.solution[self.solution_len..].copy_from_slice(&old_tail);
         if old_score < self.upper_bound {
             let tail_excess = self.upper_bound - old_score;
-            // TODO: Count updates and sets.
-            match self.lower_bound_for_tail.entry(self.tail_mask.clone()) {
+            match self.tail_cache.entry(self.tail_mask.clone()) {
                 Entry::Occupied(mut e) => {
+                    self.tail_update += 1;
                     // We did a search without success so the value must grow.
                     // assert!(tail_excess > *e.get());
-                    if tail_excess > *e.get() {
-                        *e.get_mut() = tail_excess;
+                    if tail_excess > e.get().0 {
+                        e.get_mut().0 = tail_excess;
                         self.lb_updates += 1;
                     }
+                    e.get_mut().1 = (last_pdp, pdps);
                 }
                 Entry::Vacant(e) => {
-                    e.insert(tail_excess);
+                    self.tail_insert += 1;
+                    e.insert((tail_excess, (last_pdp, pdps)));
                 }
             }
+        } else {
+            // TODO: figure out why this is always 0.
+            self.tail_skip += 1;
         }
         solution
     }
