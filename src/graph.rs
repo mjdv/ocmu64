@@ -23,6 +23,14 @@ mod io;
 // TODO: Use bitvec instead?
 pub type Before = VecB<VecB<bool>>;
 
+/// Type for storing crossings count.
+type C = u16;
+/// Type for storing reduced crossings count.
+type CR = i8;
+
+type Crossings = VecB<VecB<C>>;
+type ReducedCrossings = VecB<VecB<CR>>;
+
 #[derive(Debug)]
 #[non_exhaustive]
 pub struct Graph {
@@ -32,10 +40,11 @@ pub struct Graph {
     pub connections_a: VecA<Vec<NodeB>>,
     pub connections_b: VecB<Vec<NodeA>>,
     pub b_permutation: VecB<NodeB>,
-    pub crossings: Option<VecB<VecB<u64>>>,
+    /// cuv
+    pub crossings: Crossings,
+    /// cuv-cvu
+    pub reduced_crossings: ReducedCrossings,
     pub intervals: VecB<Range<NodeA>>,
-    /// Stores max(cuv - cvu, 0).
-    pub reduced_crossings: Option<VecB<VecB<u64>>>,
     pub self_crossings: u64,
     pub before: Before,
 }
@@ -49,19 +58,7 @@ impl Graph {
 
     /// Crossings by having b1 before b2.
     pub fn node_score(&self, u: NodeB, v: NodeB) -> u64 {
-        if let Some(crossings) = &self.crossings {
-            crossings[u][v]
-        } else {
-            let mut count = 0;
-            for edge_i in &self.connections_b[u] {
-                for edge_j in &self.connections_b[v] {
-                    if edge_i > edge_j {
-                        count += 1;
-                    }
-                }
-            }
-            count
-        }
+        self.crossings[u][v] as _
     }
 
     /// Min score of positioning u and v.
@@ -124,26 +121,20 @@ impl Graph {
 
     /// Compute the increase of score from fixing u before the tail.
     fn partial_score_2(&self, u: NodeB, tail: &[NodeB]) -> u64 {
-        let rc = self
-            .reduced_crossings
-            .as_ref()
-            .expect("Must have crossings.");
+        let rc = &self.reduced_crossings;
         let mut score = 0;
         for &v in tail {
-            score += rc[u][v];
+            score += rc[u][v].max(0) as u64;
         }
         score
     }
 
     /// Compute the increase of score from fixing u before the tail.
     fn partial_score_3(&self, u: NodeB, tail: &[NodeB]) -> u64 {
-        let rc = self
-            .reduced_crossings
-            .as_ref()
-            .expect("Must have crossings.");
+        let rc = &self.reduced_crossings;
         let mut score = 0;
         for &v in tail {
-            score += rc[u][v];
+            score += rc[u][v].max(0) as u64;
         }
         let mut edge_scores = HashMap::new();
         for (v, w) in tail.iter().copied().tuple_combinations() {
