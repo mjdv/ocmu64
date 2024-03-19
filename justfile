@@ -4,7 +4,7 @@ exact t='100':
     @cargo run -r --quiet -- --input input/exact --timelimit {{t}}
 generate *args='':
     cargo run -r --bin generate -- {{args}}
-flamegraph *args='':
+flame *args='':
     cargo flamegraph --open --skip-after 'ocmu64::graph::Bb::branch_and_bound'  -- {{args}}
 alias p := record
 record *args='':

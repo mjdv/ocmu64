@@ -456,7 +456,12 @@ pub struct Bb<'a> {
     /// The bitmask only has to be as wide as the cutwidth of the graph.
     /// It could be a template parameter to use the smallest width that is sufficiently large.
     /// TODO: Make the score a u32 here?
-    tail_cache: HashMap<MyBitVec, (u64, (usize, Vec<NodeB>))>,
+    ///
+    /// Elements:
+    /// - lower bound for score on tail on top of the trivial lower bound
+    /// - a list of practically dominating pairs (v, u) for which v must come before u.
+    /// - a list of u that are not practically dominated by any v.
+    tail_cache: HashMap<MyBitVec, (u64, Vec<(NodeB, NodeB)>, Vec<NodeB>)>,
 
     /// The number of states explored.
     states: u64,
@@ -613,11 +618,12 @@ impl<'a> Bb<'a> {
         // of the tail exceeds the trivial lower bound, use that.
         // TODO: Find the largest suffix of `tail` that is a subset of tail_mask
         // and use that if no bound is available for `tail_mask`.
-        let (tail_excess, (mut last_pdp, mut pdps)) = self
+        let (tail_excess, mut local_before, mut not_dominated) = self
             .tail_cache
             .get(&self.tail_mask)
+            // FIXME: Take the value instead of cloning it.
             .cloned()
-            .unwrap_or((0, (0, vec![])));
+            .unwrap_or((0, vec![], vec![]));
         let my_lower_bound = self.score + tail_excess;
 
         // We can not find a solution of score < upper_bound.
@@ -648,75 +654,97 @@ impl<'a> Bb<'a> {
 
         let mut solution = false;
 
-        let bb_pd_flag = get_flag("bb_pd");
-        let bb_pd_cache_flag = !get_flag("no_bb_pd_cache");
+        let has_lpd = get_flag("lpd"); // local practical dominating
+        let has_lb = get_flag("lb"); // local before
+        let has_lb_cache = get_flag("lb_cache"); // local before cache
+
+        // Find new PDPs.
+        let mut u_to_try = vec![];
+
+        // Update before with local before.
+        let mut existing_before = vec![];
+        for &(v, u) in &local_before {
+            if self.g.before[v][u] {
+                existing_before.push((v, u));
+            } else {
+                self.g.before[v][u] = true;
+            }
+        }
+
+        {
+            let tail = &self.solution[self.solution_len..];
+            'u: for i in self.solution_len..self.solution.len() {
+                let u = self.solution[i];
+                // eprintln!("Try {u} first");
+
+                // INTERVALS: Do not yet try vertices that start after some other vertex ends.
+                let u_range = &self.g.intervals[u];
+                if u_range.start > least_end
+                    || (u_range.start == least_end && u_range.end > least_end)
+                {
+                    continue;
+                }
+
+                // Skip u for which another v must come before.
+                for &v in tail {
+                    if self.g.before[v][u] {
+                        continue 'u;
+                    }
+                }
+
+                // Skip u for which another v is newly PDP before u.
+                if has_lpd {
+                    if not_dominated.contains(&u) {
+                        self.pdp_cache_no += 1;
+                    } else {
+                        let mut check_pdp = || {
+                            for &v in tail {
+                                match is_practically_dominating_pair(
+                                    v,
+                                    u,
+                                    &self.g.before,
+                                    &self.g.crossings,
+                                    tail,
+                                ) {
+                                    builder::IsPDP::Skip => self.pdp_skip += 1,
+                                    builder::IsPDP::No => self.pdp_no += 1,
+                                    builder::IsPDP::Yes => {
+                                        self.pdp_yes += 1;
+                                        return Some(v);
+                                    }
+                                }
+                            }
+                            None
+                        };
+
+                        // Compute pdps for u below.
+                        if let Some(v) = check_pdp() {
+                            // eprintln!("Try {u} first => blocked by {v}");
+                            assert!(!self.g.before[v][u]);
+                            if has_lb {
+                                local_before.push((v, u));
+                                assert!(!self.g.before[v][u]);
+                                self.g.before[v][u] = true;
+                            }
+                            continue 'u;
+                        } else {
+                            not_dominated.push(u);
+                        }
+
+                        self.pdp_computed_no += 1;
+                    }
+                }
+
+                // eprintln!("Try {u} first => success");
+                u_to_try.push((i, u));
+            }
+        }
 
         // If we skipped some children because of local pruning, do not update the lower bound for this tail.
         // Try each of the tail nodes as next node.
-        'u: for i in self.solution_len..self.solution.len() {
+        'u: for (i, u) in u_to_try {
             // Swap the next tail node to the front of the tail.
             self.solution.swap(self.solution_len, i);
-            let u = self.solution[self.solution_len];
-
-            // INTERVALS: Do not yet try vertices that start after some other vertex ends.
-            let u_range = &self.g.intervals[u];
-            if u_range.start > least_end || (u_range.start == least_end && u_range.end > least_end)
-            {
-                continue;
-            }
-
-            let tail = &self.solution[self.solution_len + 1..];
-
-            for &v in tail {
-                if self.g.before[v][u] {
-                    continue 'u;
-                }
-            }
-
-            if bb_pd_flag {
-                let mut check_pdp = || {
-                    for &v in tail {
-                        match is_practically_dominating_pair(
-                            v,
-                            u,
-                            &self.g.before,
-                            self.g.crossings.as_ref().unwrap(),
-                            tail,
-                        ) {
-                            builder::IsPDP::Skip => self.pdp_skip += 1,
-                            builder::IsPDP::No => self.pdp_no += 1,
-                            builder::IsPDP::Yes => {
-                                self.pdp_yes += 1;
-                                return true;
-                            }
-                        }
-                    }
-                    return false;
-                };
-
-                // Check if we already rejected this u because of a PDP with a v in the tail.
-                // NOTE: The cache assumes that each time we process the same tail, the states are stored in the same order.
-                if bb_pd_cache_flag && i < last_pdp {
-                    if pdps.contains(&u) {
-                        // reject
-                        self.pdp_cache_yes += 1;
-                        // assert!(check_pdp());
-                        continue 'u;
-                    }
-                    self.pdp_cache_no += 1;
-                    // assert!(!check_pdp());
-                } else {
-                    // Compute pdps for u below.
-                    last_pdp = i + 1;
-
-                    if check_pdp() {
-                        pdps.push(u);
-                        continue 'u;
-                    }
-
-                    self.pdp_computed_no += 1;
-                }
-            }
 
             // NOTE: Adjust the score as if u was inserted in the optimal place in the prefix.
             let mut best_delta = 0;
@@ -794,31 +822,45 @@ states {}
             }
         }
 
+        // Clean up local_before.
+        if has_lb {
+            for &(v, u) in &local_before {
+                assert!(self.g.before[v][u]);
+                self.g.before[v][u] = false;
+            }
+            for &(v, u) in &existing_before {
+                assert!(!self.g.before[v][u]);
+                self.g.before[v][u] = true;
+            }
+        }
+
         // Restore the tail.
         assert_eq!(self.solution_len, old_solution_len);
         debug_assert_eq!(self.tail_mask.count_zeros(), self.solution_len);
         self.solution[self.solution_len..].copy_from_slice(&old_tail);
-        if old_score < self.upper_bound {
-            let tail_excess = self.upper_bound - old_score;
-            match self.tail_cache.entry(self.tail_mask.clone()) {
-                Entry::Occupied(mut e) => {
-                    self.tail_update += 1;
-                    // We did a search without success so the value must grow.
-                    // assert!(tail_excess > *e.get());
-                    if tail_excess > e.get().0 {
-                        e.get_mut().0 = tail_excess;
-                        self.lb_updates += 1;
-                    }
-                    e.get_mut().1 = (last_pdp, pdps);
+        assert!(old_score <= self.upper_bound);
+        let tail_excess = self.upper_bound - old_score;
+        match self.tail_cache.entry(self.tail_mask.clone()) {
+            Entry::Occupied(mut e) => {
+                self.tail_update += 1;
+                // We did a search without success so the value must grow.
+                // assert!(tail_excess > *e.get());
+                if tail_excess > e.get().0 {
+                    e.get_mut().0 = tail_excess;
+                    self.lb_updates += 1;
                 }
-                Entry::Vacant(e) => {
-                    self.tail_insert += 1;
-                    e.insert((tail_excess, (last_pdp, pdps)));
+                if has_lb_cache {
+                    e.get_mut().1 = local_before;
                 }
             }
-        } else {
-            // TODO: figure out why this is always 0.
-            self.tail_skip += 1;
+            Entry::Vacant(e) => {
+                self.tail_insert += 1;
+                if has_lb_cache {
+                    e.insert((tail_excess, local_before, not_dominated));
+                } else {
+                    e.insert((tail_excess, vec![], vec![]));
+                }
+            }
         }
         solution
     }

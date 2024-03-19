@@ -157,8 +157,14 @@ Flags named =no_...= disable features that should just work and not give contrad
 - no_dominating_pairs: disable =u_i < v_{j*n/i}= check.
 - no_pd: disable practical dominating pairs.
 
+** In progress
+- lpd: enable local practical dominating
+- lb: local before: update 'local before' with local practical dominating pairs.
+- lb_cache: cache local before vec per tail.
+
 ** Disabled
 - tc: take the transitive closure of the =before= matrix.
+
 
 ** Unsafe / broken
 - c3: add min score of (u,v,w) if larger than pairwise min(cuv, cvu) scores.
