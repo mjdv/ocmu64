@@ -1,4 +1,7 @@
-use crate::{get_flag, node::*, pattern_search::pattern_search};
+use crate::{
+    get_flag, graph::builder::is_practically_dominating_pair, node::*,
+    pattern_search::pattern_search,
+};
 use std::{
     cmp::min,
     collections::{hash_map::Entry, BTreeMap, HashMap},
@@ -356,6 +359,8 @@ fn oscm_part(g: &Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
     info!("LB updates    : {:>9}", bb.lb_updates);
     info!("Unique subsets: {:>9}", bb.lower_bound_for_tail.len());
     info!("LB matching   : {:>9}", bb.lb_hit);
+    info!("PDP yes       : {:>9}", bb.pdp_yes);
+    info!("PDP no        : {:>9}", bb.pdp_no);
     debug!(
         "Solution      : {}",
         display_solution(g, &bb.best_solution, true)
@@ -460,6 +465,8 @@ pub struct Bb<'a> {
     lb_hit: u64,
     lb_exceeded_1: u64,
     lb_exceeded_2: u64,
+    pdp_yes: u64,
+    pdp_no: u64,
 }
 
 impl<'a> Bb<'a> {
@@ -522,6 +529,8 @@ impl<'a> Bb<'a> {
             lb_exceeded_2: 0,
             lb_updates: 0,
             lb_hit: 0,
+            pdp_yes: 0,
+            pdp_no: 0,
         }
     }
 
@@ -639,6 +648,22 @@ impl<'a> Bb<'a> {
             for &v in tail {
                 if self.g.before[v][u] {
                     continue 'u;
+                }
+                if get_flag("bb_pd") {
+                    match is_practically_dominating_pair(
+                        v,
+                        u,
+                        &self.g.before,
+                        self.g.crossings.as_ref().unwrap(),
+                        tail,
+                    ) {
+                        builder::IsPDP::Skip => {}
+                        builder::IsPDP::No => self.pdp_no += 1,
+                        builder::IsPDP::Yes => {
+                            self.pdp_yes += 1;
+                            continue 'u;
+                        }
+                    }
                 }
             }
 
