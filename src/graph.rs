@@ -361,6 +361,7 @@ fn oscm_part(g: &Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
     info!("LB matching   : {:>9}", bb.lb_hit);
     info!("PDP yes       : {:>9}", bb.pdp_yes);
     info!("PDP no        : {:>9}", bb.pdp_no);
+    info!("PDP comp. no  : {:>9}", bb.pdp_computed_no);
     info!("PDP cache yes : {:>9}", bb.pdp_cache_yes);
     info!("PDP cache no  : {:>9}", bb.pdp_cache_no);
     info!("PDP skip      : {:>9}", bb.pdp_skip);
@@ -473,6 +474,7 @@ pub struct Bb<'a> {
     lb_exceeded_2: u64,
     pdp_yes: u64,
     pdp_no: u64,
+    pdp_computed_no: u64,
     pdp_skip: u64,
     pdp_cache_no: u64,
     pdp_cache_yes: u64,
@@ -543,6 +545,7 @@ impl<'a> Bb<'a> {
             lb_hit: 0,
             pdp_yes: 0,
             pdp_no: 0,
+            pdp_computed_no: 0,
             pdp_skip: 0,
             pdp_cache_no: 0,
             pdp_cache_yes: 0,
@@ -648,10 +651,15 @@ impl<'a> Bb<'a> {
         }
 
         let mut solution = false;
+
+        let bb_pd_flag = get_flag("bb_pd");
+        let bb_pd_cache_flag = get_flag("bb_pd_cache");
+        if bb_pd_cache_flag {
+            assert!(self.solution[self.solution_len..].is_sorted());
+        }
+
         // If we skipped some children because of local pruning, do not update the lower bound for this tail.
         // Try each of the tail nodes as next node.
-        assert!(self.solution[self.solution_len..].is_sorted());
-        let bb_pd_flag = get_flag("bb_pd");
         'u: for i in self.solution_len..self.solution.len() {
             // Swap the next tail node to the front of the tail.
             self.solution.swap(self.solution_len, i);
@@ -674,7 +682,7 @@ impl<'a> Bb<'a> {
 
             if bb_pd_flag {
                 // Check if we already rejected this u because of a PDP with a v in the tail.
-                if u < last_pdp {
+                if bb_pd_cache_flag && u < last_pdp {
                     if pdps.contains(&u) {
                         // reject
                         self.pdp_cache_yes += 1;
@@ -702,6 +710,7 @@ impl<'a> Bb<'a> {
                             }
                         }
                     }
+                    self.pdp_computed_no += 1;
                 }
             }
 
