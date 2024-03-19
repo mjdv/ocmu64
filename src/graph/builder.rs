@@ -394,7 +394,7 @@ impl GraphBuilder {
 
     /// Find pairs (u,v) with equal degree and neighbours(u) <= neighbours(v).
     fn dominating_pairs(&mut self) -> Before {
-        let mut before = Before::from(vec![VecB::from(vec![false; self.b.0]); self.b.0]);
+        let mut before = Before::from(vec![VecB::from(vec![Unordered; self.b.0]); self.b.0]);
 
         let mut disjoint_pairs = 0;
 
@@ -402,7 +402,11 @@ impl GraphBuilder {
         for u in NodeB(0)..self.b {
             for v in NodeB(0)..self.b {
                 if self[u].last() < self[v].first() {
-                    before[u][v] = true;
+                    before[u][v] = Before;
+                    disjoint_pairs += 1;
+                }
+                if self[u].first() > self[v].last() {
+                    before[u][v] = After;
                     disjoint_pairs += 1;
                 }
             }
@@ -418,7 +422,7 @@ impl GraphBuilder {
         self.sort_edges();
         for u in NodeB(0)..self.b {
             for v in NodeB(0)..self.b {
-                if u == v || before[u][v] || before[v][u] || self[u] == self[v] {
+                if u == v || before[u][v] != Unordered || self[u] == self[v] {
                     continue;
                 }
 
@@ -428,7 +432,8 @@ impl GraphBuilder {
                     let j = (i * self[v].len()) / self[u].len();
                     self[u][i] <= self[v][j]
                 }) {
-                    before[u][v] = true;
+                    before[u][v] = Before;
+                    before[v][u] = After;
                     dominating_pairs += 1;
                 }
             }
@@ -461,7 +466,8 @@ impl GraphBuilder {
                     }
                     IsPDP::Yes => {
                         practical_dominating_pairs += 1;
-                        before[u][v] = true;
+                        before[u][v] = Before;
+                        before[v][u] = After;
                     }
                 }
             }
@@ -486,7 +492,7 @@ pub fn is_practically_dominating_pair(
     cr: &ReducedCrossings,
     xs: &[NodeB],
 ) -> IsPDP {
-    if u == v || before[u][v] || before[v][u] {
+    if u == v || before[v][u] != Unordered {
         return IsPDP::Skip;
     }
 
@@ -497,7 +503,7 @@ pub fn is_practically_dominating_pair(
 
     // TODO: Better handle this equality case. We have to be careful
     // to not introduce cycles.
-    if cr[u][v] >= 0 {
+    if cr[v][u] <= 0 {
         return IsPDP::Skip;
     }
 
@@ -510,11 +516,11 @@ pub fn is_practically_dominating_pair(
             return None;
         }
         // x must be left of u and v.
-        if before[x][u] && before[x][v] {
+        if before[u][x] == After && before[v][x] == After {
             return None;
         }
         // x must be right of u and v.
-        if before[u][x] && before[v][x] {
+        if before[u][x] == Before && before[v][x] == Before {
             return None;
         }
         // x that want to be between u and v (as in uxv) are not useful here.
@@ -554,7 +560,7 @@ impl GraphBuilder {
             let mut pending = None;
 
             for u in NodeB(0)..leftmost_red {
-                if before[u][v] || before[v][u] {
+                if before[v][u] != Unordered {
                     continue;
                 }
                 // TODO: Also handle equality cases properly.
@@ -567,12 +573,14 @@ impl GraphBuilder {
                         && eq_boundary_pairs
                     {
                         for u in pending..u {
-                            before[u][v] = true;
+                            before[u][v] = Before;
+                            before[v][u] = After;
                             boundary_pairs += 1;
                         }
                     }
                     pending = None;
-                    before[u][v] = true;
+                    before[u][v] = Before;
+                    before[v][u] = After;
                     boundary_pairs += 1;
                 } else {
                     leftmost_red = u;
@@ -596,10 +604,11 @@ impl GraphBuilder {
             changed = false;
             for i in NodeB(0)..before.len() {
                 for j in NodeB(0)..before.len() {
-                    if before[i][j] {
+                    if before[i][j] == Before {
                         for k in NodeB(0)..before.len() {
-                            if before[j][k] && !before[i][k] {
-                                before[i][k] = true;
+                            if before[j][k] == Before && before[i][k] != Before {
+                                before[i][k] = Before;
+                                before[k][j] = After;
                                 changed = true;
                                 transitive_pairs += 1;
                             }

@@ -21,7 +21,15 @@ mod io;
 /// Before[u][v] is true if u must come before v.
 /// Before[u][u] is always false.
 // TODO: Use bitvec instead?
-pub type Before = VecB<VecB<bool>>;
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum BeforeType {
+    Before,
+    After,
+    #[default]
+    Unordered,
+}
+pub use BeforeType::*;
+pub type Before = VecB<VecB<BeforeType>>;
 
 /// Type for storing crossings count.
 type C = u16;
@@ -184,8 +192,8 @@ fn display_solution(g: &Graph, solution: &Solution, matrix: bool) -> String {
                 0 => colored::Color::White,
                 1.. => colored::Color::Green,
             };
-            let forceduv = g.before[u][v];
-            let forcedvu = g.before[v][u];
+            let forceduv = g.before[u][v] == Before;
+            let forcedvu = g.before[u][v] == After;
             let c = if c.abs() < 10 {
                 b'0' as i64 + c.abs()
             } else {
@@ -403,7 +411,7 @@ pub fn one_sided_crossing_minimization(
             // info!("{part_sol:?}");
             // Make sure that all `must_come_before` constraints are satisfied.
             for (u, v) in part_sol.iter().copied().tuple_combinations() {
-                if g.before[v][u] {
+                if g.before[u][v] == After {
                     info!("Part {i} of {num_parts} violates must_come_before constraints.");
                     info!("{u} {v}");
                     break 'sol None;
@@ -667,10 +675,11 @@ impl<'a> Bb<'a> {
         // Update before with local before.
         let mut existing_before = vec![];
         for &(v, u) in &local_before {
-            if self.g.before[v][u] {
+            if self.g.before[u][v] == After {
                 existing_before.push((v, u));
             } else {
-                self.g.before[v][u] = true;
+                self.g.before[v][u] = Before;
+                self.g.before[u][v] = After;
             }
         }
 
@@ -690,7 +699,7 @@ impl<'a> Bb<'a> {
 
                 // Skip u for which another v must come before.
                 for &v in tail {
-                    if self.g.before[v][u] {
+                    if self.g.before[u][v] == After {
                         continue 'u;
                     }
                 }
@@ -723,11 +732,11 @@ impl<'a> Bb<'a> {
                         // Compute pdps for u below.
                         if let Some(v) = check_pdp() {
                             // eprintln!("Try {u} first => blocked by {v}");
-                            assert!(!self.g.before[v][u]);
+                            assert!(self.g.before[v][u] != Before);
                             if has_lb {
                                 local_before.push((v, u));
-                                assert!(!self.g.before[v][u]);
-                                self.g.before[v][u] = true;
+                                self.g.before[v][u] = Before;
+                                self.g.before[u][v] = After;
                             }
                             continue 'u;
                         } else {
@@ -828,12 +837,14 @@ states {}
         // Clean up local_before.
         if has_lb {
             for &(v, u) in &local_before {
-                assert!(self.g.before[v][u]);
-                self.g.before[v][u] = false;
+                assert!(self.g.before[v][u] == Before);
+                self.g.before[v][u] = Unordered;
+                self.g.before[u][v] = Unordered;
             }
             for &(v, u) in &existing_before {
-                assert!(!self.g.before[v][u]);
-                self.g.before[v][u] = true;
+                assert!(self.g.before[v][u] != Before);
+                self.g.before[v][u] = Before;
+                self.g.before[u][v] = After;
             }
         }
 
