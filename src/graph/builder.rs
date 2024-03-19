@@ -698,16 +698,19 @@ impl GraphBuilder {
         let mut crossings = VecB::from(vec![VecB::new(self.b); self.b.0]);
         for node_i in NodeB(0)..self.b {
             for node_j in NodeB(0)..self.b {
-                crossings[node_i][node_j] =
-                    self.one_node_crossings(node_i, node_j).try_into().unwrap();
+                let c = self.one_node_crossings(node_i, node_j);
+                crossings[node_i][node_j] = c.try_into().unwrap_or_else(|_| {
+                    panic!("Crossings between {node_i} and {node_j} is too large: {c}",)
+                });
             }
         }
         let mut reduced_crossings = VecB::from(vec![VecB::new(self.b); self.b.0]);
         for i in NodeB(0)..self.b {
             for j in NodeB(0)..self.b {
-                reduced_crossings[i][j] = (crossings[i][j] as i64 - crossings[j][i] as i64)
-                    .try_into()
-                    .unwrap();
+                let cr = crossings[i][j] as i64 - crossings[j][i] as i64;
+                reduced_crossings[i][j] = cr.try_into().unwrap_or_else(|_| {
+                    panic!("Crossings between {i} and {j} is too large: {cr}",)
+                });
             }
         }
         (crossings, reduced_crossings)
