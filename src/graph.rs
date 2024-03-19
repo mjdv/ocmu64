@@ -653,7 +653,7 @@ impl<'a> Bb<'a> {
         let mut solution = false;
 
         let bb_pd_flag = get_flag("bb_pd");
-        let bb_pd_cache_flag = get_flag("bb_pd_cache");
+        let bb_pd_cache_flag = !get_flag("no_bb_pd_cache");
 
         // If we skipped some children because of local pruning, do not update the lower bound for this tail.
         // Try each of the tail nodes as next node.
