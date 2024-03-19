@@ -160,16 +160,18 @@ pub type Solution = Vec<NodeB>;
 
 fn display_solution(g: &Graph, solution: &Solution, matrix: bool) -> String {
     let mut s = String::new();
-    solution
-        .chunk_by(|l, r| Step::forward(*l, 1) == *r)
-        .for_each(|slice| {
-            if slice.len() == 1 {
-                s.push_str(&format!("{} ", slice[0].0));
-            } else {
-                s.push_str(&format!("{}-{} ", slice[0].0, slice.last().unwrap().0));
-            }
-        });
-    s.push('\n');
+    if log::log_enabled!(log::Level::Debug) {
+        solution
+            .chunk_by(|l, r| Step::forward(*l, 1) == *r)
+            .for_each(|slice| {
+                if slice.len() == 1 {
+                    s.push_str(&format!("{} ", slice[0].0));
+                } else {
+                    s.push_str(&format!("{}-{} ", slice[0].0, slice.last().unwrap().0));
+                }
+            });
+        s.push('\n');
+    }
 
     if !matrix {
         return s;
@@ -387,7 +389,7 @@ pub fn one_sided_crossing_minimization(
                 break 'sol None;
             };
             assert_eq!(part_score, g.score(&part_sol), "WRONG SCORE FOR PART");
-            info!("{part_sol:?}");
+            // info!("{part_sol:?}");
             // Make sure that all `must_come_before` constraints are satisfied.
             for (u, v) in part_sol.iter().copied().tuple_combinations() {
                 if g.before[v][u] {
