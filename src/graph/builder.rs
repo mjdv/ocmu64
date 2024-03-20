@@ -524,10 +524,10 @@ pub fn is_practically_dominating_pair(
             return None;
         }
         // x that want to be between u and v (as in uxv) are not useful here.
-        if cr[u][x] <= 0 && cr[x][v] <= 0 {
+        if cr[u][x] <= 0 && -cr[v][x] <= 0 {
             return None;
         }
-        Some(P(cr[x][u] as i32, cr[v][x] as i32))
+        Some(P(-cr[u][x] as i32, cr[v][x] as i32))
     });
 
     if !knapsack(target, points) {
