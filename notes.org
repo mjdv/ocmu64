@@ -161,10 +161,12 @@ Flags named =no_...= disable features that should just work and not give contrad
 - lpd: enable local practical dominating
 - lb: local before: update 'local before' with local practical dominating pairs.
 - lb_cache: cache local before vec per tail.
-- glue: glue states that must be adjacent on-the-fly.
+- glue2: glue v to u if cr(v,x) <= 0 for all x in the tail.
+
 
 ** Disabled
 - tc: take the transitive closure of the =before= matrix.
+- glue: glue states that must be adjacent on-the-fly.
 
 
 ** Unsafe / broken
