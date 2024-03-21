@@ -702,6 +702,30 @@ impl<'a> Bb<'a> {
         'u_to_try: {
             let tail = &self.solution[self.solution_len..];
 
+            if self.solution_len > 0 && get_flag("glue2") {
+                'v: for i in self.solution_len..self.solution.len() {
+                    let v = self.solution[i];
+                    // early check in better ordered direction.
+                    if self.g.reduced_crossings[tail[0]][v] < 0 {
+                        self.glue_no_calls += 1;
+                        continue 'v;
+                    }
+                    for &x in tail {
+                        if self.g.reduced_crossings[v][x] > 0 {
+                            // x wants to be before v.
+                            self.glue_no_calls += 1;
+                            continue 'v;
+                        }
+                    }
+                    // no x wants to be before v => glue uv.
+                    u_to_try.push((i, v));
+                    self.glue_yes += 1;
+                    break 'u_to_try;
+                }
+                self.glue_no += 1;
+            }
+
+            // TODO: Why are there cases where uv are glued below but not already above.
             if self.solution_len > 0 && get_flag("glue") {
                 let u = self.solution[self.solution_len - 1];
                 for i in self.solution_len..self.solution.len() {
