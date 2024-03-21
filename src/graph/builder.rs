@@ -477,6 +477,7 @@ impl GraphBuilder {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IsPDP {
     // Equivalent to No but not counted.
     Skip,
@@ -484,7 +485,7 @@ pub enum IsPDP {
     Yes,
 }
 
-// Is u forced before v because there is no separating set?
+/// Is u forced before v because there is no separating set?
 pub fn is_practically_dominating_pair(
     u: NodeB,
     v: NodeB,
@@ -530,7 +531,60 @@ pub fn is_practically_dominating_pair(
         Some(P(-cr[u][x] as i32, cr[v][x] as i32))
     });
 
-    if !knapsack(target, points) {
+    if !knapsack(target, points, false) {
+        IsPDP::Yes
+    } else {
+        IsPDP::No
+    }
+}
+
+/// Is v forced to directly follow u?
+/// Assumes that u must be before v.
+pub fn is_practically_glued_pair(
+    u: NodeB,
+    v: NodeB,
+    before: &Before,
+    cr: &ReducedCrossings,
+    xs: &[NodeB],
+) -> IsPDP {
+    // // TODO: Better handle equality cases.
+    // if u == v || before[u][v] != Before {
+    //     return IsPDP::Skip;
+    // }
+
+    // if cr[u][v] >= 0 {
+    //     return IsPDP::Skip;
+    // }
+
+    // We want to prove that there is no (non-empty?) X such that
+    // cost(uXv) < cost(Xuv).
+    // and
+    // cost(uXv) < cost(uvX).
+    // i.e.
+    // cr(u, X) < 0 && cr(X, v) < 0
+
+    // We do not consider x that must be before u and v, or after u and v.
+    let points = xs.iter().filter_map(|&x| {
+        if x == u || x == v {
+            return None;
+        }
+        // x must be left of u and v.
+        if before[u][x] == After && before[v][x] == After {
+            return None;
+        }
+        // x must be right of u and v.
+        if before[u][x] == Before && before[v][x] == Before {
+            return None;
+        }
+        // x that want to be between v and u (as in vxu) are not useful here.
+        if cr[u][x] >= 0 && -cr[v][x] >= 0 {
+            return None;
+        }
+        Some(P(cr[u][x] as i32, -cr[v][x] as i32))
+    });
+
+    // FIXME TODO Do we have to allow equality here?
+    if !knapsack(P(0, 0), points, true) {
         IsPDP::Yes
     } else {
         IsPDP::No
