@@ -37,7 +37,11 @@ impl PartialOrd for P {
 /// - a target (-c,-c)
 /// - a list of points (xi, yi)
 /// returns whether there is a subset of points with sum <= target.
-pub fn knapsack(mut target: P, points: impl Iterator<Item = P> + Clone) -> bool {
+pub fn knapsack(
+    mut target: P,
+    points: impl Iterator<Item = P> + Clone,
+    mut non_empty: bool,
+) -> bool {
     // Sum of negative x.
     let mut neg_x = 0;
     // Sum of negative y.
@@ -50,6 +54,7 @@ pub fn knapsack(mut target: P, points: impl Iterator<Item = P> + Clone) -> bool 
         neg_y += p.1.min(0);
         if p <= P(0, 0) {
             sum += p;
+            non_empty = false;
             if sum <= target {
                 return true;
             }
@@ -60,7 +65,7 @@ pub fn knapsack(mut target: P, points: impl Iterator<Item = P> + Clone) -> bool 
         return false;
     }
 
-    if sum <= target {
+    if sum <= target && !non_empty {
         return true;
     }
 

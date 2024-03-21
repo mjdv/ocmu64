@@ -1,5 +1,7 @@
 use crate::{
-    get_flag, graph::builder::is_practically_dominating_pair, node::*,
+    get_flag,
+    graph::builder::{is_practically_dominating_pair, is_practically_glued_pair, IsPDP},
+    node::*,
     pattern_search::pattern_search,
 };
 use std::{
@@ -370,6 +372,9 @@ fn oscm_part(g: &mut Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
     info!("PDP cache yes : {:>9}", bb.pdp_cache_yes);
     info!("PDP cache no  : {:>9}", bb.pdp_cache_no);
     info!("PDP skip      : {:>9}", bb.pdp_skip);
+    info!("glue yes      : {:>9}", bb.glue_yes);
+    info!("glue no       : {:>9}", bb.glue_no);
+    info!("glue no calls : {:>9}", bb.glue_no_calls);
     info!("tail update   : {:>9}", bb.tail_update);
     info!("tail insert   : {:>9}", bb.tail_insert);
     info!("tail skip     : {:>9}", bb.tail_skip);
@@ -493,6 +498,9 @@ pub struct Bb<'a> {
     pdp_skip: u64,
     pdp_cache_no: u64,
     pdp_cache_yes: u64,
+    glue_no: u64,
+    glue_no_calls: u64,
+    glue_yes: u64,
     tail_update: u64,
     tail_insert: u64,
     tail_skip: u64,
@@ -564,6 +572,9 @@ impl<'a> Bb<'a> {
             pdp_skip: 0,
             pdp_cache_no: 0,
             pdp_cache_yes: 0,
+            glue_no_calls: 0,
+            glue_no: 0,
+            glue_yes: 0,
             tail_update: 0,
             tail_insert: 0,
             tail_skip: 0,
@@ -688,8 +699,30 @@ impl<'a> Bb<'a> {
             }
         }
 
-        {
+        'u_to_try: {
             let tail = &self.solution[self.solution_len..];
+
+            if self.solution_len > 0 && get_flag("glue") {
+                let u = self.solution[self.solution_len - 1];
+                for i in self.solution_len..self.solution.len() {
+                    let v = self.solution[i];
+                    if is_practically_glued_pair(
+                        u,
+                        v,
+                        &self.g.before,
+                        &self.g.reduced_crossings,
+                        tail,
+                    ) == IsPDP::Yes
+                    {
+                        u_to_try.push((i, v));
+                        self.glue_yes += 1;
+                        break 'u_to_try;
+                    }
+                    self.glue_no_calls += 1;
+                }
+                self.glue_no += 1;
+            }
+
             'u: for i in self.solution_len..self.solution.len() {
                 let u = self.solution[i];
                 // eprintln!("Try {u} first");
