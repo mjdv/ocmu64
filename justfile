@@ -13,3 +13,9 @@ record *args='':
 alias r := report
 report:
     perf report
+
+
+# This requires `rustup target add x86_64-unknown-linux-musl`.
+submit:
+    cargo build --profile submit --target=x86_64-unknown-linux-musl
+    ln -s target/x86_64-unknown-linux-musl/submit/ocmu64 submit

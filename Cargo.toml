@@ -6,18 +6,19 @@ default-run = "ocmu64"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [profile.release]
-# 2x smaller file size when 'true', but that takes longer
-# lto = true
 lto = "thin"
-# codegen-units = 1
 incremental = true
 opt-level = 3
-# Debug symbols for profiling.
-# TODO: Turn off in the final release.
 debug = true
-# TODO: Strip symbols to shrink binary size.
-# strip = false
 
+# For submitting:
+[profile.submit]
+inherits = 'release'
+incremental = false
+lto = true
+codegen-units = 1
+debug = false
+strip = false
 
 [dependencies]
 assert2 = "0.3.11"
