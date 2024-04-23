@@ -60,7 +60,7 @@ impl GraphBuilder {
             }
         }
 
-        let graph = GraphBuilder::new(connections_b);
+        let graph = GraphBuilder::new(a, connections_b);
         Ok(graph)
     }
 

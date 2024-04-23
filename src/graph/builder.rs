@@ -5,6 +5,7 @@ use std::cmp::max;
 
 #[derive(Debug, Default, Clone)]
 pub struct GraphBuilder {
+    pub a_original: Option<NodeA>,
     pub a: NodeA,
     pub b: NodeB,
     pub connections_a: VecA<Vec<NodeB>>,
@@ -25,6 +26,7 @@ fn new_inverse(b: NodeB) -> Inverse {
 impl Graph {
     pub fn builder(&self) -> GraphBuilder {
         GraphBuilder {
+            a_original: None,
             a: self.a,
             b: self.b,
             connections_a: self.connections_a.clone(),
@@ -38,6 +40,7 @@ impl Graph {
 impl GraphBuilder {
     pub fn with_sizes(a: NodeA, b: NodeB) -> Self {
         Self {
+            a_original: None,
             a,
             b,
             connections_a: VecA::new(a),
@@ -77,14 +80,18 @@ impl GraphBuilder {
         }
     }
 
-    pub fn new(connections_b: VecB<Vec<NodeA>>) -> GraphBuilder {
+    pub fn new(a: NodeA, connections_b: VecB<Vec<NodeA>>) -> GraphBuilder {
         let inv = (NodeB(0)..connections_b.len())
             .map(|x| vec![x])
             .collect_vec();
-        Self::new_with_inv(connections_b, &inv)
+        Self::new_with_inv(Some(a), connections_b, &inv)
     }
 
-    pub fn new_with_inv(connections_b: VecB<Vec<NodeA>>, inv: &[Vec<NodeB>]) -> GraphBuilder {
+    pub fn new_with_inv(
+        a_original: Option<NodeA>,
+        connections_b: VecB<Vec<NodeA>>,
+        inv: &[Vec<NodeB>],
+    ) -> GraphBuilder {
         let a = Step::forward(
             *connections_b
                 .iter()
@@ -95,6 +102,7 @@ impl GraphBuilder {
         );
         let b = connections_b.len();
         let mut g = Self {
+            a_original,
             a,
             b,
             connections_a: Default::default(),
@@ -180,7 +188,7 @@ impl GraphBuilder {
                     *x = NodeA(x.0 - start);
                 }
             }
-            let g = GraphBuilder::new_with_inv(VecB::from(new_cb), &new_inv);
+            let g = GraphBuilder::new_with_inv(None, VecB::from(new_cb), &new_inv);
             graphs.push(g);
             i = j;
         }
