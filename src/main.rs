@@ -79,7 +79,11 @@ fn main() {
             init_log(args, true);
             let g = GraphBuilder::from_stdin()
                 .expect("Did not get a graph in the correct format on stdin.");
-            solve_graph(g, &args);
+            let a = g.a_original.unwrap();
+            let (sol, _score) = solve_graph(g, &args).unwrap();
+            for u in sol {
+                println!("{}", a.0 + 1 + u.0);
+            }
         }
         (None, Some(path)) => {
             let mut paths = if path.is_file() {
@@ -120,16 +124,15 @@ fn main() {
 }
 
 /// Solve a single graph.
-fn solve_graph(g: GraphBuilder, args: &Args) -> Option<u64> {
+fn solve_graph(g: GraphBuilder, args: &Args) -> Option<(Solution, u64)> {
     info!("Read A={:?} B={:?}, {} edges", g.a, g.b, g.num_edges());
     let output = one_sided_crossing_minimization(g, args.upper_bound);
-    let score = output.map(|x| x.1);
-    if let Some(score) = score {
+    if let Some((_solution, score)) = &output {
         info!("SCORE: {score}");
     } else {
         info!("No solution found?!");
     }
-    score
+    output
 }
 
 /// When running as a subprocess, read a path and print the score to stdout as json.
@@ -151,12 +154,12 @@ fn main_subprocess(args: &Args) {
             .expect("Input path must be given for subprocess."),
     )
     .expect("Unable to read graph from file.");
-    let score = solve_graph(g, args);
+    let score = solve_graph(g, args).map(|x| x.1);
     serde_json::to_writer(std::io::stdout(), &score).unwrap();
 }
 
 /// If a timelimit is set, run in a subprocess.
-fn call_subprocess(path: &Path, args: &Args) -> Option<u64> {
+fn call_subprocess(path: &Path, args: &Args) -> Option<(Solution, u64)> {
     let Some(time) = args.timelimit else {
         // When no timelimit is set, just run directly in the same process.
         let g = GraphBuilder::from_file(path).expect("Unable to read graph from file.");
@@ -385,7 +388,7 @@ fn process_dir(mut paths: Vec<PathBuf>, args: &Args) -> Option<()> {
         let start = std::time::Instant::now();
         update(&state, &p, State::Running(start));
         print_state(&state.lock().unwrap());
-        let score = call_subprocess(&p, &args);
+        let score = call_subprocess(&p, &args).map(|x| x.1);
         let duration = start.elapsed().as_secs();
         db.lock()
             .unwrap_or_else(|_| {
