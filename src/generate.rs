@@ -180,7 +180,7 @@ pub fn low_crossing_clustered(
     let weight_vector: Vec<f64> = (0..g.b.0)
         .map(|x| f64::exp(-((x as f64 - (g.b.0 / 2) as f64) / sigma).powi(2)) / sigma)
         .collect();
-    println!("Sum = {}", weight_vector.iter().sum::<f64>());
+    eprintln!("Sum = {}", weight_vector.iter().sum::<f64>());
     let normal_distribution = WeightedIndex::new(&weight_vector).unwrap();
     low_crossing_with_distribution(g, crossings, normal_distribution, p, rng)
 }

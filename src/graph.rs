@@ -1119,7 +1119,7 @@ mod test {
     #[test]
     fn fuzz_siblings() {
         for n in (5..10000).step_by(20) {
-            println!("n = {}", n);
+            eprintln!("n = {}", n);
             for k in (5..n).step_by(10) {
                 for seed in 0..100 {
                     // let t = GraphType::Star { n, k };
@@ -1137,18 +1137,18 @@ mod test {
                     let (sol2, score2) =
                         one_sided_crossing_minimization(g, None).expect("no solution found!");
                     if score1 != score2 {
-                        println!("{t:?} seed: {seed}");
+                        eprintln!("{t:?} seed: {seed}");
                         // for u in NodeB(0)..g.b {
                         //     for v in &g.must_come_before[u] {
-                        //         print!("{}<{} ", v.0, u.0);
+                        //         eprint!("{}<{} ", v.0, u.0);
                         //     }
                         // }
-                        println!();
-                        println!("score1: {}", score1);
-                        println!("score2: {}", score2);
-                        println!("sol1: {:?}", sol1);
-                        println!("sol2: {:?}", sol2);
-                        println!();
+                        eprintln!();
+                        eprintln!("score1: {}", score1);
+                        eprintln!("score2: {}", score2);
+                        eprintln!("sol1: {:?}", sol1);
+                        eprintln!("sol2: {:?}", sol2);
+                        eprintln!();
                         panic!();
                     }
                 }
