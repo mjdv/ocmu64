@@ -173,3 +173,9 @@ Flags named =no_...= disable features that should just work and not give contrad
 - c3: add min score of (u,v,w) if larger than pairwise min(cuv, cvu) scores.
 - boundary_pairs: fix vertices that only have green left/below them.
 - eq_boundary_pairs: stronger version to force equal cases. Broken on exact/049.gr.
+
+* Scoreboard
+|    pos | score | 47   | 48 | 49 | 50 | 51 | 55 | 64 | 65 | 66 | 67 | 72 | 73 | 74 | 75 | 76 | 77 | 78 | 80 | 81 | 82 | 93 | 94 | 95 | 96 | 97 |
+|      1 |    81 | x    |  x | x  |  x |  x |    |  x |    |    |    |    |    |    |    |    |    |    |    |    |    |    |    |    |    |    |
+|      2 |    78 |      |    | x  |    |    | x  |    |    |    |    |  x |    |    |    |    |    |    |    |    |    |    |    |    |    |    |
+| 3 = us |    76 | mle? |    |    |    |    | x  |    |    |    |    |    |    |    |    |    |    |    |    |    |    |    |    |    |    |    |
