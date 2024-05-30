@@ -179,3 +179,9 @@ Flags named =no_...= disable features that should just work and not give contrad
 |      1 |    81 | x    |  x | x  |  x |  x |    |  x |    |    |    |    |    |    |    |    |    |    |    |    |    |    |    |    |    |    |
 |      2 |    78 |      |    | x  |    |    | x  |    |    |    |    |  x |    |    |    |    |    |    |    |    |    |    |    |    |    |    |
 | 3 = us |    76 | mle? |    |    |    |    | x  |    |    |    |    |    |    |    |    |    |    |    |    |    |    |    |    |    |    |    |
+
+* TODO
+- 'fast' mode for nodes that are likely near leaves: don't do heavy work for
+  local dominating / local gluing if you're near a leaf anyway.
+- Faster implementations of local gluing/local dominating, storing witness
+  separating sets.
