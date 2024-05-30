@@ -159,11 +159,11 @@ fn main_subprocess(args: &Args) {
 }
 
 /// If a timelimit is set, run in a subprocess.
-fn call_subprocess(path: &Path, args: &Args) -> Option<(Solution, u64)> {
+fn call_subprocess(path: &Path, args: &Args) -> Option<u64> {
     let Some(time) = args.timelimit else {
         // When no timelimit is set, just run directly in the same process.
         let g = GraphBuilder::from_file(path).expect("Unable to read graph from file.");
-        return solve_graph(g, args);
+        return solve_graph(g, args).map(|x| x.1);
     };
 
     let mut arg = std::process::Command::new(std::env::current_exe().unwrap());
@@ -388,7 +388,7 @@ fn process_dir(mut paths: Vec<PathBuf>, args: &Args) -> Option<()> {
         let start = std::time::Instant::now();
         update(&state, &p, State::Running(start));
         print_state(&state.lock().unwrap());
-        let score = call_subprocess(&p, &args).map(|x| x.1);
+        let score = call_subprocess(&p, &args);
         let duration = start.elapsed().as_secs();
         db.lock()
             .unwrap_or_else(|_| {
