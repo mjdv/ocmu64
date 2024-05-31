@@ -112,8 +112,13 @@ impl Database {
             if let Some(existing_score) = &results.score {
                 if get_flag("update_db_score") {
                     if new_score != *existing_score {
+                        let delta = if new_score > *existing_score {
+                            "Increasing"
+                        } else {
+                            "Decreasing"
+                        };
                         let msg = format!(
-                            "\nUpdating score for {} from {} to {}.\n",
+                            "\n{delta} score for {} from {} to {}.",
                             input.display(),
                             existing_score,
                             new_score
