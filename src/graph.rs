@@ -139,10 +139,15 @@ impl Graph {
 
     /// Compute the increase of score from fixing u before the tail.
     fn partial_score_2(&self, u: NodeB, tail: &[NodeB]) -> u64 {
-        let rc = &self.reduced_crossings;
+        let rc = &self.reduced_crossings[u];
         let mut score = 0;
+
+        // HOT: 30% of B&B time is here.
+        // TODO: Improve cache locality with the v index.
+        // Maybe we can store which vertices have dropped from the range instead?
+        // TODO: For each u, store the max v for which rc[u][v] is non-0, and assert that the tail is sorted by v.
         for &v in tail {
-            score += rc[u][v].max(0) as u64;
+            score += rc[v].max(0) as u64;
         }
         score
     }
