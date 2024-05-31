@@ -345,7 +345,13 @@ fn initial_solution(g: &Graph) -> Vec<NodeB> {
 }
 
 fn oscm_part(g: &mut Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
-    let initial_solution = initial_solution(g);
+    // TODO: use better initial solution and permute the graph accordingly.
+    let initial_solution = if get_flag("initial_sort") {
+        initial_solution(g)
+    } else {
+        (NodeB(0)..g.b).collect::<Vec<_>>()
+    };
+    // assert!(initial_solution.is_sorted());
     let initial_score = g.score(&initial_solution);
     debug!(
         "Initial sol   : {}",
