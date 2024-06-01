@@ -115,7 +115,7 @@ impl GraphBuilder {
     }
 
     pub fn to_quick_graph(&self) -> Graph {
-        let (min_crossings, reduced_crossings) = self.crossings();
+        let (min_crossings, cr) = self.crossings();
         Graph {
             a: self.a,
             b: self.b,
@@ -124,7 +124,7 @@ impl GraphBuilder {
             connections_a: self.connections_a.clone(),
             connections_b: self.connections_b.clone(),
             min_crossings,
-            reduced_crossings,
+            reduced_crossings: cr,
             intervals: self.intervals(),
             self_crossings: self.self_crossings,
             before: VecB::new(self.b),
@@ -205,9 +205,9 @@ impl GraphBuilder {
 
     pub fn to_graph(&mut self) -> Graph {
         self.sort_edges();
-        let (min_crossings, reduced_crossings) = self.crossings();
+        let (min_crossings, cr) = self.crossings();
         let mut before = self.dominating_pairs();
-        self.practical_dominating_pairs(&mut before);
+        self.practical_dominating_pairs(&mut before, &cr);
         self.boundary_pairs(&mut before);
         Self::transitive_closure(&mut before);
 
@@ -219,7 +219,7 @@ impl GraphBuilder {
             connections_a: self.connections_a.clone(),
             connections_b: self.connections_b.clone(),
             min_crossings,
-            reduced_crossings,
+            reduced_crossings: cr,
             intervals: self.intervals(),
             self_crossings: self.self_crossings,
             before,
@@ -450,7 +450,7 @@ impl GraphBuilder {
         before
     }
 
-    fn practical_dominating_pairs(&self, before: &mut Before) {
+    fn practical_dominating_pairs(&self, before: &mut Before, cr: &ReducedCrossings) {
         if get_flag("no_pd") {
             info!("Found 0 practical dominating pairs (skipped)");
             return;

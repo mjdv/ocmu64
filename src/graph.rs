@@ -83,7 +83,6 @@ impl Graph {
 
     /// Compute the increase of score from fixing u before the tail.
     fn partial_score_2(&self, u: NodeB, tail: &[NodeB]) -> u64 {
-        let rc = &self.reduced_crossings[u];
         let mut score = 0;
 
         // HOT: 30% of B&B time is here.
@@ -91,7 +90,7 @@ impl Graph {
         // Maybe we can store which vertices have dropped from the range instead?
         // TODO: For each u, store the max v for which rc[u][v] is non-0, and assert that the tail is sorted by v.
         for &v in tail {
-            score += rc[v].max(0) as u64;
+            score += self.cr(u, v).max(0) as u64;
         }
         score
     }
@@ -595,12 +594,12 @@ impl<'a> Bb<'a> {
                 'v: for i in self.solution_len..self.solution.len() {
                     let v = self.solution[i];
                     // early check in better ordered direction.
-                    if self.g.reduced_crossings[tail[0]][v] < 0 {
+                    if self.g.cr(tail[0], v) < 0 {
                         self.glue_no_calls += 1;
                         continue 'v;
                     }
                     for &x in tail {
-                        if self.g.reduced_crossings[v][x] > 0 {
+                        if self.g.cr(v, x) > 0 {
                             // x wants to be before v.
                             self.glue_no_calls += 1;
                             continue 'v;
