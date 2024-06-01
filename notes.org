@@ -190,3 +190,4 @@ Flags named =no_...= disable features that should just work and not give contrad
 - Optimize code for  parameterized track.
 - In initial solution, also try optimally inserting blocks instead of just singletons.
 - *Up-front practical glueing.*
+- Call ~to_graph~ only once, or at least avoid computing edge crossings twice.

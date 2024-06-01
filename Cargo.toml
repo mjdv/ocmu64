@@ -10,6 +10,7 @@ lto = "thin"
 incremental = true
 opt-level = 3
 debug = true
+panic = 'abort'
 
 # For submitting:
 [profile.submit]
