@@ -767,8 +767,54 @@ impl GraphBuilder {
     fn crossings(&self) -> (u64, ReducedCrossings) {
         let mut min_crossings = 0;
         let mut reduced_crossings = VecB::from(vec![VecB::new(self.b); self.b.0]);
+        // rightmost nb in each prefix.
+        let rightmost = self
+            .connections_b
+            .iter()
+            .map(|x| x.last().copied().unwrap_or(NodeA(0)))
+            .scan(NodeA(0), |rm, x| {
+                *rm = max(*rm, x);
+                Some(*rm)
+            })
+            .collect_vec();
+        // leftmost nb in each suffix.
+        let mut leftmost = self
+            .connections_b
+            .iter()
+            .rev()
+            .map(|x| x.first().copied().unwrap_or(NodeA(usize::MAX)))
+            .scan(NodeA(usize::MAX), |rm, x| {
+                *rm = min(*rm, x);
+                Some(*rm)
+            })
+            .collect_vec();
+        leftmost.reverse();
+
+        let try_into = |cr: i64, _i, _j| {
+            cr as CR
+            // cr.try_into().unwrap_or_else(|_| {
+            //     panic!("Crossings between {i} and {j} is too large for type: {cr}",)
+            // })
+        };
+
         for i in NodeB(0)..self.b {
-            for j in NodeB(0)..self.b {
+            if self[i].is_empty() {
+                continue;
+            }
+            // Only consider the range of possibly intersecting nodes.
+            let li = *self[i].first().unwrap();
+            let ri = *self[i].last().unwrap();
+
+            let mut j = NodeB(0);
+
+            while j < self.b && rightmost[j.0] < li {
+                let cr = self[i].len() * self[j].len();
+                reduced_crossings[i][j] = try_into(cr as i64, i, j);
+                // reduced_crossings[i][j] = CR::MIN;
+                j = Step::forward(j, 1);
+            }
+
+            while j < self.b && leftmost[j.0] <= ri {
                 // HOT: 20% of time is spent on the inefficient memory access here.
                 let cij = self.one_node_crossings(i, j);
                 let cji = self.one_node_crossings(j, i);
@@ -776,9 +822,16 @@ impl GraphBuilder {
                     min_crossings += min(cij, cji);
                 }
                 let cr = cij as i64 - cji as i64;
-                reduced_crossings[i][j] = cr.try_into().unwrap_or_else(|_| {
-                    panic!("Crossings between {i} and {j} is too large: {cr}",)
-                });
+                reduced_crossings[i][j] = try_into(cr, i, j);
+
+                j = Step::forward(j, 1);
+            }
+
+            while j < self.b {
+                let cr = self[i].len() * self[j].len();
+                reduced_crossings[i][j] = try_into(-(cr as i64), i, j);
+                // reduced_crossings[i][j] = CR::MIN;
+                j = Step::forward(j, 1);
             }
         }
         (min_crossings, reduced_crossings)
