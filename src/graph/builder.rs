@@ -459,8 +459,6 @@ impl GraphBuilder {
         let mut practical_dominating_pairs = 0;
         let mut not_practical_dominating_pairs = 0;
 
-        let cr = self.crossings().1;
-
         let xs = (NodeB(0)..self.b).collect_vec();
 
         // For loop is reversed before is_pdp is more efficient with fixed v.
