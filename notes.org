@@ -183,3 +183,12 @@ Flags named =no_...= disable features that should just work and not give contrad
   local dominating / local gluing if you're near a leaf anyway.
 - Faster implementations of local gluing/local dominating, storing witness
   separating sets.
+- Also fix states at end instead of only at start?
+- Instead of going left to right (or right to left), glue arbitrary points.
+  Maybe there are (u,v) that are likely to be glued but can only be separated by
+  a single/small set Z. Then try uv first, and if not fall back to uZv, which
+  should be killed quickly then.
+- Optimize code for  parameterized track.
+- Up-front glueing.
+
+- In initial solution, also try optimally inserting blocks instead of just singletons.

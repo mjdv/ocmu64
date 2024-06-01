@@ -112,13 +112,13 @@ immediate fix $v$ (optimally insert it into $P$).
 
 **Lemma G1.** (Weak gluing)
 When $u=v$, $u\g v$.
-(In this case the order doesn&rsquo;t matter.)
+(In this case the order doesn't matter.)
 
 **Remark G2.** (No strong gluing???)
 When $u\neq v$, one can always find a
 $Z\subseteq A$ such that $c(u,Z,v) < c(u,v,Z)$ and $c(u,Z,v) < c(Z,u,v)$.
 
-(This doesn&rsquo;t seem 100% true, but it seems hard to guarantee
+(This doesn't seem 100% true, but it seems hard to guarantee
 gluing when arbitrary $Z\subseteq A$ are allowed.)
 
 **Lemma G3.** (Practical gluing)
@@ -130,3 +130,11 @@ then $u\g v$.
 At the very start, and every time the B&B fixes a next vertex of the prefix, the
 condition of Lemma G3 is checked for all remaining pairs in the tail.
 
+
+# Possible future lemmas
+
+**Lemma X1.**
+Suppose the tail $T$ is a local minimum, i.e., swaps (and maybe rotations?) do
+not improve it.
+We try to fix each $u\in T$ as the next vertex. Can we prove that the cost of
+moving $u$ to the front increases as we iterate over all $u$?
