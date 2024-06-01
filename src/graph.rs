@@ -60,6 +60,12 @@ pub struct Graph {
 
     /// For each node, its first and last neighbor in A.
     pub intervals: VecB<Range<NodeA>>,
+
+    /// The max neighbor in A for each prefix.
+    pub prefix_max: VecB<NodeA>,
+    /// The min neighbor in A for each suffix.
+    pub suffix_min: VecB<NodeA>,
+
     pub self_crossings: u64,
     pub before: Before,
 }

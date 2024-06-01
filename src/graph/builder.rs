@@ -188,7 +188,7 @@ impl GraphBuilder {
 
     pub fn to_graph(&mut self, full: bool) -> Graph {
         self.sort_edges();
-        let (min_crossings, cr, cr_range) = self.crossings();
+        let (min_crossings, cr, cr_range, prefix_max, suffix_min) = self.crossings();
 
         let before = if full {
             let mut before = self.dominating_pairs();
@@ -211,6 +211,8 @@ impl GraphBuilder {
             reduced_crossings: cr,
             cr_range,
             intervals: self.intervals(),
+            prefix_max,
+            suffix_min,
             self_crossings: self.self_crossings,
             before,
         }
@@ -739,32 +741,42 @@ impl GraphBuilder {
         Self::edge_list_crossings(&self[i], &self[j])
     }
 
-    fn crossings(&self) -> (u64, ReducedCrossings, VecB<Range<NodeB>>) {
+    fn crossings(
+        &self,
+    ) -> (
+        u64,
+        ReducedCrossings,
+        VecB<Range<NodeB>>,
+        VecB<NodeA>,
+        VecB<NodeA>,
+    ) {
         let mut min_crossings = 0;
         let mut reduced_crossings = VecB::from(vec![VecB::new(self.b); self.b.0]);
         let mut cr_range = VecB::from(vec![self.b..NodeB(0); self.b.0]);
         // rightmost nb in each prefix.
-        let rightmost = self
-            .connections_b
-            .iter()
-            .map(|x| x.last().copied().unwrap_or(NodeA(0)))
-            .scan(NodeA(0), |rm, x| {
-                *rm = max(*rm, x);
-                Some(*rm)
-            })
-            .collect_vec();
+        let prefix_max = VecB::from(
+            self.connections_b
+                .iter()
+                .map(|x| x.last().copied().unwrap_or(NodeA(0)))
+                .scan(NodeA(0), |rm, x| {
+                    *rm = max(*rm, x);
+                    Some(*rm)
+                })
+                .collect_vec(),
+        );
         // leftmost nb in each suffix.
-        let mut leftmost = self
-            .connections_b
-            .iter()
-            .rev()
-            .map(|x| x.first().copied().unwrap_or(NodeA(usize::MAX)))
-            .scan(NodeA(usize::MAX), |rm, x| {
-                *rm = min(*rm, x);
-                Some(*rm)
-            })
-            .collect_vec();
-        leftmost.reverse();
+        let mut suffix_min = VecB::from(
+            self.connections_b
+                .iter()
+                .rev()
+                .map(|x| x.first().copied().unwrap_or(NodeA(usize::MAX)))
+                .scan(NodeA(usize::MAX), |rm, x| {
+                    *rm = min(*rm, x);
+                    Some(*rm)
+                })
+                .collect_vec(),
+        );
+        suffix_min.reverse();
 
         let try_into = |cr: i64, _i, _j| {
             cr as CR
@@ -783,7 +795,7 @@ impl GraphBuilder {
 
             let mut j = NodeB(0);
 
-            while j < self.b && rightmost[j.0] < li {
+            while j < self.b && prefix_max[j] < li {
                 let cr = self[i].len() * self[j].len();
                 reduced_crossings[i][j] = try_into(cr as i64, i, j);
                 // reduced_crossings[i][j] = CR::MIN;
@@ -791,7 +803,7 @@ impl GraphBuilder {
             }
             cr_range[i].end = j;
 
-            while j < self.b && leftmost[j.0] <= ri {
+            while j < self.b && suffix_min[j] <= ri {
                 // HOT: 20% of time is spent on the inefficient memory access here.
                 let cij = self.one_node_crossings(i, j);
                 let cji = self.one_node_crossings(j, i);
@@ -820,7 +832,13 @@ impl GraphBuilder {
                 j = Step::forward(j, 1);
             }
         }
-        (min_crossings, reduced_crossings, cr_range)
+        (
+            min_crossings,
+            reduced_crossings,
+            cr_range,
+            prefix_max,
+            suffix_min,
+        )
     }
 
     pub fn invert(&self, solution: Solution) -> Solution {
