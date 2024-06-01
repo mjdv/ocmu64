@@ -115,7 +115,7 @@ impl GraphBuilder {
     }
 
     pub fn to_quick_graph(&self) -> Graph {
-        let (min_crossings, cr) = self.crossings();
+        let (min_crossings, cr, cr_range) = self.crossings();
         Graph {
             a: self.a,
             b: self.b,
@@ -125,6 +125,7 @@ impl GraphBuilder {
             connections_b: self.connections_b.clone(),
             min_crossings,
             reduced_crossings: cr,
+            cr_range,
             intervals: self.intervals(),
             self_crossings: self.self_crossings,
             before: VecB::new(self.b),
@@ -205,7 +206,7 @@ impl GraphBuilder {
 
     pub fn to_graph(&mut self) -> Graph {
         self.sort_edges();
-        let (min_crossings, cr) = self.crossings();
+        let (min_crossings, cr, cr_range) = self.crossings();
         let mut before = self.dominating_pairs();
         self.practical_dominating_pairs(&mut before, &cr);
         self.boundary_pairs(&mut before);
@@ -220,6 +221,7 @@ impl GraphBuilder {
             connections_b: self.connections_b.clone(),
             min_crossings,
             reduced_crossings: cr,
+            cr_range,
             intervals: self.intervals(),
             self_crossings: self.self_crossings,
             before,
@@ -406,37 +408,27 @@ impl GraphBuilder {
         let mut before = Before::from(vec![VecB::from(vec![Unordered; self.b.0]); self.b.0]);
 
         let mut disjoint_pairs = 0;
-
-        // Set the trivial ones.
-        for u in NodeB(0)..self.b {
-            for v in NodeB(0)..self.b {
-                if self[u].last() < self[v].first() {
-                    before[u][v] = Before;
-                    disjoint_pairs += 1;
-                }
-                if self[u].first() > self[v].last() {
-                    before[u][v] = After;
-                    disjoint_pairs += 1;
-                }
-            }
-        }
-        info!("Found {disjoint_pairs} disjoint pairs");
-
-        if get_flag("no_dominating_pairs") {
-            return before;
-        }
-
         let mut dominating_pairs = 0;
 
         for u in NodeB(0)..self.b {
             for v in NodeB(0)..self.b {
-                if u == v || before[u][v] != Unordered || self[u] == self[v] {
+                if u == v || self[u] == self[v] {
+                    continue;
+                }
+                // TODO: Skip this computation for pairs implied by the transitive closure.
+                if self[u].last() < self[v].first() {
+                    before[u][v] = Before;
+                    disjoint_pairs += 1;
+                    continue;
+                }
+                if self[u].first() > self[v].last() {
+                    before[u][v] = After;
+                    disjoint_pairs += 1;
                     continue;
                 }
 
+                // u[i] must be smaller than v[j] for all j>=floor(i*vl/ul)
                 if (0..self[u].len()).all(|i| {
-                    // u[i] must be smaller than v[j]
-                    // for all j>=floor(i*vl/ul)
                     let j = (i * self[v].len()) / self[u].len();
                     self[u][i] <= self[v][j]
                 }) {
@@ -446,6 +438,7 @@ impl GraphBuilder {
                 }
             }
         }
+        info!("Found {disjoint_pairs} disjoint pairs");
         info!("Found {dominating_pairs} dominating pairs");
         before
     }
@@ -764,9 +757,10 @@ impl GraphBuilder {
         Self::edge_list_crossings(&self[i], &self[j])
     }
 
-    fn crossings(&self) -> (u64, ReducedCrossings) {
+    fn crossings(&self) -> (u64, ReducedCrossings, VecB<Range<NodeB>>) {
         let mut min_crossings = 0;
         let mut reduced_crossings = VecB::from(vec![VecB::new(self.b); self.b.0]);
+        let mut cr_range = VecB::from(vec![self.b..NodeB(0); self.b.0]);
         // rightmost nb in each prefix.
         let rightmost = self
             .connections_b
@@ -813,6 +807,7 @@ impl GraphBuilder {
                 // reduced_crossings[i][j] = CR::MIN;
                 j = Step::forward(j, 1);
             }
+            cr_range[i].end = j;
 
             while j < self.b && leftmost[j.0] <= ri {
                 // HOT: 20% of time is spent on the inefficient memory access here.
@@ -823,8 +818,17 @@ impl GraphBuilder {
                 }
                 let cr = cij as i64 - cji as i64;
                 reduced_crossings[i][j] = try_into(cr, i, j);
+                if cr < 0 && cr_range[i].start == self.b {
+                    cr_range[i].start = j;
+                }
 
                 j = Step::forward(j, 1);
+                if cr > 0 {
+                    cr_range[i].end = j;
+                }
+            }
+            if cr_range[i].start == self.b {
+                cr_range[i].start = j;
             }
 
             while j < self.b {
@@ -834,7 +838,7 @@ impl GraphBuilder {
                 j = Step::forward(j, 1);
             }
         }
-        (min_crossings, reduced_crossings)
+        (min_crossings, reduced_crossings, cr_range)
     }
 
     pub fn invert(&self, solution: Solution) -> Solution {
