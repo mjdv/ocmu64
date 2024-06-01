@@ -1,5 +1,6 @@
 run *args='':
     cargo run -r -- {{args}}
+alias r := run
 exact t='100':
     @cargo run -r --quiet -- --input input/exact --timelimit {{t}}
 generate *args='':
@@ -11,7 +12,6 @@ record *args='':
     perf record cargo run -r -- {{args}}
 report:
     perf report
-alias r := report
 record_report *args='': (record args) report
 alias p := record_report
 
