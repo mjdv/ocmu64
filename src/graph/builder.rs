@@ -717,13 +717,7 @@ impl GraphBuilder {
             self.connections_b
                 .iter()
                 .map(|b| {
-                    let (min, max) = b
-                        .iter()
-                        .copied()
-                        .minmax()
-                        .into_option()
-                        .unwrap_or((NodeA(0), NodeA(0)));
-                    min..max
+                    b.first().copied().unwrap_or(NodeA(0))..b.last().copied().unwrap_or(NodeA(0))
                 })
                 .collect(),
         )

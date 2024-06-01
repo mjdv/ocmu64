@@ -58,6 +58,7 @@ pub struct Graph {
     /// Similarly, the suffix will all be negative because putting a random element after everything is expensive.
     pub cr_range: VecB<Range<NodeB>>,
 
+    /// For each node, its first and last neighbor in A.
     pub intervals: VecB<Range<NodeA>>,
     pub self_crossings: u64,
     pub before: Before,
