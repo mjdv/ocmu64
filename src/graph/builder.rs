@@ -251,7 +251,7 @@ impl GraphBuilder {
         self.merge_twins();
         self.merge_adjacent_edges();
         self.sort_edges();
-        self.permute(initial_solution(&self.to_quick_graph()));
+        self.permute(initial_solution::initial_solution(&self.to_quick_graph()));
         self.sort_edges();
         self.print_stats();
         if get_flag("no_split") {
