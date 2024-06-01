@@ -598,6 +598,7 @@ impl<'a> Bb<'a> {
             let tail = &self.solution[self.solution_len..];
 
             if self.solution_len > 0 && !get_flag("no_glue2") {
+                // If there is a vertex v in the tail such that not a single u wants to go before it, then fix v.
                 'v: for i in self.solution_len..self.solution.len() {
                     let v = self.solution[i];
                     // early check in better ordered direction.
@@ -621,10 +622,12 @@ impl<'a> Bb<'a> {
             }
 
             // TODO: Why are there cases where uv are glued below but not already above.
-            if self.solution_len > 0 && get_flag("glue") {
+            if self.solution_len > 0 && get_flag("no_glue") {
                 let u = self.solution[self.solution_len - 1];
                 for i in self.solution_len..self.solution.len() {
                     let v = self.solution[i];
+                    // TODO: is this slow?
+                    // TODO: Cache this.
                     if is_practically_glued_pair(
                         u,
                         v,

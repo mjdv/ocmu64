@@ -160,9 +160,9 @@ Flags named =no_...= disable features that should just work and not give contrad
 - ~no_lb~: local before: update 'local before' with local practical dominating pairs.
 - ~no_lb_cache~: cache local before vec per tail.
 - ~no_glue2~: glue v to u if cr(v,x) <= 0 for all x in the tail.
+- ~no_glue~: glue states that must be adjacent on-the-fly.
 
 ** In progress
-- ~glue~: glue states that must be adjacent on-the-fly.
 
 ** Disabled
 - ~tc~: take the transitive closure of the =before= matrix.
@@ -188,6 +188,5 @@ Flags named =no_...= disable features that should just work and not give contrad
   a single/small set Z. Then try uv first, and if not fall back to uZv, which
   should be killed quickly then.
 - Optimize code for  parameterized track.
-- Up-front glueing.
-
 - In initial solution, also try optimally inserting blocks instead of just singletons.
+- *Up-front practical glueing.*
