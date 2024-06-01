@@ -18,6 +18,7 @@ use itertools::Itertools;
 use log::*;
 
 mod builder;
+pub mod initial_solution;
 mod io;
 
 /// Before[u][v] is true if u must come before v.
@@ -189,89 +190,6 @@ pub fn extend_solution_recursive(g: &Graph, solution: &mut Solution) -> (u64, Ve
     (best_score, best_extension)
 }
 
-fn sort_by_median(g: &Graph, solution: &mut [NodeB]) {
-    let get_median = |x: NodeB| g[x][g[x].len() / 2];
-    solution.sort_by_key(|x| get_median(*x));
-}
-
-/// Commute adjacent nodes as long as the score improves.
-fn commute_adjacent(g: &Graph, vec: &mut [NodeB]) {
-    let mut changed = true;
-    while changed {
-        changed = false;
-        for i in 1..vec.len() {
-            if g.cr(vec[i - 1], vec[i]) > 0 {
-                (vec[i - 1], vec[i]) = (vec[i], vec[i - 1]);
-                changed = true;
-            }
-        }
-    }
-}
-
-/// Sort adjacent nodes if they can be swapped without decreasing the score.
-fn sort_adjacent(g: &Graph, sol: &mut [NodeB]) {
-    let mut changed = true;
-    while changed {
-        changed = false;
-        for i in 1..sol.len() {
-            if g.cr(sol[i - 1], sol[i]) >= 0 && sol[i - 1] > sol[i] {
-                (sol[i - 1], sol[i]) = (sol[i], sol[i - 1]);
-                changed = true;
-            }
-        }
-    }
-}
-
-/// Keep iterating to find nodes that can be moved elsewhere.
-fn optimal_insert(g: &Graph, sol: &mut [NodeB]) {
-    let mut changed = true;
-    while changed {
-        changed = false;
-        // Try to move i elsewhere.
-        for i in 0..sol.len() {
-            let u = sol[i];
-            let mut best_delta = 0;
-            let mut best_j = i;
-            // move left
-            let mut cur_delta = 0;
-            for (j, &v) in sol[..i].iter().enumerate().rev() {
-                cur_delta -= g.cr(u, v);
-                if cur_delta > best_delta {
-                    best_delta = cur_delta;
-                    best_j = j;
-                }
-            }
-            // move right
-            let mut cur_delta = 0;
-            for (j, &v) in sol.iter().enumerate().skip(i + 1) {
-                cur_delta -= g.cr(v, u);
-                if cur_delta > best_delta {
-                    best_delta = cur_delta;
-                    best_j = j;
-                }
-            }
-            if best_j > i {
-                sol[i..=best_j].rotate_left(1);
-                changed = true;
-            }
-            if best_j < i {
-                sol[best_j..=i].rotate_right(1);
-                changed = true;
-            }
-        }
-    }
-}
-
-fn initial_solution(g: &Graph) -> Vec<NodeB> {
-    let mut initial_solution = (NodeB(0)..g.b).collect::<Vec<_>>();
-    sort_by_median(g, &mut initial_solution);
-    commute_adjacent(g, &mut initial_solution);
-    optimal_insert(g, &mut initial_solution);
-    sort_adjacent(g, &mut initial_solution);
-
-    initial_solution
-}
-
 fn oscm_part(g: &mut Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
     let mut bb = Bb::new(g, bound);
     bb.branch_and_bound();
@@ -303,7 +221,7 @@ fn oscm_part(g: &mut Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
     debug_assert_eq!(g.score(&best_solution), best_score);
 
     if log::log_enabled!(log::Level::Debug) {
-        sort_adjacent(g, &mut best_solution);
+        initial_solution::sort_adjacent(g, &mut best_solution);
         debug_assert_eq!(g.score(&best_solution), best_score);
     }
 
@@ -433,6 +351,11 @@ impl<'a> Bb<'a> {
         let initial_solution = (NodeB(0)..g.b).collect::<Vec<_>>();
         let initial_score = g.score(&initial_solution);
 
+        debug!(
+            "Initial solution      : {}",
+            display_solution(g, &initial_solution, true)
+        );
+
         info!("Initial solution found, with score {initial_score}.");
 
         let score = g.self_crossings + g.min_crossings;
@@ -559,20 +482,6 @@ impl<'a> Bb<'a> {
         let old_tail = tail.to_vec();
         let old_solution_len = self.solution_len;
         let old_score = self.score;
-
-        // CAREFUL: Some optimizations may depend on the order of the tail!
-        // TODO(ragnar): Test whether re-optimizing the tail actually improves performance.
-        // Results seem mixed.
-        //
-        // TODO(mees): use some heuristics to choose an ordering for trying nodes.
-        // Sorting takes 20% of time and doesn't do much. Maybe add back later.
-        // let get_median = |x| self.g.connections_b[x][self.g.connections_b[x].len() / 2];
-        // tail.sort_by_key(|x| get_median(*x));
-        // TODO: First check if we can swap the elements that were around the new leading element.
-        if false {
-            let tail = &mut self.solution[self.solution_len..];
-            commute_adjacent(self.g, tail);
-        }
 
         let mut solution = false;
 
