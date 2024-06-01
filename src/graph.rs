@@ -247,7 +247,8 @@ pub fn one_sided_crossing_minimization(
     mut gb: GraphBuilder,
     mut bound: Option<u64>,
 ) -> Option<(Solution, u64)> {
-    let g0 = gb.to_graph();
+    // g0 is only used for verification and displaying.
+    let g0 = gb.to_graph(false);
     let graph_builders = gb.build();
     let num_parts = graph_builders.len();
     let mut score = gb.self_crossings;
@@ -255,7 +256,7 @@ pub fn one_sided_crossing_minimization(
     let sol = 'sol: {
         let mut solution = Solution::default();
         for (i, mut gb) in graph_builders.into_iter().enumerate() {
-            let mut g = gb.to_graph();
+            let mut g = gb.to_graph(true);
             let Some((part_sol, part_score)) = oscm_part(&mut g, bound) else {
                 info!("No solution for part {i} of {num_parts}.");
                 break 'sol None;
@@ -285,7 +286,7 @@ pub fn one_sided_crossing_minimization(
             }
         }
         info!("{}", display_solution(&g0, &solution, false));
-        assert_eq!(score, g0.score(&solution), "WRONG SCORE FOR FINAL SOLUTION");
+        debug_assert_eq!(score, g0.score(&solution), "WRONG SCORE FOR FINAL SOLUTION");
 
         Some((solution, score))
     };

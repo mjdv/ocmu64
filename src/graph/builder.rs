@@ -114,24 +114,6 @@ impl GraphBuilder {
         g
     }
 
-    pub fn to_quick_graph(&self) -> Graph {
-        let (min_crossings, cr, cr_range) = self.crossings();
-        Graph {
-            a: self.a,
-            b: self.b,
-            m: self.connections_a.iter().map(|x| x.len()).sum::<usize>(),
-            b_permutation: Default::default(),
-            connections_a: self.connections_a.clone(),
-            connections_b: self.connections_b.clone(),
-            min_crossings,
-            reduced_crossings: cr,
-            cr_range,
-            intervals: self.intervals(),
-            self_crossings: self.self_crossings,
-            before: VecB::new(self.b),
-        }
-    }
-
     /// Split into non-trivial graphs corresponding to disjoint intervals.
     fn split(&self) -> Vec<GraphBuilder> {
         let mut intervals = self.intervals();
@@ -204,13 +186,19 @@ impl GraphBuilder {
         self.connections_a.iter().map(|x| x.len()).sum::<usize>()
     }
 
-    pub fn to_graph(&mut self) -> Graph {
+    pub fn to_graph(&mut self, full: bool) -> Graph {
         self.sort_edges();
         let (min_crossings, cr, cr_range) = self.crossings();
-        let mut before = self.dominating_pairs();
-        self.practical_dominating_pairs(&mut before, &cr);
-        self.boundary_pairs(&mut before);
-        Self::transitive_closure(&mut before);
+
+        let before = if full {
+            let mut before = self.dominating_pairs();
+            self.practical_dominating_pairs(&mut before, &cr);
+            self.boundary_pairs(&mut before);
+            Self::transitive_closure(&mut before);
+            before
+        } else {
+            VecB::new(self.b)
+        };
 
         Graph {
             a: self.a,
@@ -252,8 +240,8 @@ impl GraphBuilder {
         }
         self.merge_twins();
         self.merge_adjacent_edges();
-        self.sort_edges();
-        self.permute(initial_solution::initial_solution(&self.to_quick_graph()));
+        let g = self.to_graph(false);
+        self.permute(initial_solution::initial_solution(&g));
         self.sort_edges();
         self.print_stats();
         if get_flag("no_split") {
