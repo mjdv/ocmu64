@@ -144,35 +144,33 @@ Also runs in $2^c\cdot poly(n,c)$ for max cut-width $c$.
 * Flags
 
 ** Misc
-- update_db_score: when score differs from stored score, overwrite instead of panic
-- pattern_search: search for 'weird' patterns in the solution.
+- ~update_db_score~: when score differs from stored score, overwrite instead of panic
+- ~pattern_search~: search for 'weird' patterns in the solution.
 
 ** Safe
 Flags named =no_...= disable features that should just work and not give contradictions.
 
-- no_optimal_insert: disable optimal insert, which inserts new states in the
+- ~no_optimal_insert~: disable optimal insert, which inserts new states in the
   optimal position in the already placed list.
-- no_transform: disable graph simplifications (merging nodes / splitting components)
-- no_split: disable splitting the graph in small parts
-- no_dominating_pairs: disable =u_i < v_{j*n/i}= check.
-- no_pd: disable practical dominating pairs.
+- ~no_transform~: disable graph simplifications (merging nodes / splitting components)
+- ~no_split~: disable splitting the graph in small parts
+- ~no_dominating_pairs~: disable =u_i < v_{j*n/i}= check.
+- ~no_pd~: disable practical dominating pairs.
+- ~no_lpd~: enable local practical dominating
+- ~no_lb~: local before: update 'local before' with local practical dominating pairs.
+- ~no_lb_cache~: cache local before vec per tail.
+- ~no_glue2~: glue v to u if cr(v,x) <= 0 for all x in the tail.
 
 ** In progress
-- lpd: enable local practical dominating
-- lb: local before: update 'local before' with local practical dominating pairs.
-- lb_cache: cache local before vec per tail.
-- glue2: glue v to u if cr(v,x) <= 0 for all x in the tail.
-
+- ~glue~: glue states that must be adjacent on-the-fly.
 
 ** Disabled
-- tc: take the transitive closure of the =before= matrix.
-- glue: glue states that must be adjacent on-the-fly.
-
+- ~tc~: take the transitive closure of the =before= matrix.
 
 ** Unsafe / broken
-- c3: add min score of (u,v,w) if larger than pairwise min(cuv, cvu) scores.
-- boundary_pairs: fix vertices that only have green left/below them.
-- eq_boundary_pairs: stronger version to force equal cases. Broken on exact/049.gr.
+- ~c3~: add min score of (u,v,w) if larger than pairwise min(cuv, cvu) scores.
+- ~boundary_pairs~: fix vertices that only have green left/below them.
+- ~eq_boundary_pairs~: stronger version to force equal cases. Broken on exact/049.gr.
 
 * Scoreboard
 |    pos | score | 47   | 48 | 49 | 50 | 51 | 55 | 64 | 65 | 66 | 67 | 72 | 73 | 74 | 75 | 76 | 77 | 78 | 80 | 81 | 82 | 93 | 94 | 95 | 96 | 97 |
