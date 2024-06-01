@@ -110,30 +110,25 @@ impl Database {
         results.runs.push(result);
         if let Some(new_score) = score {
             if let Some(existing_score) = &results.score {
-                if get_flag("update_db_score") {
-                    if new_score != *existing_score {
-                        let delta = if new_score > *existing_score {
-                            "Increasing"
-                        } else {
-                            "Decreasing"
-                        };
-                        let msg = format!(
-                            "\n{delta} score for {} from {} to {}.",
-                            input.display(),
-                            existing_score,
-                            new_score
-                        );
-                        error!("{}", msg.red());
-                        results.score = Some(new_score);
-                    }
-                } else {
-                    assert_eq!(
-                        new_score,
-                        *existing_score,
-                        "New score {new_score} does not equal existing score {existing_score} for {}.",
-                        results.path.display(),
+                if new_score != *existing_score {
+                    let delta = if new_score > *existing_score {
+                        "Increasing"
+                    } else {
+                        "Decreasing"
+                    };
+                    let msg = format!(
+                        "\n{delta} score for {} from {} to {}.",
+                        input.display(),
+                        existing_score,
+                        new_score
                     );
-                    results.score = Some(new_score.min(*existing_score));
+                    error!("{}", msg.red());
+                    if get_flag("update_db_score") {
+                        results.score = Some(new_score);
+                    } else {
+                        error!("{}", "Aborting!".red());
+                        std::process::exit(1);
+                    }
                 }
             } else {
                 results.score = Some(new_score);
