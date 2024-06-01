@@ -793,17 +793,16 @@ impl GraphBuilder {
             let li = *self[i].first().unwrap();
             let ri = *self[i].last().unwrap();
 
-            let mut j = NodeB(0);
+            let jl = NodeB(prefix_max.binary_search(&li).unwrap_or_else(|x| x));
+            // Instead of computing the true value, we just put a large value, since i will never come before them anyway.
+            reduced_crossings[i].v[..jl.0].fill(CR::MAX);
 
-            while j < self.b && prefix_max[j] < li {
-                let cr = self[i].len() * self[j].len();
-                reduced_crossings[i][j] = try_into(cr as i64, i, j);
-                // reduced_crossings[i][j] = CR::MIN;
-                j = Step::forward(j, 1);
-            }
-            cr_range[i].end = j;
+            let jr = NodeB(suffix_min.binary_search(&ri).unwrap_or_else(|x| x));
+            reduced_crossings[i].v[jr.0..].fill(CR::MIN);
 
-            while j < self.b && suffix_min[j] <= ri {
+            cr_range[i] = jl..jr;
+
+            for j in jl..jr {
                 // HOT: 20% of time is spent on the inefficient memory access here.
                 let cij = self.one_node_crossings(i, j);
                 let cji = self.one_node_crossings(j, i);
@@ -812,24 +811,6 @@ impl GraphBuilder {
                 }
                 let cr = cij as i64 - cji as i64;
                 reduced_crossings[i][j] = try_into(cr, i, j);
-                if cr < 0 && cr_range[i].start == self.b {
-                    cr_range[i].start = j;
-                }
-
-                j = Step::forward(j, 1);
-                if cr > 0 {
-                    cr_range[i].end = j;
-                }
-            }
-            if cr_range[i].start == self.b {
-                cr_range[i].start = j;
-            }
-
-            while j < self.b {
-                let cr = self[i].len() * self[j].len();
-                reduced_crossings[i][j] = try_into(-(cr as i64), i, j);
-                // reduced_crossings[i][j] = CR::MIN;
-                j = Step::forward(j, 1);
             }
         }
         (
