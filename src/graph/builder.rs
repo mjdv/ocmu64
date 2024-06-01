@@ -737,6 +737,18 @@ impl GraphBuilder {
     }
 
     pub fn edge_list_crossings(e1: &Vec<NodeA>, e2: &Vec<NodeA>) -> u64 {
+        debug_assert!(e1.is_sorted() && e2.is_sorted());
+        if e1.is_empty() || e2.is_empty() {
+            return 0;
+        }
+        if e1.last().unwrap() <= e2.first().unwrap() {
+            return 0;
+        }
+        if e1.first().unwrap() > e2.last().unwrap() {
+            return e1.len() as u64 * e2.len() as u64;
+        }
+        // HOT FIXME: Assume both lists are sorted and do single pass
+        // two-pointer.
         let mut result: u64 = 0;
         for edge_i in e1 {
             for edge_j in e2 {
