@@ -463,8 +463,9 @@ impl GraphBuilder {
 
         let xs = (NodeB(0)..self.b).collect_vec();
 
-        for u in NodeB(0)..self.b {
-            for v in NodeB(0)..self.b {
+        // For loop is reversed before is_pdp is more efficient with fixed v.
+        for v in NodeB(0)..self.b {
+            for u in NodeB(0)..self.b {
                 match is_practically_dominating_pair(u, v, before, &cr, &xs) {
                     IsPDP::Skip => {}
                     IsPDP::No => {
@@ -492,6 +493,7 @@ pub enum IsPDP {
 }
 
 /// Is u forced before v because there is no separating set?
+/// Prefers v to be 'constant' and u to be the 'iterator'.
 pub fn is_practically_dominating_pair(
     u: NodeB,
     v: NodeB,
