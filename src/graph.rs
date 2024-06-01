@@ -51,8 +51,13 @@ pub struct Graph {
     pub b_permutation: VecB<NodeB>,
     /// Sum_{u,v} min(cuv, cvu)
     pub min_crossings: u64,
-    /// cuv-cvu
+    /// cr = cuv-cvu
     pub reduced_crossings: ReducedCrossings,
+    /// The range from leftmost negative element to just past the rightmost positive element.
+    /// Typically, the prefix will all be positive because putting a random element before everything is expensive.
+    /// Similarly, the suffix will all be negative because putting a random element after everything is expensive.
+    pub cr_range: VecB<Range<NodeB>>,
+
     pub intervals: VecB<Range<NodeA>>,
     pub self_crossings: u64,
     pub before: Before,
