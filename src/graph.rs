@@ -73,8 +73,12 @@ impl Graph {
     fn score(&self, solution: &Solution) -> u64 {
         assert_eq!(solution.len(), self.b.0, "Solution has wrong length.");
         let mut score = self.self_crossings + self.min_crossings;
-        for (j, &b2) in solution.iter().enumerate() {
-            for &b1 in &solution[..j] {
+        // HOT: 10% of parameterized time is here.
+        // TODO: Compute rightmost edge of prefix and leftmost edge of suffix to
+        // exclude pairs with cost 0.
+        // TODO: Invert solution permutation and iterate over i,j and their positions in the solution, rather than over the solution order itself.
+        for (j, &b1) in solution.iter().enumerate() {
+            for &b2 in &solution[j + 1..] {
                 score += self.cr(b1, b2).max(0) as u64;
             }
         }
@@ -297,8 +301,11 @@ fn oscm_part(g: &mut Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
     info!("Best score: {best_score}");
     let mut best_solution = bb.best_solution;
     debug_assert_eq!(g.score(&best_solution), best_score);
-    sort_adjacent(g, &mut best_solution);
-    debug_assert_eq!(g.score(&best_solution), best_score);
+
+    if log::log_enabled!(log::Level::Debug) {
+        sort_adjacent(g, &mut best_solution);
+        debug_assert_eq!(g.score(&best_solution), best_score);
+    }
 
     debug!(
         "Solution      : {}",
@@ -329,7 +336,7 @@ pub fn one_sided_crossing_minimization(
                 info!("No solution for part {i} of {num_parts}.");
                 break 'sol None;
             };
-            assert_eq!(part_score, g.score(&part_sol), "WRONG SCORE FOR PART");
+            debug_assert_eq!(part_score, g.score(&part_sol), "WRONG SCORE FOR PART");
             // info!("{part_sol:?}");
             // Make sure that all `must_come_before` constraints are satisfied.
             for (u, v) in part_sol.iter().copied().tuple_combinations() {
