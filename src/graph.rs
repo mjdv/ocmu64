@@ -674,9 +674,9 @@ impl<'a> Bb<'a> {
 
         let mut solution = false;
 
-        let has_lpd = get_flag("lpd"); // local practical dominating
-        let has_lb = get_flag("lb"); // local before
-        let has_lb_cache = get_flag("lb_cache"); // local before cache
+        let has_lpd = !get_flag("no_lpd"); // local practical dominating
+        let has_lb = !get_flag("no_lb"); // local before
+        let has_lb_cache = !get_flag("no_lb_cache"); // local before cache
 
         // Find new PDPs.
         let mut u_to_try = vec![];
@@ -695,7 +695,7 @@ impl<'a> Bb<'a> {
         'u_to_try: {
             let tail = &self.solution[self.solution_len..];
 
-            if self.solution_len > 0 && get_flag("glue2") {
+            if self.solution_len > 0 && !get_flag("no_glue2") {
                 'v: for i in self.solution_len..self.solution.len() {
                     let v = self.solution[i];
                     // early check in better ordered direction.
