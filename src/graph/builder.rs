@@ -115,7 +115,7 @@ impl GraphBuilder {
     }
 
     pub fn to_quick_graph(&self) -> Graph {
-        let (crossings, reduced_crossings) = self.crossings();
+        let (min_crossings, reduced_crossings) = self.crossings();
         Graph {
             a: self.a,
             b: self.b,
@@ -123,7 +123,7 @@ impl GraphBuilder {
             b_permutation: Default::default(),
             connections_a: self.connections_a.clone(),
             connections_b: self.connections_b.clone(),
-            crossings,
+            min_crossings,
             reduced_crossings,
             intervals: self.intervals(),
             self_crossings: self.self_crossings,
@@ -205,7 +205,7 @@ impl GraphBuilder {
 
     pub fn to_graph(&mut self) -> Graph {
         self.sort_edges();
-        let (crossings, reduced_crossings) = self.crossings();
+        let (min_crossings, reduced_crossings) = self.crossings();
         let mut before = self.dominating_pairs();
         self.practical_dominating_pairs(&mut before);
         self.boundary_pairs(&mut before);
@@ -218,7 +218,7 @@ impl GraphBuilder {
             b_permutation: Default::default(),
             connections_a: self.connections_a.clone(),
             connections_b: self.connections_b.clone(),
-            crossings,
+            min_crossings,
             reduced_crossings,
             intervals: self.intervals(),
             self_crossings: self.self_crossings,
@@ -752,27 +752,24 @@ impl GraphBuilder {
         Self::edge_list_crossings(&self[i], &self[j])
     }
 
-    fn crossings(&self) -> (Crossings, ReducedCrossings) {
-        let mut crossings = VecB::from(vec![VecB::new(self.b); self.b.0]);
-        for node_i in NodeB(0)..self.b {
-            for node_j in NodeB(0)..self.b {
-                let c = self.one_node_crossings(node_i, node_j);
-                crossings[node_i][node_j] = c.try_into().unwrap_or_else(|_| {
-                    panic!("Crossings between {node_i} and {node_j} is too large: {c}",)
-                });
-            }
-        }
+    fn crossings(&self) -> (u64, ReducedCrossings) {
+        let mut min_crossings = 0;
         let mut reduced_crossings = VecB::from(vec![VecB::new(self.b); self.b.0]);
         for i in NodeB(0)..self.b {
             for j in NodeB(0)..self.b {
                 // HOT: 20% of time is spent on the inefficient memory access here.
-                let cr = crossings[i][j] as i64 - crossings[j][i] as i64;
+                let cij = self.one_node_crossings(i, j);
+                let cji = self.one_node_crossings(j, i);
+                if i < j {
+                    min_crossings += min(cij, cji);
+                }
+                let cr = cij as i64 - cji as i64;
                 reduced_crossings[i][j] = cr.try_into().unwrap_or_else(|_| {
                     panic!("Crossings between {i} and {j} is too large: {cr}",)
                 });
             }
         }
-        (crossings, reduced_crossings)
+        (min_crossings, reduced_crossings)
     }
 
     pub fn invert(&self, solution: Solution) -> Solution {
