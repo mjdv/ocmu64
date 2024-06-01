@@ -603,8 +603,9 @@ impl<'a> Bb<'a> {
 
         debug_assert_eq!(self.tail_mask.count_zeros(), self.solution_len);
 
-        // TODO(ragnar): Figure out why tail isn't always sorted.
         let tail = &self.solution[self.solution_len..];
+
+        debug_assert!(tail.is_sorted());
 
         if self.solution_len == self.solution.len() {
             self.sols_found += 1;
@@ -810,9 +811,20 @@ impl<'a> Bb<'a> {
 
         // If we skipped some children because of local pruning, do not update the lower bound for this tail.
         // Try each of the tail nodes as next node.
+        let mut last_i = self.solution_len;
         'u: for (i, u) in u_to_try {
             // Swap the next tail node to the front of the tail.
             self.solution.swap(self.solution_len, i);
+            // Make sure the tail remains sorted.
+            if last_i + 1 <= i {
+                self.solution[last_i + 1..=i].rotate_right(1);
+            }
+            last_i = i;
+
+            debug_assert_eq!(self.solution[self.solution_len], u);
+            debug_assert!(
+                self.solution[(self.solution_len + 1).min(self.solution.len())..].is_sorted()
+            );
 
             // NOTE: Adjust the score as if u was inserted in the optimal place in the prefix.
             let mut best_delta = 0;
