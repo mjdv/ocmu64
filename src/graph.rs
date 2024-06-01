@@ -84,47 +84,6 @@ impl Graph {
         min(self.c(u, v), self.c(v, u))
     }
 
-    /// Min score of positioning u, v, and w, above the pairwise commute_2 terms.
-    fn commute_3(&self, u: NodeB, v: NodeB, w: NodeB, print: bool) -> u64 {
-        let c2 = self.commute_2(u, v) + self.commute_2(v, w) + self.commute_2(u, w);
-        let orders = [
-            (u, v, w),
-            (u, w, v),
-            (v, u, w),
-            (v, w, u),
-            (w, u, v),
-            (w, v, u),
-        ];
-        let c3 = orders
-            .into_iter()
-            .map(|(u, v, w)| {
-                let s = self.c(u, v) + self.c(v, w) + self.c(u, w);
-                // warn!("Order [{u}, {v}, {w}]: {s}");
-                s
-            })
-            .min()
-            .unwrap();
-        assert!(c3 >= c2);
-        if self.intervals[u].end < self.intervals[w].start {
-            assert!(c3 == c2);
-        }
-        if c3 > c2 && print {
-            debug!(
-                "{u:>4} {v:>4} {w:>4}: {:>3} - {:>3} = {:>3}   {:>2} {:>2} {:>2} {:>2} | {:>2} {:>2}",
-                c3,
-                c2,
-                c3 - c2,
-                self.c(u, v),
-                self.c(v, u),
-                self.c(v, w),
-                self.c(w, v),
-                self.c(u, w),
-                self.c(w, u),
-            );
-        }
-        c3 - c2
-    }
-
     /// The score of a solution.
     fn score(&self, solution: &[NodeB]) -> u64 {
         assert_eq!(solution.len(), self.b.0, "Solution has wrong length.");
@@ -150,26 +109,6 @@ impl Graph {
             score += rc[v].max(0) as u64;
         }
         score
-    }
-
-    /// Compute the increase of score from fixing u before the tail.
-    fn partial_score_3(&self, u: NodeB, tail: &[NodeB]) -> u64 {
-        let rc = &self.reduced_crossings;
-        let mut score = 0;
-        for &v in tail {
-            score += rc[u][v].max(0) as u64;
-        }
-        let mut edge_scores = HashMap::new();
-        for (v, w) in tail.iter().copied().tuple_combinations() {
-            let min = u.min(v).min(w);
-            let max = u.max(v).max(w);
-            let c = self.commute_3(u, v, w, false);
-            if c > 0 {
-                let v = edge_scores.entry((min, max)).or_insert(0u64);
-                *v = (*v).max(c);
-            }
-        }
-        score - edge_scores.values().sum::<u64>()
     }
 }
 
@@ -516,26 +455,6 @@ impl<'a> Bb<'a> {
         score += commute_2;
         info!("Commute 2: {commute_2}");
 
-        if get_flag("c3") {
-            let mut edge_scores = HashMap::new();
-            for (u, v, w) in tail.iter().copied().tuple_combinations() {
-                let c = g.commute_3(u, v, w, true);
-                if c > 0 {
-                    let v = edge_scores.entry((u, w)).or_insert(0u64);
-                    *v = (*v).max(c);
-                }
-            }
-            let commute_3 = edge_scores.values().sum::<u64>();
-            // let commute_3 = tail
-            //     .iter()
-            //     .copied()
-            //     .tuple_combinations()
-            //     .map(|(u, v, w)| g.commute_3(u, v, w))
-            //     .sum::<u64>();
-            // score += commute_3;
-            info!("Commute 3: {commute_3}");
-        }
-
         info!("Score lower bound: {score}");
 
         assert2::assert!(
@@ -851,13 +770,9 @@ impl<'a> Bb<'a> {
 
             // Increment score for the new node, and decrement tail_lower_bound.
             // TODO: Early break once the upper_bound is hit.
-            let partial_score = if false && get_flag("c3") {
-                self.g
-                    .partial_score_3(u, &self.solution[self.solution_len + 1..])
-            } else {
-                self.g
-                    .partial_score_2(u, &self.solution[self.solution_len + 1..])
-            };
+            let partial_score = self
+                .g
+                .partial_score_2(u, &self.solution[self.solution_len + 1..]);
 
             self.score -= best_delta;
             self.score += partial_score;

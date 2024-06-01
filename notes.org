@@ -168,7 +168,6 @@ Flags named =no_...= disable features that should just work and not give contrad
 - ~tc~: take the transitive closure of the =before= matrix.
 
 ** Unsafe / broken
-- ~c3~: add min score of (u,v,w) if larger than pairwise min(cuv, cvu) scores.
 - ~boundary_pairs~: fix vertices that only have green left/below them.
 - ~eq_boundary_pairs~: stronger version to force equal cases. Broken on exact/049.gr.
 
