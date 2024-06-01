@@ -341,33 +341,13 @@ fn initial_solution(g: &Graph) -> Vec<NodeB> {
     commute_adjacent(g, &mut initial_solution);
     optimal_insert(g, &mut initial_solution);
     sort_adjacent(g, &mut initial_solution);
+
     initial_solution
 }
 
 fn oscm_part(g: &mut Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
-    // TODO: use better initial solution and permute the graph accordingly.
-    let initial_solution = if get_flag("initial_sort") {
-        initial_solution(g)
-    } else {
-        (NodeB(0)..g.b).collect::<Vec<_>>()
-    };
-    // assert!(initial_solution.is_sorted());
-    let initial_score = g.score(&initial_solution);
-    debug!(
-        "Initial sol   : {}",
-        display_solution(g, &initial_solution, true)
-    );
-    info!("Initial solution found, with score {initial_score}.");
-    let bound = if let Some(bound) = bound {
-        min(bound, initial_score)
-    } else {
-        initial_score
-    };
-    if bound < initial_score {
-        info!("Set bound to {bound}.");
-    }
     let mut bb = Bb::new(g, bound);
-    let solution_found = bb.branch_and_bound();
+    bb.branch_and_bound();
 
     info!("");
     info!("Sols found    : {:>9}", bb.sols_found);
@@ -391,22 +371,22 @@ fn oscm_part(g: &mut Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
     info!("tail skip     : {:>9}", bb.tail_skip);
 
     let best_score = bb.best_score;
+    info!("Best score: {best_score}");
     let mut best_solution = bb.best_solution;
+    debug_assert_eq!(g.score(&best_solution), best_score);
     sort_adjacent(g, &mut best_solution);
+    debug_assert_eq!(g.score(&best_solution), best_score);
 
     debug!(
         "Solution      : {}",
         display_solution(g, &best_solution, true)
     );
-    if solution_found {
-        Some((best_solution, best_score))
-    } else {
-        if initial_score <= bound {
-            Some((initial_solution, initial_score))
-        } else {
-            None
-        }
+    if let Some(bound) = bound
+        && best_score > bound
+    {
+        return None;
     }
+    Some((best_solution, best_score))
 }
 
 pub fn one_sided_crossing_minimization(
@@ -518,10 +498,12 @@ pub struct Bb<'a> {
 }
 
 impl<'a> Bb<'a> {
-    pub fn new(g: &'a mut Graph, upper_bound: u64) -> Self {
+    pub fn new(g: &'a mut Graph, upper_bound: Option<u64>) -> Self {
         // Start with a greedy solution.
-        let initial_solution = initial_solution(g);
+        let initial_solution = (NodeB(0)..g.b).collect::<Vec<_>>();
         let initial_score = g.score(&initial_solution);
+
+        info!("Initial solution found, with score {initial_score}.");
 
         let mut score = g.self_crossings;
         let tail = &initial_solution;
@@ -567,7 +549,7 @@ impl<'a> Bb<'a> {
             solution_len: 0,
             solution: initial_solution.clone(),
             score,
-            upper_bound: min(upper_bound, initial_score),
+            upper_bound: min(upper_bound.unwrap_or(u64::MAX), initial_score),
             best_solution: initial_solution,
             best_score: initial_score,
             tail_cache: HashMap::default(),
