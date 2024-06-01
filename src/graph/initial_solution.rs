@@ -1,3 +1,5 @@
+use log::info;
+
 use super::{Graph, NodeB};
 
 pub fn initial_solution(g: &Graph) -> Vec<NodeB> {
@@ -32,7 +34,9 @@ fn commute_adjacent(g: &Graph, vec: &mut [NodeB]) {
 /// Keep iterating to find nodes that can be moved elsewhere.
 fn optimal_insert(g: &Graph, sol: &mut [NodeB]) {
     let mut changed = true;
+    let mut loops = 0;
     while changed {
+        loops += 1;
         changed = false;
         // Try to move i elsewhere.
         for i in 0..sol.len() {
@@ -67,6 +71,7 @@ fn optimal_insert(g: &Graph, sol: &mut [NodeB]) {
             }
         }
     }
+    info!("optimal insert loops {loops}");
 }
 
 /// Sort adjacent nodes if they can be swapped without decreasing the score.
