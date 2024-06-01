@@ -33,15 +33,10 @@ pub enum BeforeType {
 pub use BeforeType::*;
 pub type Before = VecB<VecB<BeforeType>>;
 
-/// Type for storing crossings count.
-/// u16 is not sufficient.
-/// TODO: Do not merge vertices when the degree goes above 128, and use u16/i16 here.
-type C = u32;
 /// Type for storing reduced crossings count.
 /// i8 is not sufficient.
 type CR = i32;
 
-type Crossings = VecB<VecB<C>>;
 type ReducedCrossings = VecB<VecB<CR>>;
 
 #[derive(Debug)]
@@ -53,8 +48,8 @@ pub struct Graph {
     pub connections_a: VecA<Vec<NodeB>>,
     pub connections_b: VecB<Vec<NodeA>>,
     pub b_permutation: VecB<NodeB>,
-    /// cuv
-    pub crossings: Crossings,
+    /// Sum_{u,v} min(cuv, cvu)
+    pub min_crossings: u64,
     /// cuv-cvu
     pub reduced_crossings: ReducedCrossings,
     pub intervals: VecB<Range<NodeA>>,
@@ -69,28 +64,18 @@ impl Graph {
         self.connections_a.iter().map(|x| x.len()).sum()
     }
 
-    /// Crossings by having b1 before b2.
-    pub fn c(&self, u: NodeB, v: NodeB) -> u64 {
-        self.crossings[u][v] as _
-    }
-
     /// c(u,v) - c(v,u)
     pub fn cr(&self, u: NodeB, v: NodeB) -> i64 {
         self.reduced_crossings[u][v] as _
     }
 
-    /// Min score of positioning u and v.
-    fn commute_2(&self, u: NodeB, v: NodeB) -> u64 {
-        min(self.c(u, v), self.c(v, u))
-    }
-
     /// The score of a solution.
-    fn score(&self, solution: &[NodeB]) -> u64 {
+    fn score(&self, solution: &Solution) -> u64 {
         assert_eq!(solution.len(), self.b.0, "Solution has wrong length.");
-        let mut score = self.self_crossings;
+        let mut score = self.self_crossings + self.min_crossings;
         for (j, &b2) in solution.iter().enumerate() {
             for &b1 in &solution[..j] {
-                score += self.c(b1, b2);
+                score += self.cr(b1, b2).max(0) as u64;
             }
         }
         score
@@ -444,16 +429,7 @@ impl<'a> Bb<'a> {
 
         info!("Initial solution found, with score {initial_score}.");
 
-        let mut score = g.self_crossings;
-        let tail = &initial_solution;
-        let commute_2 = tail
-            .iter()
-            .copied()
-            .tuple_combinations()
-            .map(|(u, v)| g.commute_2(u, v))
-            .sum::<u64>();
-        score += commute_2;
-        info!("Commute 2: {commute_2}");
+        let score = g.self_crossings + g.min_crossings;
 
         info!("Score lower bound: {score}");
 
