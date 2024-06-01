@@ -204,6 +204,7 @@ impl GraphBuilder {
     }
 
     pub fn to_graph(&mut self) -> Graph {
+        self.sort_edges();
         let (crossings, reduced_crossings) = self.crossings();
         let mut before = self.dominating_pairs();
         self.practical_dominating_pairs(&mut before);
@@ -401,7 +402,7 @@ impl GraphBuilder {
     }
 
     /// Find pairs (u,v) with equal degree and neighbours(u) <= neighbours(v).
-    fn dominating_pairs(&mut self) -> Before {
+    fn dominating_pairs(&self) -> Before {
         let mut before = Before::from(vec![VecB::from(vec![Unordered; self.b.0]); self.b.0]);
 
         let mut disjoint_pairs = 0;
@@ -427,7 +428,6 @@ impl GraphBuilder {
 
         let mut dominating_pairs = 0;
 
-        self.sort_edges();
         for u in NodeB(0)..self.b {
             for v in NodeB(0)..self.b {
                 if u == v || before[u][v] != Unordered || self[u] == self[v] {
@@ -450,7 +450,7 @@ impl GraphBuilder {
         before
     }
 
-    fn practical_dominating_pairs(&mut self, before: &mut Before) {
+    fn practical_dominating_pairs(&self, before: &mut Before) {
         if get_flag("no_pd") {
             info!("Found 0 practical dominating pairs (skipped)");
             return;
@@ -458,8 +458,6 @@ impl GraphBuilder {
 
         let mut practical_dominating_pairs = 0;
         let mut not_practical_dominating_pairs = 0;
-
-        self.sort_edges();
 
         let cr = self.crossings().1;
 
@@ -602,7 +600,7 @@ pub fn is_practically_glued_pair(
 impl GraphBuilder {
     /// When a cell is green and there is not a single red cell left-below it, fix the order of the pair.
     /// I.e.: When u < v in the current order, and for all (x,y) with x <= u < v <= y we want x < y, then fix u < v.
-    fn boundary_pairs(&mut self, before: &mut Before) {
+    fn boundary_pairs(&self, before: &mut Before) {
         if !get_flag("boundary_pairs") {
             info!("Found 0 boundary pairs (skipped)");
             return;
@@ -611,8 +609,6 @@ impl GraphBuilder {
         let eq_boundary_pairs = get_flag("eq_boundary_pairs");
 
         let mut boundary_pairs = 0;
-
-        self.sort_edges();
 
         let mut leftmost_red = self.b;
 
@@ -769,6 +765,7 @@ impl GraphBuilder {
         let mut reduced_crossings = VecB::from(vec![VecB::new(self.b); self.b.0]);
         for i in NodeB(0)..self.b {
             for j in NodeB(0)..self.b {
+                // HOT: 20% of time is spent on the inefficient memory access here.
                 let cr = crossings[i][j] as i64 - crossings[j][i] as i64;
                 reduced_crossings[i][j] = cr.try_into().unwrap_or_else(|_| {
                     panic!("Crossings between {i} and {j} is too large: {cr}",)
