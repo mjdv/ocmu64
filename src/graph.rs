@@ -5,7 +5,7 @@ use crate::{
     pattern_search::pattern_search,
 };
 use std::{
-    cmp::min,
+    cmp::{self, min},
     collections::{hash_map::Entry, BTreeMap, HashMap},
     iter::Step,
     ops::{Deref, DerefMut, Index, IndexMut, Range},
@@ -624,7 +624,18 @@ impl<'a> Bb<'a> {
 
             debug_assert!(not_dominated.is_sorted());
 
-            'u: for i in self.solution_len..self.solution.len() {
+            // Only try vertices that start before the least end.
+            // NOTE: Vertices who end at least_end exactly must be included.
+            let idx = self.solution[self.solution_len..]
+                .binary_search_by(|x| {
+                    if self.g.suffix_min[*x] <= least_end {
+                        cmp::Ordering::Less
+                    } else {
+                        cmp::Ordering::Greater
+                    }
+                })
+                .unwrap_or_else(|x| x);
+            'u: for i in self.solution_len..self.solution_len + idx {
                 let u = self.solution[i];
                 // eprintln!("Try {u} first");
 
