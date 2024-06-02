@@ -189,5 +189,6 @@ Flags named =no_...= disable features that should just work and not give contrad
   should be killed quickly then.
 - Optimize code for  parameterized track.
 - In initial solution, also try optimally inserting blocks instead of just singletons.
-- *Up-front practical glueing.*
+- *Up-front practical gluing.*
 - Call ~to_graph~ only once, or at least avoid computing edge crossings twice.
+- Store only critical part of the tail.
