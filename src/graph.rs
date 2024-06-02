@@ -480,7 +480,7 @@ impl<'a> Bb<'a> {
                 }
                 assert!(score < self.best_score);
                 self.best_score = score;
-                self.best_solution = self.solution.clone();
+                self.best_solution.clone_from(&self.solution);
                 // We found a solution of this score, so we are now looking for something strictly better.
                 self.upper_bound = score;
                 return true;

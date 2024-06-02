@@ -196,3 +196,4 @@ Flags named =no_...= disable features that should just work and not give contrad
 - *Up-front practical gluing.*
 - Call ~to_graph~ only once, or at least avoid computing edge crossings twice.
 - Store only critical part of the tail.
+- Remove all allocations from branch_and_bound and reuse a cache instead.
