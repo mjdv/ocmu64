@@ -103,10 +103,14 @@ impl Graph {
         let mut score = 0;
 
         // HOT: 30% of B&B time is here.
-        // TODO: Improve cache locality with the v index.
-        // Maybe we can store which vertices have dropped from the range instead?
-        // TODO: For each u, store the max v for which rc[u][v] is non-0, and assert that the tail is sorted by v.
-        for &v in tail {
+        // Find the last position with edge intersecting u.
+        // TODO: This can be improved by storing for each u the last positive cr[u][v].
+        // TODO: Improve cache locality with the v index. Could store prefix sums and exclude vertices that are not in the tail.
+        let ul = self[u].last().unwrap();
+        let idx = tail
+            .binary_search_by(|x| self.suffix_min[*x].cmp(ul))
+            .unwrap_or_else(|x| x);
+        for &v in &tail[..idx] {
             score += self.cr(u, v).max(0) as u64;
         }
         score
