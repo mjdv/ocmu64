@@ -160,6 +160,7 @@ Flags named =no_...= disable features that should just work and not give contrad
 - ~no_lb~: local before: update 'local before' with local practical dominating pairs.
 - ~no_lb_cache~: cache local before vec per tail.
 - ~no_glue2~: glue v to u if cr(v,x) <= 0 for all x in the tail.
+- ~no_tail_suffix~: Do not check suffixes of the tail for an improved lower bound.
 
 ** In progress
 - ~glue~: glue states that must be adjacent on-the-fly. Not on by default since
@@ -171,6 +172,8 @@ Flags named =no_...= disable features that should just work and not give contrad
 ** Unsafe / broken
 - ~boundary_pairs~: fix vertices that only have green left/below them.
 - ~eq_boundary_pairs~: stronger version to force equal cases. Broken on exact/049.gr.
+- ~tail_suffix_full~: Do not only copy the lower bound of a tail suffix but also
+  intermediate computation results.
 
 * Scoreboard
 |    pos | score | 47   | 48 | 49 | 50 | 51 | 55 | 64 | 65 | 66 | 67 | 72 | 73 | 74 | 75 | 76 | 77 | 78 | 80 | 81 | 82 | 93 | 94 | 95 | 96 | 97 |

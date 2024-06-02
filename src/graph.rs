@@ -226,6 +226,7 @@ fn oscm_part(g: &mut Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
     info!("tail update   : {:>9}", bb.tail_update);
     info!("tail insert   : {:>9}", bb.tail_insert);
     info!("tail skip     : {:>9}", bb.tail_skip);
+    info!("tail suffix   : {:>9}", bb.tail_suffix);
 
     let best_score = bb.best_score;
     info!("Best score: {best_score}");
@@ -356,6 +357,7 @@ pub struct Bb<'a> {
     tail_update: u64,
     tail_insert: u64,
     tail_skip: u64,
+    tail_suffix: u64,
 }
 
 impl<'a> Bb<'a> {
@@ -408,6 +410,7 @@ impl<'a> Bb<'a> {
             tail_update: 0,
             tail_insert: 0,
             tail_skip: 0,
+            tail_suffix: 0,
         }
     }
 
@@ -472,14 +475,39 @@ impl<'a> Bb<'a> {
         // 3. A lower bound on the score of the tail.
         // Additionally, if we already have a lower bound on how much the score
         // of the tail exceeds the trivial lower bound, use that.
-        // TODO: Find the largest suffix of `tail` that is a subset of tail_mask
-        // and use that if no bound is available for `tail_mask`.
-        let (tail_excess, mut local_before, mut not_dominated) = self
-            .tail_cache
-            .get(&self.tail_mask)
-            // FIXME: Take the value instead of cloning it.
-            .cloned()
-            .unwrap_or((0, vec![], vec![]));
+
+        let (tail_excess, mut local_before, mut not_dominated) =
+            match self.tail_cache.get(&self.tail_mask) {
+                Some(x) => {
+                    // FIXME: Take the value instead of cloning it.
+                    x.clone()
+                }
+                None => 'cache: {
+                    if !get_flag("no_tail_suffix") {
+                        // TODO: Reuse memory for local_mask.
+                        // TODO: Binary search on length of tail?
+                        let mut local_mask = self.tail_mask.clone();
+                        for u in tail {
+                            self.tail_suffix += 1;
+                            unsafe { local_mask.set_unchecked(u.0, false) };
+
+                            let get = self.tail_cache.get(&local_mask);
+                            if let Some(get) = get {
+                                // TODO: This is broken, but a similar idea may work.
+                                if get_flag("tail_suffix_full") {
+                                    break 'cache (get.0, vec![], get.2.clone());
+                                    // break 'cache get.clone();
+                                } else {
+                                    break 'cache (get.0, vec![], vec![]);
+                                }
+                            }
+                        }
+                    }
+
+                    (0, vec![], vec![])
+                }
+            };
+
         let my_lower_bound = self.score + tail_excess;
 
         // We can not find a solution of score < upper_bound.
