@@ -1,4 +1,4 @@
-use crate::knapsack::{knapsack, P};
+use crate::knapsack::{knapsack, KnapsackCache, P};
 
 use super::*;
 use std::cmp::max;
@@ -215,6 +215,7 @@ impl GraphBuilder {
             suffix_min,
             self_crossings: self.self_crossings,
             before,
+            knapsack_cache: KnapsackCache::default(),
         }
     }
 
@@ -442,12 +443,14 @@ impl GraphBuilder {
         let mut practical_dominating_pairs = 0;
         let mut not_practical_dominating_pairs = 0;
 
+        let cache = &mut KnapsackCache::default();
+
         let xs = (NodeB(0)..self.b).collect_vec();
 
         // For loop is reversed before is_pdp is more efficient with fixed v.
         for v in NodeB(0)..self.b {
             for u in NodeB(0)..self.b {
-                match is_practically_dominating_pair(u, v, before, &cr, &xs) {
+                match is_practically_dominating_pair(u, v, before, &cr, &xs, cache) {
                     IsPDP::Skip => {}
                     IsPDP::No => {
                         not_practical_dominating_pairs += 1;
@@ -481,6 +484,7 @@ pub fn is_practically_dominating_pair(
     before: &Before,
     cr: &ReducedCrossings,
     xs: &[NodeB],
+    cache: &mut KnapsackCache,
 ) -> IsPDP {
     if u == v || before[v][u] != Unordered {
         return IsPDP::Skip;
@@ -520,7 +524,7 @@ pub fn is_practically_dominating_pair(
         Some(P(-cr[u][x] as i32, cr[v][x] as i32))
     });
 
-    if !knapsack(target, points, false) {
+    if !knapsack(target, points, false, cache) {
         IsPDP::Yes
     } else {
         IsPDP::No
@@ -535,6 +539,7 @@ pub fn is_practically_glued_pair(
     before: &Before,
     cr: &ReducedCrossings,
     xs: &[NodeB],
+    cache: &mut KnapsackCache,
 ) -> IsPDP {
     // // TODO: Better handle equality cases.
     // if u == v || before[u][v] != Before {
@@ -573,7 +578,7 @@ pub fn is_practically_glued_pair(
     });
 
     // FIXME TODO Do we have to allow equality here?
-    if !knapsack(P(0, 0), points, true) {
+    if !knapsack(P(0, 0), points, true, cache) {
         IsPDP::Yes
     } else {
         IsPDP::No

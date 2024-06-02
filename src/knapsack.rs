@@ -1,4 +1,7 @@
-use std::ops::{Add, AddAssign, SubAssign};
+use std::{
+    mem::swap,
+    ops::{Add, AddAssign, SubAssign},
+};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Ord, Default)]
 pub struct P(pub i32, pub i32);
@@ -33,14 +36,22 @@ impl PartialOrd for P {
     }
 }
 
+#[derive(Default, Debug)]
+pub struct KnapsackCache {
+    points: Vec<P>,
+    front: Vec<P>,
+    new_front: Vec<P>,
+}
+
 /// Given:
 /// - a target (-c,-c)
 /// - a list of points (xi, yi)
 /// returns whether there is a subset of points with sum <= target.
 pub fn knapsack(
     mut target: P,
-    points: impl Iterator<Item = P> + Clone,
+    points_it: impl Iterator<Item = P> + Clone,
     mut non_empty: bool,
+    cache: &mut KnapsackCache,
 ) -> bool {
     // Sum of negative x.
     let mut neg_x = 0;
@@ -49,7 +60,7 @@ pub fn knapsack(
     // Sum of points <= (0,0).
     let mut sum = P(0, 0);
 
-    for p in points.clone() {
+    for p in points_it.clone() {
         neg_x += p.0.min(0);
         neg_y += p.1.min(0);
         if p <= P(0, 0) {
@@ -71,14 +82,16 @@ pub fn knapsack(
 
     target -= sum;
 
-    let mut points = points.filter(|&p| !(p <= P(0, 0))).collect::<Vec<_>>();
+    let points = &mut cache.points;
+    points.clear();
+    points_it.filter(|&p| !(p <= P(0, 0))).collect_into(points);
 
     // the lowest point in Q2.
     let mut pq2 = P(0, 1);
     // the leftmost point in Q4.
     let mut pq4 = P(1, 0);
 
-    for &p in &points {
+    for &p in &*points {
         if p <= target {
             return true;
         }
@@ -114,35 +127,43 @@ pub fn knapsack(
     }
 
     // Sort points by sum of coordinates.
-    points.sort_by_key(|&P(x, y)| x + y);
+    points.sort_unstable_by_key(|&P(x, y)| x + y);
 
     // eprintln!("target: {target:?}");
     // eprintln!("pq2:    {pq2:?}");
     // eprintln!("pq4:    {pq4:?}");
     // eprintln!("points: {points:?}");
 
-    let mut front = vec![P(0, 0)];
-    // let mut new_front = vec![];
-    #[allow(unused)]
-    for (j, &p) in points.iter().enumerate() {
+    let front = &mut cache.front;
+    let new_front = &mut cache.new_front;
+    front.clear();
+    new_front.clear();
+
+    front.push(P(0, 0));
+
+    for &p in &*points {
         let l = front.len();
-        front.reserve(l);
+        let mut fi = 0;
+
+        // Merge fronts into new_front.
+        new_front.clear();
+        new_front.reserve(2 * front.len());
         for i in 0..l {
             let sum = front[i] + p;
             if sum <= target {
-                // eprintln!(
-                //     "Blocking set {sum:?} after {j}/{} front size {}",
-                //     points.len(),
-                //     front.len()
-                // );
                 return true;
             }
-            front.push(sum);
+            while fi < front.len() && (front[fi].0, front[fi].1) <= (sum.0, sum.1) {
+                new_front.push(front[fi]);
+                fi += 1;
+            }
+            new_front.push(sum);
         }
+        new_front.extend_from_slice(&front[fi..]);
+
+        swap(front, new_front);
 
         // Simplify front.
-        front.sort_by_key(|&P(x, y)| (x, y));
-
         let mut best = front[0];
         let mut first = true;
         front.retain(|&p| {

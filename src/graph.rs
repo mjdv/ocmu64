@@ -1,6 +1,7 @@
 use crate::{
     get_flag,
     graph::builder::{is_practically_dominating_pair, is_practically_glued_pair, IsPDP},
+    knapsack::KnapsackCache,
     node::*,
     pattern_search::pattern_search,
 };
@@ -68,6 +69,9 @@ pub struct Graph {
 
     pub self_crossings: u64,
     pub before: Before,
+
+    /// Cache for knapsack-internal allocations.
+    pub knapsack_cache: KnapsackCache,
 }
 
 pub type Graphs = Vec<Graph>;
@@ -631,6 +635,7 @@ impl<'a> Bb<'a> {
                         &self.g.before,
                         &self.g.reduced_crossings,
                         tail,
+                        &mut self.g.knapsack_cache,
                     ) == IsPDP::Yes
                     {
                         u_to_try.push((i, v));
@@ -681,13 +686,14 @@ impl<'a> Bb<'a> {
                             let idx = tail
                                 .binary_search_by(|x| self.g.suffix_min[*x].cmp(&ur))
                                 .unwrap_or_else(|x| x);
-                            for &v in &tail[..idx] {
+                            for &v in tail {
                                 match is_practically_dominating_pair(
                                     v,
                                     u,
                                     &self.g.before,
                                     &self.g.reduced_crossings,
-                                    tail,
+                                    &tail[..idx],
+                                    &mut self.g.knapsack_cache,
                                 ) {
                                     builder::IsPDP::Skip => self.pdp_skip += 1,
                                     builder::IsPDP::No => self.pdp_no += 1,
