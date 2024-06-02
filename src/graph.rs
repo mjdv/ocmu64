@@ -527,7 +527,15 @@ impl<'a> Bb<'a> {
         assert!(my_lower_bound <= self.best_score);
 
         // HOT: ~20% of B&B time is here.
-        let least_end = tail.iter().map(|u| self.g.intervals[*u].end).min().unwrap();
+        let mut least_end = self.g.a;
+        for v in tail {
+            // If all remaining vertices start after the best end, we can stop iterating.
+            if self.g.suffix_min[*v] >= least_end {
+                break;
+            }
+            least_end = min(least_end, self.g.intervals[*v].end);
+        }
+        tail.iter().map(|u| self.g.intervals[*u].end).min().unwrap();
 
         let old_tail = tail.to_vec();
         let old_solution_len = self.solution_len;
