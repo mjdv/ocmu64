@@ -629,8 +629,12 @@ impl<'a> Bb<'a> {
                 }
 
                 // Skip u for which another v must come before.
-                // HOT: ~20% of B&B time is here.
-                for &v in tail {
+                // Find the last v that intersects with u.
+                let ur = self.g.intervals[u].end;
+                let idx = tail
+                    .binary_search_by(|x| self.g.suffix_min[*x].cmp(&ur))
+                    .unwrap_or_else(|x| x);
+                for &v in &tail[..idx] {
                     if self.g.before[u][v] == After {
                         continue 'u;
                     }
