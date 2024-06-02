@@ -622,6 +622,8 @@ impl<'a> Bb<'a> {
                 self.glue_no += 1;
             }
 
+            debug_assert!(not_dominated.is_sorted());
+
             'u: for i in self.solution_len..self.solution.len() {
                 let u = self.solution[i];
                 // eprintln!("Try {u} first");
@@ -648,11 +650,18 @@ impl<'a> Bb<'a> {
 
                 // Skip u for which another v is newly PDP before u.
                 if has_lpd {
-                    if not_dominated.contains(&u) {
+                    // Check if `not_dominated` contains `u`.
+                    if not_dominated.binary_search(&u).is_ok() {
                         self.pdp_cache_no += 1;
                     } else {
                         let mut check_pdp = || {
-                            for &v in tail {
+                            // Test if there is a v in the tail that must come before u.
+                            // Only test v that intersect u.
+                            let ur = self.g.intervals[u].end;
+                            let idx = tail
+                                .binary_search_by(|x| self.g.suffix_min[*x].cmp(&ur))
+                                .unwrap_or_else(|x| x);
+                            for &v in &tail[..idx] {
                                 match is_practically_dominating_pair(
                                     v,
                                     u,

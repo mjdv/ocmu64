@@ -1,3 +1,6 @@
+build:
+    cargo build -r --bin ocmu64
+alias b := build
 run *args='':
     cargo run -r -- {{args}}
 alias r := run
@@ -7,8 +10,7 @@ generate *args='':
     cargo run -r --bin generate -- {{args}}
 flame *args='':
     cargo flamegraph --open --skip-after 'ocmu64::graph::Bb::branch_and_bound'  -- {{args}}
-record *args='':
-    cargo build -r --bin ocmu64
+record *args='': build
     perf record cargo run -r -- {{args}}
 report:
     perf report
