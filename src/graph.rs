@@ -102,13 +102,13 @@ impl Graph {
     fn partial_score_2(&self, u: NodeB, tail: &[NodeB]) -> u64 {
         let mut score = 0;
 
-        // HOT: 30% of B&B time is here.
         // Find the last position with edge intersecting u.
         // TODO: This can be improved by storing for each u the last positive cr[u][v].
-        // TODO: Improve cache locality with the v index. Could store prefix sums and exclude vertices that are not in the tail.
-        let ul = self[u].last().unwrap();
+        // TODO: Could store prefix sums and exclude vertices that are not in the tail.
+        // TODO: Check for off-by-ones.
+        let ur = self[u].last().unwrap();
         let idx = tail
-            .binary_search_by(|x| self.suffix_min[*x].cmp(ul))
+            .binary_search_by(|x| self.suffix_min[*x].cmp(ur))
             .unwrap_or_else(|x| x);
         for &v in &tail[..idx] {
             score += self.cr(u, v).max(0) as u64;
@@ -316,6 +316,8 @@ pub struct Bb<'a> {
     /// The first `solution_len` elements are fixed (the 'head').
     /// The remainder ('tail') is sorted in the initial order.
     solution: Solution,
+    /// For each prefix of the solution, the max node in A it connects to.
+    solution_prefix_max: Vec<NodeA>,
     tail_mask: MyBitVec,
     /// Partial score of the head.
     /// Includes:
@@ -391,11 +393,13 @@ impl<'a> Bb<'a> {
             "Score lower bound is more than initial solution!"
         );
 
+        let b = g.b;
         Self {
-            tail_mask: MyBitVec::new(true, g.b.0),
+            tail_mask: MyBitVec::new(true, b.0),
             g,
             solution_len: 0,
             solution: initial_solution.clone(),
+            solution_prefix_max: vec![NodeA(0); b.0],
             score,
             upper_bound: min(upper_bound.unwrap_or(u64::MAX), initial_score),
             best_solution: initial_solution,
@@ -702,7 +706,17 @@ impl<'a> Bb<'a> {
             let mut best_i = self.solution_len;
             if !get_flag("no_optimal_insert") {
                 let mut cur_delta = 0i64;
-                for (i, v) in self.solution[..self.solution_len].iter().enumerate().rev() {
+                let ul = self.g.intervals[u].start;
+                // TODO: Check for off-by-ones.
+                let idx = self.solution_prefix_max[..self.solution_len]
+                    .binary_search(&ul)
+                    .unwrap_or_else(|x| x);
+                for (i, v) in self.solution[..self.solution_len]
+                    .iter()
+                    .enumerate()
+                    .skip(idx)
+                    .rev()
+                {
                     cur_delta -= self.g.cr(u, *v);
                     if cur_delta > best_delta as i64 {
                         best_delta = cur_delta as u64;
@@ -728,6 +742,14 @@ impl<'a> Bb<'a> {
 
             self.score -= best_delta;
             self.score += partial_score;
+            // Update prefix max.
+            if self.solution_len == 0 {
+                self.solution_prefix_max[self.solution_len] = self.g.intervals[u].end;
+            } else {
+                self.solution_prefix_max[self.solution_len] = self.g.intervals[u]
+                    .end
+                    .max(self.solution_prefix_max[self.solution_len - 1]);
+            }
 
             self.solution_len += 1;
             debug_assert!(self.tail_mask[u.0]);
