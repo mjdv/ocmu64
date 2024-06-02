@@ -797,7 +797,8 @@ impl GraphBuilder {
             reduced_crossings[i].v[..jl.0].fill(CR::MAX);
 
             let jr = NodeB(suffix_min.binary_search(&ri).unwrap_or_else(|x| x));
-            reduced_crossings[i].v[jr.0..].fill(CR::MIN);
+            // We do +1 so that `-cr[u][v]` fits in the CR type as well.
+            reduced_crossings[i].v[jr.0..].fill(CR::MIN + 1);
 
             cr_range[i] = jl..jr;
 
