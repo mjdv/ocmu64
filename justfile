@@ -8,7 +8,7 @@ generate *args='':
 flame *args='':
     cargo flamegraph --open --skip-after 'ocmu64::graph::Bb::branch_and_bound'  -- {{args}}
 record *args='':
-    cargo build -r
+    cargo build -r --bin ocmu64
     perf record cargo run -r -- {{args}}
 report:
     perf report
