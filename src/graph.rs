@@ -264,7 +264,11 @@ pub fn one_sided_crossing_minimization(
     mut bound: Option<u64>,
 ) -> Option<(Solution, u64)> {
     // g0 is only used for verification and displaying.
-    let g0 = gb.to_graph(false);
+    let g0 = if log::log_enabled!(log::Level::Debug) {
+        Some(gb.to_graph(false))
+    } else {
+        None
+    };
     let graph_builders = gb.build();
     let num_parts = graph_builders.len();
     let mut score = gb.self_crossings;
@@ -301,8 +305,10 @@ pub fn one_sided_crossing_minimization(
                 *bound -= part_score;
             }
         }
-        info!("{}", display_solution(&g0, &solution, false));
-        debug_assert_eq!(score, g0.score(&solution), "WRONG SCORE FOR FINAL SOLUTION");
+        if let Some(g0) = g0.as_ref() {
+            info!("{}", display_solution(g0, &solution, false));
+            debug_assert_eq!(score, g0.score(&solution), "WRONG SCORE FOR FINAL SOLUTION");
+        }
 
         Some((solution, score))
     };
