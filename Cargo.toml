@@ -19,7 +19,8 @@ incremental = false
 lto = true
 codegen-units = 1
 debug = false
-strip = false
+strip = true
+panic = 'abort'
 
 [dependencies]
 assert2 = "0.3.11"

@@ -544,7 +544,7 @@ impl<'a> Bb<'a> {
             }
 
             // TODO: Why are there cases where uv are glued below but not already above.
-            if self.solution_len > 0 && get_flag("no_glue") {
+            if self.solution_len > 0 && get_flag("glue") {
                 let u = self.solution[self.solution_len - 1];
                 for i in self.solution_len..self.solution.len() {
                     let v = self.solution[i];
