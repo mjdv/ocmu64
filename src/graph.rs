@@ -204,29 +204,34 @@ pub fn extend_solution_recursive(g: &Graph, solution: &mut Solution) -> (u64, Ve
 
 fn oscm_part(g: &mut Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
     let mut bb = Bb::new(g, bound);
-    bb.branch_and_bound();
 
-    info!("");
-    info!("Sols found    : {:>9}", bb.sols_found);
-    info!("B&B States    : {:>9}", bb.states);
-    info!("LB exceeded 1 : {:>9}", bb.lb_exceeded_1);
-    info!("LB exceeded 2 : {:>9}", bb.lb_exceeded_2);
-    info!("LB updates    : {:>9}", bb.lb_updates);
-    info!("Unique subsets: {:>9}", bb.tail_cache.len());
-    info!("LB matching   : {:>9}", bb.lb_hit);
-    info!("PDP yes       : {:>9}", bb.pdp_yes);
-    info!("PDP no        : {:>9}", bb.pdp_no);
-    info!("PDP comp. no  : {:>9}", bb.pdp_computed_no);
-    info!("PDP cache yes : {:>9}", bb.pdp_cache_yes);
-    info!("PDP cache no  : {:>9}", bb.pdp_cache_no);
-    info!("PDP skip      : {:>9}", bb.pdp_skip);
-    info!("glue yes      : {:>9}", bb.glue_yes);
-    info!("glue no       : {:>9}", bb.glue_no);
-    info!("glue no calls : {:>9}", bb.glue_no_calls);
-    info!("tail update   : {:>9}", bb.tail_update);
-    info!("tail insert   : {:>9}", bb.tail_insert);
-    info!("tail skip     : {:>9}", bb.tail_skip);
-    info!("tail suffix   : {:>9}", bb.tail_suffix);
+    // If the initial solution already has optimal score, there is no need to B&B.
+    // This mostly prevents cluttering the terminal output.
+    if bb.score < bb.best_score {
+        bb.branch_and_bound();
+
+        info!("");
+        info!("Sols found    : {:>9}", bb.sols_found);
+        info!("B&B States    : {:>9}", bb.states);
+        info!("LB exceeded 1 : {:>9}", bb.lb_exceeded_1);
+        info!("LB exceeded 2 : {:>9}", bb.lb_exceeded_2);
+        info!("LB updates    : {:>9}", bb.lb_updates);
+        info!("Unique subsets: {:>9}", bb.tail_cache.len());
+        info!("LB matching   : {:>9}", bb.lb_hit);
+        info!("PDP yes       : {:>9}", bb.pdp_yes);
+        info!("PDP no        : {:>9}", bb.pdp_no);
+        info!("PDP comp. no  : {:>9}", bb.pdp_computed_no);
+        info!("PDP cache yes : {:>9}", bb.pdp_cache_yes);
+        info!("PDP cache no  : {:>9}", bb.pdp_cache_no);
+        info!("PDP skip      : {:>9}", bb.pdp_skip);
+        info!("glue yes      : {:>9}", bb.glue_yes);
+        info!("glue no       : {:>9}", bb.glue_no);
+        info!("glue no calls : {:>9}", bb.glue_no_calls);
+        info!("tail update   : {:>9}", bb.tail_update);
+        info!("tail insert   : {:>9}", bb.tail_insert);
+        info!("tail skip     : {:>9}", bb.tail_skip);
+        info!("tail suffix   : {:>9}", bb.tail_suffix);
+    }
 
     let best_score = bb.best_score;
     info!("Best score: {best_score}");
