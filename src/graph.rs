@@ -568,9 +568,22 @@ impl<'a> Bb<'a> {
         'u_to_try: {
             let tail = &self.solution[self.solution_len..];
 
+            // Only try vertices that start before the least end.
+            // NOTE: Vertices who end at least_end exactly must be included.
+            let idx_intersect_least_end = tail
+                .binary_search_by(|x| {
+                    if self.g.suffix_min[*x] <= least_end {
+                        cmp::Ordering::Less
+                    } else {
+                        cmp::Ordering::Greater
+                    }
+                })
+                .unwrap_or_else(|x| x);
+
             if self.solution_len > 0 && !get_flag("no_glue2") {
                 // If there is a vertex v in the tail such that not a single u wants to go before it, then fix v.
-                'v: for i in self.solution_len..self.solution.len() {
+                // FIXME: Smaller loop.
+                'v: for i in self.solution_len..self.solution_len + idx_intersect_least_end {
                     let v = self.solution[i];
                     // early check in better ordered direction.
                     if self.g.cr(tail[0], v) < 0 {
@@ -601,7 +614,8 @@ impl<'a> Bb<'a> {
             // TODO: Why are there cases where uv are glued below but not already above.
             if self.solution_len > 0 && get_flag("glue") {
                 let u = self.solution[self.solution_len - 1];
-                for i in self.solution_len..self.solution.len() {
+                // FIXME: Smaller loop.
+                for i in self.solution_len..self.solution_len + idx_intersect_least_end {
                     let v = self.solution[i];
                     // TODO: is this slow?
                     // TODO: Cache this.
@@ -624,18 +638,7 @@ impl<'a> Bb<'a> {
 
             debug_assert!(not_dominated.is_sorted());
 
-            // Only try vertices that start before the least end.
-            // NOTE: Vertices who end at least_end exactly must be included.
-            let idx = self.solution[self.solution_len..]
-                .binary_search_by(|x| {
-                    if self.g.suffix_min[*x] <= least_end {
-                        cmp::Ordering::Less
-                    } else {
-                        cmp::Ordering::Greater
-                    }
-                })
-                .unwrap_or_else(|x| x);
-            'u: for i in self.solution_len..self.solution_len + idx {
+            'u: for i in self.solution_len..self.solution_len + idx_intersect_least_end {
                 let u = self.solution[i];
                 // eprintln!("Try {u} first");
 
