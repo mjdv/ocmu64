@@ -577,7 +577,13 @@ impl<'a> Bb<'a> {
                         self.glue_no_calls += 1;
                         continue 'v;
                     }
-                    for &x in tail {
+
+                    // TODO: Store last positive cr per v.
+                    let vr = self.g.intervals[v].end;
+                    let idx = tail
+                        .binary_search_by(|x| self.g.suffix_min[*x].cmp(&vr))
+                        .unwrap_or_else(|x| x);
+                    for &x in &tail[..idx] {
                         if self.g.cr(v, x) > 0 {
                             // x wants to be before v.
                             self.glue_no_calls += 1;
