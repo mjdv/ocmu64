@@ -200,3 +200,4 @@ Flags named =no_...= disable features that should just work and not give contrad
 - Store only critical part of the tail.
 - Remove all allocations from branch_and_bound and reuse a cache instead.
 - Handle inifinite coordinates in PDP knapsack.
+- More efficient initial merging

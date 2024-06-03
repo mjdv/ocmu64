@@ -280,23 +280,32 @@ pub fn one_sided_crossing_minimization(
     let sol = 'sol: {
         let mut solution = Solution::default();
         for (i, mut gb) in graph_builders.into_iter().enumerate() {
-            let mut g = gb.to_graph(true);
-            let Some((part_sol, part_score)) = oscm_part(&mut g, bound) else {
-                info!("No solution for part {i} of {num_parts}.");
-                break 'sol None;
-            };
-            debug_assert_eq!(part_score, g.score(&part_sol), "WRONG SCORE FOR PART");
-            // info!("{part_sol:?}");
-            // Make sure that all `must_come_before` constraints are satisfied.
-            for (u, v) in part_sol.iter().copied().tuple_combinations() {
-                if g.before[u][v] == After {
-                    info!("Part {i} of {num_parts} violates must_come_before constraints.");
-                    info!("{u} {v}");
+            let (part_sol, part_score) = if gb.b == NodeB(1) {
+                // For small parts, no need to do full B&B.
+                (vec![NodeB(0)], 0)
+            } else {
+                info!("{}", "BUILD PART".bold());
+                let mut g = gb.to_graph(true);
+                let Some((part_sol, part_score)) = oscm_part(&mut g, bound) else {
+                    info!("No solution for part {i} of {num_parts}.");
                     break 'sol None;
-                }
-            }
+                };
 
-            pattern_search(&g, &part_sol);
+                debug_assert_eq!(part_score, g.score(&part_sol), "WRONG SCORE FOR PART");
+                // info!("{part_sol:?}");
+                // Make sure that all `must_come_before` constraints are satisfied.
+                for (u, v) in part_sol.iter().copied().tuple_combinations() {
+                    if g.before[u][v] == After {
+                        info!("Part {i} of {num_parts} violates must_come_before constraints.");
+                        info!("{u} {v}");
+                        break 'sol None;
+                    }
+                }
+
+                pattern_search(&g, &part_sol);
+
+                (part_sol, part_score)
+            };
 
             score += part_score;
             solution.extend(gb.invert(part_sol));

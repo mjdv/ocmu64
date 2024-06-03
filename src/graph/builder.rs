@@ -247,11 +247,17 @@ impl GraphBuilder {
         if get_flag("no_transform") {
             return vec![self.clone()];
         }
+        // This does an initial sort of the B vertices.
         self.merge_twins();
         self.merge_adjacent_edges();
-        let g = self.to_graph(false);
-        self.permute(initial_solution::initial_solution(&g));
-        self.sort_edges();
+        {
+            // For initial gluing we need to compute more data.
+            let mut g = self.to_graph(get_flag("initial_glue"));
+            let solution = initial_solution::initial_solution(&g);
+            let to_glue = g.glue(&solution);
+            self.self_crossings += self.glue_and_permute(solution, &to_glue);
+        }
+
         self.print_stats();
         if get_flag("no_split") {
             let copy = self.clone();
@@ -425,10 +431,7 @@ impl GraphBuilder {
                 }
 
                 // u[i] must be smaller than v[j] for all j>=floor(i*vl/ul)
-                if (0..self[u].len()).all(|i| {
-                    let j = (i * self[v].len()) / self[u].len();
-                    self[u][i] <= self[v][j]
-                }) {
+                if is_dominating_pair(&self[u], &self[v]) {
                     before[u][v] = Before;
                     before[v][u] = After;
                     dominating_pairs += 1;
@@ -472,6 +475,13 @@ impl GraphBuilder {
         info!("Dropped {not_practical_dominating_pairs} candidate practical dominating pairs");
         info!("Found {practical_dominating_pairs} practical dominating pairs");
     }
+}
+
+fn is_dominating_pair(u: &Vec<NodeA>, v: &Vec<NodeA>) -> bool {
+    (0..u.len()).all(|i| {
+        let j = (i * v.len()) / u.len();
+        u[i] <= v[j]
+    })
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -552,6 +562,53 @@ pub fn is_practically_dominating_pair(
         IsPDP::Yes
     } else {
         IsPDP::No
+    }
+}
+
+impl Graph {
+    /// For each adjacent pair uv, as already ordered by the initial solution, test if we can glue them.
+    /// That is the case if:
+    /// - cr(u,v) <= 0, i.e. u wants to come before v.
+    /// - u is (practically) dominated by v.
+    /// - There is no separating set X such that vXu is optimal.
+    /// Returns a list of indices i in the solution such that (i,i+1) should be glued.
+    fn glue(&mut self, sol: &Solution) -> Vec<usize> {
+        let mut pairs_to_glue = vec![];
+        if !get_flag("initial_glue") {
+            return pairs_to_glue;
+        }
+        for (i, (&u, &v)) in sol.iter().tuple_windows().enumerate() {
+            if !is_dominating_pair(&self[u], &self[v])
+                && is_practically_dominating_pair(
+                    u,
+                    v,
+                    &self.before,
+                    &self.reduced_crossings,
+                    // TODO: Smaller slice
+                    sol,
+                    &mut self.knapsack_cache,
+                ) != IsPDP::Yes
+            {
+                continue;
+            }
+            if is_practically_glued_pair(
+                u,
+                v,
+                &self.before,
+                &self.reduced_crossings,
+                // TODO: Smaller slice
+                sol,
+                &mut self.knapsack_cache,
+            ) == IsPDP::Yes
+            {
+                pairs_to_glue.push(i);
+            }
+        }
+        info!(
+            "{}",
+            format!("GLUING {} PAIRS", pairs_to_glue.len()).green()
+        );
+        pairs_to_glue
     }
 }
 
@@ -728,20 +785,60 @@ impl GraphBuilder {
     }
 
     /// Permute the nodes of B such that the given solution is simply 0..b.
-    fn permute(&mut self, solution: Solution) {
+    /// Furthermore, glue the pairs (i,i+1) as given by `to_glue`.
+    /// Returns the score for newly created self-crossings.
+    fn glue_and_permute(&mut self, solution: Solution, to_glue: &Vec<usize>) -> u64 {
+        let mut score = 0;
+        let mut target = 0;
+        let mut last_i = usize::MAX;
+        for &i in to_glue {
+            if i != last_i + 1 {
+                target = i;
+            }
+            // Merge v into u.
+            let u = solution[target];
+            let v = solution[i + 1];
+
+            let inv = std::mem::take(&mut self.inverse[v]);
+            self.inverse[u].extend(inv);
+            let cons = std::mem::take(&mut self.connections_b[v]);
+
+            score += Self::edge_list_crossings(&self.connections_b[u], &cons);
+
+            self.connections_b[u].extend(cons);
+
+            last_i = i;
+        }
         self.inverse = VecB::from(
             solution
                 .iter()
-                .map(|&b| std::mem::take(&mut self.inverse[b]))
+                .filter_map(|&b| {
+                    let x = std::mem::take(&mut self.inverse[b]);
+                    if x.is_empty() {
+                        None
+                    } else {
+                        Some(x)
+                    }
+                })
                 .collect(),
         );
         self.connections_b = VecB::from(
             solution
                 .iter()
-                .map(|&b| std::mem::take(&mut self.connections_b[b]))
+                .filter_map(|&b| {
+                    let x = std::mem::take(&mut self.connections_b[b]);
+                    if x.is_empty() {
+                        None
+                    } else {
+                        Some(x)
+                    }
+                })
                 .collect(),
         );
         self.reconstruct_a();
+        self.sort_edges();
+
+        score
     }
 
     fn intervals(&self) -> VecB<Range<NodeA>> {
