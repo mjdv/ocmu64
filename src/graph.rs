@@ -686,7 +686,7 @@ impl<'a> Bb<'a> {
                             let idx = tail
                                 .binary_search_by(|x| self.g.suffix_min[*x].cmp(&ur))
                                 .unwrap_or_else(|x| x);
-                            for &v in tail {
+                            for &v in &tail[..idx] {
                                 match is_practically_dominating_pair(
                                     v,
                                     u,
