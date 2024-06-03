@@ -165,6 +165,7 @@ Flags named =no_...= disable features that should just work and not give contrad
 ** In progress
 - ~glue~: glue states that must be adjacent on-the-fly. Not on by default since
   it's slow.
+- ~strong_ks~: Disable stronger filter for knapsack points.
 - ~lazy_cr~: Fill prefix/suffix of ~cr~ matrix with +-INF.
 
 ** Disabled
@@ -198,3 +199,4 @@ Flags named =no_...= disable features that should just work and not give contrad
 - Call ~to_graph~ only once, or at least avoid computing edge crossings twice.
 - Store only critical part of the tail.
 - Remove all allocations from branch_and_bound and reuse a cache instead.
+- Handle inifinite coordinates in PDP knapsack.

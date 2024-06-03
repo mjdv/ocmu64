@@ -138,3 +138,7 @@ Suppose the tail $T$ is a local minimum, i.e., swaps (and maybe rotations?) do
 not improve it.
 We try to fix each $u\in T$ as the next vertex. Can we prove that the cost of
 moving $u$ to the front increases as we iterate over all $u$?
+
+**Lemma X2.**
+If $u \pe v$ and $c(v, w) < 0$, then $c(u, w) < 0?
+If $u \pe v$ and $c(v, w) < 0$, then $u \pe w$?

@@ -504,23 +504,41 @@ pub fn is_practically_dominating_pair(
     // knapsack
     let target = P(cr[u][v] as i32, cr[u][v] as i32);
 
+    let strong_ks = get_flag("strong_ks");
+
     // We do not consider x that must be before u and v, or after u and v.
     let points = xs.iter().filter_map(|&x| {
         if x == u || x == v {
             return None;
         }
-        // x must be left of u and v.
-        if before[u][x] == After && before[v][x] == After {
-            return None;
+        if strong_ks {
+            // x must be left of v.
+            if before[v][x] == After {
+                return None;
+            }
+            // x must be right of u.
+            if before[u][x] == Before {
+                return None;
+            }
+        } else {
+            // x must be left of u and v.
+            if before[u][x] == After && before[v][x] == After {
+                return None;
+            }
+            // x must be right of u and v.
+            if before[u][x] == Before && before[v][x] == Before {
+                return None;
+            }
         }
-        // x must be right of u and v.
-        if before[u][x] == Before && before[v][x] == Before {
-            return None;
-        }
+
         // x that want to be between u and v (as in uxv) are not useful here.
         if cr[u][x] <= 0 && -cr[v][x] <= 0 {
             return None;
         }
+        // eprintln!(
+        //     "{u} {v} {x} {} {} {:?} {:?}",
+        //     cr[u][x], cr[v][x], before[u][x], before[v][x]
+        // );
         Some(P(-cr[u][x] as i32, cr[v][x] as i32))
     });
 
@@ -557,18 +575,31 @@ pub fn is_practically_glued_pair(
     // i.e.
     // cr(u, X) < 0 && cr(X, v) < 0
 
+    let strong_ks = get_flag("strong_ks");
+
     // We do not consider x that must be before u and v, or after u and v.
     let points = xs.iter().filter_map(|&x| {
         if x == u || x == v {
             return None;
         }
-        // x must be left of u and v.
-        if before[u][x] == After && before[v][x] == After {
-            return None;
-        }
-        // x must be right of u and v.
-        if before[u][x] == Before && before[v][x] == Before {
-            return None;
+        if strong_ks {
+            // x must be left of u.
+            if before[u][x] == After {
+                return None;
+            }
+            // x must be right of v.
+            if before[v][x] == Before {
+                return None;
+            }
+        } else {
+            // x must be left of u and v.
+            if before[u][x] == After && before[v][x] == After {
+                return None;
+            }
+            // x must be right of u and v.
+            if before[u][x] == Before && before[v][x] == Before {
+                return None;
+            }
         }
         // x that want to be between v and u (as in vxu) are not useful here.
         if cr[u][x] >= 0 && -cr[v][x] >= 0 {
