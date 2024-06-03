@@ -60,6 +60,8 @@ pub fn knapsack(
     // Sum of points <= (0,0).
     let mut sum = P(0, 0);
 
+    // TODO: Handle points with 'infinite' coordinates.
+
     for p in points_it.clone() {
         neg_x += p.0.min(0);
         neg_y += p.1.min(0);
@@ -161,6 +163,14 @@ pub fn knapsack(
         }
         new_front.extend_from_slice(&front[fi..]);
 
+        // debug_assert!(
+        //     new_front.is_sorted_by_key(|&P(x, y)| (x, y)),
+        //     "NOT SORTED.\nPoints:\n{:?}\nBefore\n{front:?}\nPoint p: {p:?}\nAfter\n{new_front:?}",
+        //     points_it.collect::<Vec<_>>()
+        // );
+
+        front.clear();
+
         swap(front, new_front);
 
         // Simplify front.
@@ -177,6 +187,15 @@ pub fn knapsack(
             best = p;
             true
         });
+        // if front.len() > 1000 {
+        //     eprintln!(
+        //         "Front len {} points len {} iter {} {p:?}",
+        //         front.len(),
+        //         points.len(),
+        //         i
+        //     );
+        //     eprintln!("{front:?}");
+        // }
     }
 
     // eprintln!(
