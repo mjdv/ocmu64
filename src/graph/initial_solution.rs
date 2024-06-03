@@ -1,3 +1,4 @@
+use colored::Colorize;
 use log::info;
 
 use crate::node::NodeA;
@@ -5,6 +6,7 @@ use crate::node::NodeA;
 use super::{Graph, NodeB};
 
 pub fn initial_solution(g: &Graph) -> Vec<NodeB> {
+    info!("{}", "INITIAL SOLUTION".bold());
     let mut initial_solution = (NodeB(0)..g.b).collect::<Vec<_>>();
     sort_by_median(g, &mut initial_solution);
     commute_adjacent(g, &mut initial_solution);

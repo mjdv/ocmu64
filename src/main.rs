@@ -118,14 +118,21 @@ fn main() {
                 return;
             }
 
+            let start = Instant::now();
             process_dir(paths, &args);
+            info!(
+                "{}",
+                format!("Duration: {:2.2}", start.elapsed().as_secs_f32())
+                    .bold()
+                    .red()
+            );
         }
     };
 }
 
 /// Solve a single graph.
 fn solve_graph(g: GraphBuilder, args: &Args) -> Option<(Solution, u64)> {
-    info!("Read A={:?} B={:?}, {} edges", g.a, g.b, g.num_edges());
+    info!("Input: A={:?} B={:?}, {} edges", g.a, g.b, g.num_edges());
     let output = one_sided_crossing_minimization(g, args.upper_bound);
     if let Some((_solution, score)) = &output {
         info!("SCORE: {score}");

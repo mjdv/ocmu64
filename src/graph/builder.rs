@@ -176,7 +176,7 @@ impl GraphBuilder {
             i = j;
         }
         info!(
-            "Split into parts with sizes: {:?}",
+            "PARTS: {:?}",
             graphs.iter().map(|g| (g.a, g.b)).collect::<Vec<_>>()
         );
         graphs
@@ -221,7 +221,12 @@ impl GraphBuilder {
 
     /// Print statistics on the graph.
     fn print_stats(&self) {
-        info!("A={:?} B={:?}, {} edges", self.a, self.b, self.num_edges());
+        info!(
+            "Simplified: A={:?} B={:?}, {} edges",
+            self.a,
+            self.b,
+            self.num_edges()
+        );
 
         if !log::log_enabled!(log::Level::Debug) {
             return;
@@ -237,6 +242,7 @@ impl GraphBuilder {
     /// TODO: Store metadata to be able to invert the final solution.
     /// TODO: Allow customizing whether crossings are built.
     pub fn build(&mut self) -> Vec<GraphBuilder> {
+        info!("{}", "BUILD & SIMPLIFY GRAPH".bold());
         self.drop_singletons();
         if get_flag("no_transform") {
             return vec![self.clone()];
@@ -621,7 +627,7 @@ impl GraphBuilder {
     /// I.e.: When u < v in the current order, and for all (x,y) with x <= u < v <= y we want x < y, then fix u < v.
     fn boundary_pairs(&self, before: &mut Before) {
         if !get_flag("boundary_pairs") {
-            info!("Found 0 boundary pairs (skipped)");
+            // info!("Found 0 boundary pairs (skipped)");
             return;
         }
 
@@ -785,6 +791,7 @@ impl GraphBuilder {
         VecB<NodeA>,
         VecB<NodeA>,
     ) {
+        info!("CROSSINGS");
         let mut min_crossings = 0;
         let mut reduced_crossings = VecB::from(vec![VecB::new(self.b); self.b.0]);
         let mut cr_range = VecB::from(vec![self.b..NodeB(0); self.b.0]);
