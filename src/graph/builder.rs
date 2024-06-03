@@ -798,12 +798,21 @@ impl GraphBuilder {
             let ri = *self[i].last().unwrap();
 
             let jl = NodeB(prefix_max.binary_search(&li).unwrap_or_else(|x| x));
-            // Instead of computing the true value, we just put a large value, since i will never come before them anyway.
-            reduced_crossings[i].v[..jl.0].fill(CR::MAX);
 
             let jr = NodeB(suffix_min.binary_search(&ri).unwrap_or_else(|x| x));
-            // We do +1 so that `-cr[u][v]` fits in the CR type as well.
-            reduced_crossings[i].v[jr.0..].fill(CR::MIN + 1);
+            if get_flag("lazy_cr") {
+                // Instead of computing the true value, we just put a large value, since i will never come before them anyway.
+                reduced_crossings[i].v[..jl.0].fill(CR::MAX / 2048);
+                // We do +1 so that `-cr[u][v]` fits in the CR type as well.
+                reduced_crossings[i].v[jr.0..].fill((CR::MIN + 1) / 2048);
+            } else {
+                for j in NodeB(0)..jl {
+                    reduced_crossings[i].v[j.0] = (self[i].len() * self[j].len()) as _;
+                }
+                for j in jr..self.b {
+                    reduced_crossings[i].v[j.0] = -((self[i].len() * self[j].len()) as CR);
+                }
+            }
 
             cr_range[i] = jl..jr;
 
