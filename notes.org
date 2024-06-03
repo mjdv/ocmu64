@@ -167,6 +167,7 @@ Flags named =no_...= disable features that should just work and not give contrad
   it's slow.
 - ~strong_ks~: Disable stronger filter for knapsack points.
 - ~lazy_cr~: Fill prefix/suffix of ~cr~ matrix with +-INF.
+- ~initial_glue~: Join adjacent pairs.
 
 ** Disabled
 - ~tc~: take the transitive closure of the =before= matrix.

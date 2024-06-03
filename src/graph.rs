@@ -291,6 +291,8 @@ pub fn one_sided_crossing_minimization(
                     break 'sol None;
                 };
 
+                info!("Part score: {part_score}");
+
                 debug_assert_eq!(part_score, g.score(&part_sol), "WRONG SCORE FOR PART");
                 // info!("{part_sol:?}");
                 // Make sure that all `must_come_before` constraints are satisfied.

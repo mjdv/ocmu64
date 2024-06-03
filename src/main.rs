@@ -9,7 +9,7 @@ use std::{
 use clap::Parser;
 use colored::Colorize;
 use itertools::Itertools;
-use log::info;
+use log::{error, info};
 use ocmu64::{database::Database, generate::GraphType, graph::*, set_flags};
 use rayon::prelude::*;
 
@@ -120,7 +120,7 @@ fn main() {
 
             let start = Instant::now();
             process_dir(paths, &args);
-            info!(
+            error!(
                 "{}",
                 format!("Duration: {:2.2}", start.elapsed().as_secs_f32())
                     .bold()
