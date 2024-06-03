@@ -252,10 +252,11 @@ impl GraphBuilder {
         self.merge_adjacent_edges();
         {
             // For initial gluing we need to compute more data.
+            // FIXME: Loop this a few times?
             let mut g = self.to_graph(get_flag("initial_glue"));
             let solution = initial_solution::initial_solution(&g);
             let to_glue = g.glue(&solution);
-            self.self_crossings += self.glue_and_permute(solution, &to_glue);
+            self.self_crossings += self.glue_and_permute(solution, &to_glue, &g);
         }
 
         self.print_stats();
@@ -459,7 +460,11 @@ impl GraphBuilder {
         // For loop is reversed before is_pdp is more efficient with fixed v.
         for v in NodeB(0)..self.b {
             for u in NodeB(0)..self.b {
-                match is_practically_dominating_pair(u, v, before, &cr, &xs, cache) {
+                let is_pdp = is_practically_dominating_pair(
+                    u, v, before, &cr, &xs, // FIXME: Can we allow cr[u][v]=0?
+                    false, cache,
+                );
+                match is_pdp {
                     IsPDP::Skip => {}
                     IsPDP::No => {
                         not_practical_dominating_pairs += 1;
@@ -469,6 +474,12 @@ impl GraphBuilder {
                         before[u][v] = Before;
                         before[v][u] = After;
                     }
+                }
+                if v.0 == u.0 + 1 {
+                    eprintln!(
+                        "{}<{}: {:?} {is_pdp:?} edges  {:?}  {:?}",
+                        u.0, v.0, before[u][v], &self[u], &self[v]
+                    );
                 }
             }
         }
@@ -500,6 +511,7 @@ pub fn is_practically_dominating_pair(
     before: &Before,
     cr: &ReducedCrossings,
     xs: &[NodeB],
+    allow_equality: bool,
     cache: &mut KnapsackCache,
 ) -> IsPDP {
     if u == v || before[v][u] != Unordered {
@@ -513,12 +525,18 @@ pub fn is_practically_dominating_pair(
 
     // TODO: Better handle this equality case. We have to be careful
     // to not introduce cycles.
-    if cr[v][u] <= 0 {
+    if cr[v][u] < 0 {
+        return IsPDP::Skip;
+    }
+    if !allow_equality && cr[v][u] == 0 {
         return IsPDP::Skip;
     }
 
     // knapsack
-    let target = P(cr[u][v] as i32, cr[u][v] as i32);
+    let mut target = P(cr[u][v] as i32, cr[u][v] as i32);
+    if allow_equality {
+        target -= P(1, 1);
+    }
 
     let strong_ks = get_flag("strong_ks");
 
@@ -548,7 +566,7 @@ pub fn is_practically_dominating_pair(
         }
 
         // x that want to be between u and v (as in uxv) are not useful here.
-        if cr[u][x] <= 0 && -cr[v][x] <= 0 {
+        if cr[u][x] <= 0 && cr[v][x] >= 0 {
             return None;
         }
         // eprintln!(
@@ -578,18 +596,30 @@ impl Graph {
             return pairs_to_glue;
         }
         for (i, (&u, &v)) in sol.iter().tuple_windows().enumerate() {
-            if !is_dominating_pair(&self[u], &self[v])
-                && is_practically_dominating_pair(
-                    u,
-                    v,
-                    &self.before,
-                    &self.reduced_crossings,
-                    // TODO: Smaller slice
-                    sol,
-                    &mut self.knapsack_cache,
-                ) != IsPDP::Yes
-            {
-                continue;
+            if self.before[u][v] != Before {
+                if !is_dominating_pair(&self[u], &self[v]) {
+                    let is_pdp = is_practically_dominating_pair(
+                        u,
+                        v,
+                        &self.before,
+                        &self.reduced_crossings,
+                        // TODO: Smaller slice
+                        sol,
+                        // NOTE: cr[u][v]=0 is allowed to still be PDP.
+                        true,
+                        &mut self.knapsack_cache,
+                    );
+                    if is_pdp != IsPDP::Yes {
+                        eprintln!("{i}: {u:?}<{v:?} cr[uv]={} before[uv]={:?} not dominating & not practically dominating: {is_pdp:?}  {:?}  {:?}", self.cr(u,v), self.before[u][v], self[u], self[v]);
+                        continue;
+                    } else {
+                        eprintln!("{i}: practically dominating.");
+                    }
+                } else {
+                    eprintln!("{i}: dominating.");
+                }
+            } else {
+                eprintln!("{i}: BEFORE");
             }
             if is_practically_glued_pair(
                 u,
@@ -598,10 +628,15 @@ impl Graph {
                 &self.reduced_crossings,
                 // TODO: Smaller slice
                 sol,
+                // We require a blocking set to be a *strict* improvement.
+                true,
                 &mut self.knapsack_cache,
             ) == IsPDP::Yes
             {
+                eprintln!("{i}: GLUE!");
                 pairs_to_glue.push(i);
+            } else {
+                eprintln!("{i}: NO GLUE!");
             }
         }
         info!(
@@ -620,6 +655,7 @@ pub fn is_practically_glued_pair(
     before: &Before,
     cr: &ReducedCrossings,
     xs: &[NodeB],
+    require_strict: bool,
     cache: &mut KnapsackCache,
 ) -> IsPDP {
     // // TODO: Better handle equality cases.
@@ -672,7 +708,8 @@ pub fn is_practically_glued_pair(
     });
 
     // FIXME TODO Do we have to allow equality here?
-    if !knapsack(P(0, 0), points, true, cache) {
+    let p = if require_strict { P(-1, -1) } else { P(0, 0) };
+    if !knapsack(p, points, true, cache) {
         IsPDP::Yes
     } else {
         IsPDP::No
@@ -787,10 +824,10 @@ impl GraphBuilder {
     /// Permute the nodes of B such that the given solution is simply 0..b.
     /// Furthermore, glue the pairs (i,i+1) as given by `to_glue`.
     /// Returns the score for newly created self-crossings.
-    fn glue_and_permute(&mut self, solution: Solution, to_glue: &Vec<usize>) -> u64 {
+    fn glue_and_permute(&mut self, solution: Solution, to_glue: &Vec<usize>, _g: &Graph) -> u64 {
         let mut score = 0;
         let mut target = 0;
-        let mut last_i = usize::MAX;
+        let mut last_i = usize::MAX / 2;
         for &i in to_glue {
             if i != last_i + 1 {
                 target = i;
@@ -798,6 +835,8 @@ impl GraphBuilder {
             // Merge v into u.
             let u = solution[target];
             let v = solution[i + 1];
+
+            eprintln!("{i}: Merge {v} into {u}");
 
             let inv = std::mem::take(&mut self.inverse[v]);
             self.inverse[u].extend(inv);
@@ -835,6 +874,7 @@ impl GraphBuilder {
                 })
                 .collect(),
         );
+        assert_eq!(self.inverse.len(), self.connections_b.len());
         self.reconstruct_a();
         self.sort_edges();
 

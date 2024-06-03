@@ -142,7 +142,10 @@ fn display_solution(g: &Graph, solution: &Solution, matrix: bool) -> String {
         return s;
     }
 
-    for &u in solution {
+    for (i, &u) in solution.iter().enumerate() {
+        let line = &mut vec![];
+        s.push_str(&format!("{}\n", draw_edge(line, &g[u]).bold()));
+        s.push_str(&format!("{i:4} "));
         for &v in solution {
             let c = g.cr(u, v) as i64;
             let color = match c {
@@ -646,6 +649,7 @@ impl<'a> Bb<'a> {
                         &self.g.before,
                         &self.g.reduced_crossings,
                         tail,
+                        false, // FIXME: Can we make this strict?
                         &mut self.g.knapsack_cache,
                     ) == IsPDP::Yes
                     {
@@ -704,6 +708,8 @@ impl<'a> Bb<'a> {
                                     &self.g.before,
                                     &self.g.reduced_crossings,
                                     &tail[..idx],
+                                    // FIXME: Can we allow cr[u][v]=0?
+                                    false,
                                     &mut self.g.knapsack_cache,
                                 ) {
                                     builder::IsPDP::Skip => self.pdp_skip += 1,
@@ -1108,6 +1114,9 @@ mod test {
 }
 
 pub fn draw(connections: &[Vec<NodeA>], sort: bool) {
+    if !get_flag("draw") {
+        return;
+    }
     // Compress.
     let mut h: BTreeMap<NodeA, NodeA> = connections
         .iter()
@@ -1124,13 +1133,6 @@ pub fn draw(connections: &[Vec<NodeA>], sort: bool) {
         .iter()
         .map(|x| x.iter().map(|x| *h.get(x).unwrap()).collect())
         .collect();
-
-    let a = connections
-        .iter()
-        .map(|x| x.iter().map(|x| x.0).max().unwrap_or(0))
-        .max()
-        .unwrap_or(0)
-        + 1;
 
     if sort {
         connections.sort_by_key(|x| {
@@ -1163,17 +1165,35 @@ pub fn draw(connections: &[Vec<NodeA>], sort: bool) {
     }
     debug!("Neighbours:");
     for row in rows {
-        let mut line = vec![b' '; a];
-        for cs in row {
-            line[cs.first().unwrap().0..=cs.last().unwrap().0].fill(b'-');
-            for c in cs {
-                line[c.0] = match line[c.0] {
-                    b'-' => b'x',
-                    b'x' => b'2',
-                    c => c + 1,
-                };
-            }
-        }
-        debug!("{}", String::from_utf8_lossy(&line));
+        let line = draw_row(&row);
+        debug!("{}", line);
     }
+}
+
+fn draw_row(row: &Vec<Vec<Node<AT>>>) -> String {
+    let mut line = vec![];
+    for edge in row {
+        draw_edge(&mut line, edge);
+    }
+    while line.last() == Some(&b' ') {
+        line.pop();
+    }
+    let line = String::from_utf8(line).unwrap();
+    line
+}
+
+fn draw_edge<'a>(line: &'a mut Vec<u8>, edge: &Vec<Node<AT>>) -> &'a str {
+    let l = edge.last().unwrap().0;
+    if line.len() <= l {
+        line.resize(l + 1, b' ');
+    }
+    line[edge.first().unwrap().0..=edge.last().unwrap().0].fill(b'-');
+    for a in edge {
+        line[a.0] = match line[a.0] {
+            b'-' => b'x',
+            b'x' => b'2',
+            c => c + 1,
+        };
+    }
+    std::str::from_utf8(line).unwrap()
 }
