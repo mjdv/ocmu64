@@ -209,3 +209,5 @@ Flags named =no_...= disable features that should just work and not give contrad
 - improve tail bound
 - linear/binary search optimal score
 - linear search instead of binary search the relevant ranges.
+- For each tail with a solution, store the optimal next-to-fix.
+  - Avoid recursing for repeated solutions.

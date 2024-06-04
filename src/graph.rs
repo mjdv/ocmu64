@@ -982,9 +982,8 @@ states {}
         self.solution[self.solution_len..].copy_from_slice(&old_tail);
 
         assert!(old_score.min(self.best_score) <= self.upper_bound);
-        // TODO: Can we bump the excess score to this value.
         let tail_excess = if solution {
-            0
+            self.best_score - old_score
         } else {
             self.upper_bound.saturating_sub(old_score)
         };
