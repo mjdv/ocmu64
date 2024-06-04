@@ -3,6 +3,7 @@ pub mod database;
 pub mod generate;
 pub mod graph;
 mod knapsack;
+pub mod max_with;
 pub mod node;
 mod pattern_search;
 
