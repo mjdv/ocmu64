@@ -243,6 +243,14 @@ fn oscm_part(g: &mut Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
         info!("tail excess up: {:>9}", bb.tail_excess_updates);
         info!("tail skip     : {:>9}", bb.tail_skip);
         info!("tail suffix   : {:>9}", bb.tail_suffix);
+
+        let mut hist = bb.tail_excess_hist.iter().collect_vec();
+        hist.sort();
+        info!("Excess updates: {hist:?}",);
+
+        // let mut hist = bb.tail_suffix_hist.iter().collect_vec();
+        // hist.sort();
+        // info!("Suffix pos    : {hist:?}",);
     }
 
     let best_score = bb.best_score;
@@ -389,10 +397,17 @@ pub struct Bb<'a> {
     glue_no: u64,
     glue_no_calls: u64,
     glue_yes: u64,
+    /// The number of times a lower bound was updated in the hashmap.
+    tail_excess_updates: u64,
+    tail_excess_hist: HashMap<u64, usize>,
     tail_update: u64,
     tail_insert: u64,
     tail_skip: u64,
     tail_suffix: u64,
+    tail_suffix_hist: HashMap<usize, usize>,
+
+    /// Reusable memory.
+    local_mask: MyBitVec,
 }
 
 impl<'a> Bb<'a> {
@@ -435,11 +450,11 @@ impl<'a> Bb<'a> {
             best_solution: initial_solution,
             best_score: initial_score,
             tail_cache: HashMap::default(),
+
             states: 0,
             sols_found: 0,
             lb_exceeded_1: 0,
             lb_exceeded_2: 0,
-            lb_updates: 0,
             lb_hit: 0,
             pdp_yes: 0,
             pdp_no: 0,
@@ -450,10 +465,15 @@ impl<'a> Bb<'a> {
             glue_no_calls: 0,
             glue_no: 0,
             glue_yes: 0,
-            tail_update: 0,
             tail_insert: 0,
+            tail_update: 0,
+            tail_excess_updates: 0,
+            tail_excess_hist: HashMap::default(),
             tail_skip: 0,
             tail_suffix: 0,
+            tail_suffix_hist: HashMap::default(),
+
+            local_mask: MyBitVec::new(false, b.0),
         }
     }
 
@@ -527,18 +547,18 @@ impl<'a> Bb<'a> {
                 }
                 None => 'cache: {
                     if !get_flag("no_tail_suffix") {
-                        // TODO: Reuse memory for local_mask.
-                        // TODO: Binary search on length of tail?
-                        let mut local_mask = self.tail_mask.clone();
-                        for u in tail {
+                        self.local_mask.copy_from_bitslice(&self.tail_mask);
+                        for (i, u) in tail.iter().enumerate() {
+                            // FIXME: Only store the 'interesting' part of the tail.
                             self.tail_suffix += 1;
-                            unsafe { local_mask.set_unchecked(u.0, false) };
+                            unsafe { self.local_mask.set_unchecked(u.0, false) };
 
-                            let get = self.tail_cache.get(&local_mask);
+                            let get = self.tail_cache.get(&self.local_mask);
                             if let Some(get) = get {
-                                // TODO: This is broken, but a similar idea may work.
+                                // *self.tail_suffix_hist.entry(i).or_default() += 1;
                                 if get_flag("tail_suffix_full") {
                                     break 'cache (get.0, vec![], get.2.clone());
+                                    // TODO: This is broken, but a similar idea may work.
                                     // break 'cache get.clone();
                                 } else {
                                     break 'cache (get.0, vec![], vec![]);
@@ -889,10 +909,14 @@ states {}
             Entry::Occupied(mut e) => {
                 self.tail_update += 1;
                 // We did a search without success so the value must grow.
-                // assert!(tail_excess > *e.get());
+                debug_assert!(solution || tail_excess > e.get().0);
                 if tail_excess > e.get().0 {
+                    *self
+                        .tail_excess_hist
+                        .entry(tail_excess - e.get().0)
+                        .or_default() += 1;
                     e.get_mut().0 = tail_excess;
-                    self.lb_updates += 1;
+                    self.tail_excess_updates += 1;
                 }
                 if has_lb_cache {
                     e.get_mut().1 = local_before;
