@@ -671,8 +671,6 @@ impl<'a> Bb<'a> {
         }
         tail.iter().map(|u| self.g.intervals[*u].end).min().unwrap();
 
-        // FIXME: This is inefficient, taking 10% of time!
-        let old_tail = tail.to_vec();
         let old_solution_len = self.solution_len;
         let old_score = self.score;
 
@@ -930,6 +928,7 @@ impl<'a> Bb<'a> {
                 // solution will always append them at the back, and in that
                 // situation the lower bound will be valid.
                 if get_flag("no_optimal_insert") {
+                    let tail = &self.solution[self.solution_len..];
                     assert!(
                         my_lower_bound <= self.best_score,
                         "Found a solution with score {} but lower bound is {}
@@ -941,7 +940,7 @@ states {}
                         my_lower_bound,
                         &self.solution[self.solution_len - 1..],
                         self.tail_cache
-                            .get(&compress_tail_mask(&old_tail, &self.tail_mask) as &dyn Key)
+                            .get(&compress_tail_mask(&tail, &self.tail_mask) as &dyn Key)
                             .map(|x| x.0),
                         self.states
                     );
@@ -979,9 +978,12 @@ states {}
         // Restore the tail.
         assert_eq!(self.solution_len, old_solution_len);
         debug_assert_eq!(self.tail_mask.count_zeros(), self.solution_len);
-        self.solution[self.solution_len..].copy_from_slice(&old_tail);
+        self.solution[self.solution_len..=last_i].rotate_left(1);
+        let tail = &self.solution[self.solution_len..];
 
         assert!(old_score.min(self.best_score) <= self.upper_bound);
+
+        // FIXME: How does tail_excess interact with optimal insert?
         let tail_excess = if solution {
             self.best_score - old_score
         } else {
@@ -989,7 +991,7 @@ states {}
         };
         match self
             .tail_cache
-            .entry(compress_tail_mask(&old_tail, &self.tail_mask).to_owned())
+            .entry(compress_tail_mask(&tail, &self.tail_mask).to_owned())
         {
             Entry::Occupied(mut e) => {
                 self.tail_update += 1;
