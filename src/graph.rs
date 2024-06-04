@@ -6,6 +6,7 @@ use crate::{
     pattern_search::pattern_search,
 };
 use std::{
+    borrow::Borrow,
     cmp::{self, min},
     collections::{hash_map::Entry, BTreeMap, HashMap},
     iter::Step,
@@ -378,7 +379,7 @@ pub struct Bb<'a> {
     /// - lower bound for score on tail on top of the trivial lower bound
     /// - a list of practically dominating pairs (v, u) for which v must come before u.
     /// - a list of u that are not practically dominated by any v.
-    tail_cache: HashMap<MyBitVec, (u64, Vec<(NodeB, NodeB)>, Vec<NodeB>)>,
+    tail_cache: HashMap<(usize, MyBitVec), (u64, Vec<(NodeB, NodeB)>, Vec<NodeB>)>,
 
     /// The number of states explored.
     states: u64,
@@ -405,6 +406,76 @@ pub struct Bb<'a> {
     tail_skip: u64,
     tail_suffix: u64,
     tail_suffix_hist: HashMap<usize, usize>,
+}
+
+#[derive(Copy, Clone)]
+struct SmallKey<'a>(usize, &'a [usize]);
+
+impl SmallKey<'_> {
+    fn to_owned(&self) -> (usize, MyBitVec) {
+        (self.0, MyBitVec(BitVec::from_slice(self.1)))
+    }
+}
+
+trait Key {
+    fn key(&self) -> (usize, &[usize]);
+}
+
+impl<'a> Eq for dyn Key + 'a {}
+
+impl<'a> PartialEq for dyn Key + 'a {
+    fn eq(&self, other: &dyn Key) -> bool {
+        self.key() == other.key()
+    }
+}
+
+impl<'a> std::hash::Hash for dyn Key + 'a {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        let key = self.key();
+        key.0.hash(state);
+        key.1.iter().for_each(|word| {
+            word.hash(state);
+        });
+    }
+}
+
+impl<'a> Key for SmallKey<'a> {
+    fn key(&self) -> (usize, &[usize]) {
+        (self.0, &self.1)
+    }
+}
+
+impl<'a> Key for (usize, MyBitVec) {
+    fn key(&self) -> (usize, &[usize]) {
+        (self.0, self.1.as_raw_slice())
+    }
+}
+
+impl<'a> Borrow<dyn Key + 'a> for (usize, MyBitVec) {
+    fn borrow(&self) -> &(dyn Key + 'a) {
+        self
+    }
+}
+
+fn compress_tail_mask<'a>(tail: &[NodeB], tail_mask: &'a MyBitVec) -> SmallKey<'a> {
+    if tail.is_empty() {
+        return SmallKey(tail_mask.len(), tail_mask.0.as_raw_slice());
+    }
+    let start = tail[0].0;
+    let mut slice = &tail_mask.as_raw_slice()[start / 64..];
+    // FIXME: This while loop can be made more efficient.
+    while slice.last() == Some(&usize::MAX) {
+        slice = &slice[..slice.len() - 1];
+    }
+    // Find last missing element of tail.
+    // let start = tail[0].0 / 64;
+    // let mut i = 0;
+    // while i < tail.len() && tail_mask.len() - tail[i].0 != tail.len() - i {
+    //     i += 1;
+    // }
+    // let end = (tail[i - 1].0 + 1).div_ceil(64).min(slice.len());
+
+    SmallKey(start, slice)
 }
 
 impl<'a> Bb<'a> {
@@ -534,46 +605,51 @@ impl<'a> Bb<'a> {
         // Additionally, if we already have a lower bound on how much the score
         // of the tail exceeds the trivial lower bound, use that.
 
-        let (tail_excess, mut local_before, mut not_dominated) =
-            match self.tail_cache.get(&self.tail_mask) {
-                Some(x) => {
-                    // *self.tail_suffix_hist.entry(0).or_default() += 1;
-                    // FIXME: Take the value instead of cloning it.
-                    x.clone()
-                }
-                None => {
-                    if !get_flag("no_tail_suffix") {
-                        let mut i = 0;
-                        let tup = 'cleanup: {
-                            for u in tail {
-                                i += 1;
-                                // FIXME: Only store the 'interesting' part of the tail.
-                                self.tail_suffix += 1;
-                                unsafe { self.tail_mask.set_unchecked(u.0, false) };
+        let (tail_excess, mut local_before, mut not_dominated) = match self
+            .tail_cache
+            .get(&compress_tail_mask(tail, &self.tail_mask) as &dyn Key)
+        {
+            Some(x) => {
+                // *self.tail_suffix_hist.entry(0).or_default() += 1;
+                // FIXME: Take the value instead of cloning it.
+                x.clone()
+            }
+            None => {
+                if !get_flag("no_tail_suffix") {
+                    let mut i = 0;
+                    let tup = 'cleanup: {
+                        for u in tail {
+                            i += 1;
+                            // FIXME: Only store the 'interesting' part of the tail.
+                            self.tail_suffix += 1;
+                            unsafe { self.tail_mask.set_unchecked(u.0, false) };
 
-                                let get = self.tail_cache.get(&self.tail_mask);
-                                if let Some(get) = get {
-                                    *self.tail_suffix_hist.entry(i + 1).or_default() += 1;
-                                    if get_flag("tail_suffix_full") {
-                                        break 'cleanup (get.0, vec![], get.2.clone());
-                                        // TODO: This is broken, but a similar idea may work.
-                                        // break 'cache get.clone();
-                                    } else {
-                                        break 'cleanup (get.0, vec![], vec![]);
-                                    }
+                            let get =
+                                self.tail_cache
+                                    .get(&compress_tail_mask(&tail[i..], &self.tail_mask)
+                                        as &dyn Key);
+                            if let Some(get) = get {
+                                *self.tail_suffix_hist.entry(i + 1).or_default() += 1;
+                                if get_flag("tail_suffix_full") {
+                                    break 'cleanup (get.0, vec![], get.2.clone());
+                                    // TODO: This is broken, but a similar idea may work.
+                                    // break 'cache get.clone();
+                                } else {
+                                    break 'cleanup (get.0, vec![], vec![]);
                                 }
                             }
-                            (0, vec![], vec![])
-                        };
-                        for u in &tail[..i] {
-                            unsafe { self.tail_mask.set_unchecked(u.0, true) };
                         }
-                        tup
-                    } else {
                         (0, vec![], vec![])
+                    };
+                    for u in &tail[..i] {
+                        unsafe { self.tail_mask.set_unchecked(u.0, true) };
                     }
+                    tup
+                } else {
+                    (0, vec![], vec![])
                 }
-            };
+            }
+        };
 
         let my_lower_bound = self.score + tail_excess;
 
@@ -595,6 +671,7 @@ impl<'a> Bb<'a> {
         }
         tail.iter().map(|u| self.g.intervals[*u].end).min().unwrap();
 
+        // FIXME: This is inefficient, taking 10% of time!
         let old_tail = tail.to_vec();
         let old_solution_len = self.solution_len;
         let old_score = self.score;
@@ -863,7 +940,9 @@ states {}
                         self.best_score,
                         my_lower_bound,
                         &self.solution[self.solution_len - 1..],
-                        self.tail_cache.get(&self.tail_mask).map(|x| x.0),
+                        self.tail_cache
+                            .get(&compress_tail_mask(&old_tail, &self.tail_mask) as &dyn Key)
+                            .map(|x| x.0),
                         self.states
                     );
                 }
@@ -909,7 +988,10 @@ states {}
         } else {
             self.upper_bound.saturating_sub(old_score)
         };
-        match self.tail_cache.entry(self.tail_mask.clone()) {
+        match self
+            .tail_cache
+            .entry(compress_tail_mask(&old_tail, &self.tail_mask).to_owned())
+        {
             Entry::Occupied(mut e) => {
                 self.tail_update += 1;
                 // We did a search without success so the value must grow.
@@ -967,13 +1049,14 @@ impl IndexMut<NodeB> for Graph {
     }
 }
 
+/// Wrapper type with better hash function.
 #[derive(Debug, PartialEq, Eq, Clone)]
 struct MyBitVec(BitVec);
 impl std::hash::Hash for MyBitVec {
     #[inline(always)]
-    fn hash<H: std::hash::Hasher>(&self, hasher: &mut H) {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.0.as_raw_slice().iter().for_each(|word| {
-            word.hash(hasher);
+            word.hash(state);
         });
     }
 }
