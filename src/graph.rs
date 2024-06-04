@@ -405,9 +405,6 @@ pub struct Bb<'a> {
     tail_skip: u64,
     tail_suffix: u64,
     tail_suffix_hist: HashMap<usize, usize>,
-
-    /// Reusable memory.
-    local_mask: MyBitVec,
 }
 
 impl<'a> Bb<'a> {
@@ -472,8 +469,6 @@ impl<'a> Bb<'a> {
             tail_skip: 0,
             tail_suffix: 0,
             tail_suffix_hist: HashMap::default(),
-
-            local_mask: MyBitVec::new(false, b.0),
         }
     }
 
@@ -542,32 +537,41 @@ impl<'a> Bb<'a> {
         let (tail_excess, mut local_before, mut not_dominated) =
             match self.tail_cache.get(&self.tail_mask) {
                 Some(x) => {
+                    // *self.tail_suffix_hist.entry(0).or_default() += 1;
                     // FIXME: Take the value instead of cloning it.
                     x.clone()
                 }
-                None => 'cache: {
+                None => {
                     if !get_flag("no_tail_suffix") {
-                        self.local_mask.copy_from_bitslice(&self.tail_mask);
-                        for (i, u) in tail.iter().enumerate() {
-                            // FIXME: Only store the 'interesting' part of the tail.
-                            self.tail_suffix += 1;
-                            unsafe { self.local_mask.set_unchecked(u.0, false) };
+                        let mut i = 0;
+                        let tup = 'cleanup: {
+                            for u in tail {
+                                i += 1;
+                                // FIXME: Only store the 'interesting' part of the tail.
+                                self.tail_suffix += 1;
+                                unsafe { self.tail_mask.set_unchecked(u.0, false) };
 
-                            let get = self.tail_cache.get(&self.local_mask);
-                            if let Some(get) = get {
-                                // *self.tail_suffix_hist.entry(i).or_default() += 1;
-                                if get_flag("tail_suffix_full") {
-                                    break 'cache (get.0, vec![], get.2.clone());
-                                    // TODO: This is broken, but a similar idea may work.
-                                    // break 'cache get.clone();
-                                } else {
-                                    break 'cache (get.0, vec![], vec![]);
+                                let get = self.tail_cache.get(&self.tail_mask);
+                                if let Some(get) = get {
+                                    *self.tail_suffix_hist.entry(i + 1).or_default() += 1;
+                                    if get_flag("tail_suffix_full") {
+                                        break 'cleanup (get.0, vec![], get.2.clone());
+                                        // TODO: This is broken, but a similar idea may work.
+                                        // break 'cache get.clone();
+                                    } else {
+                                        break 'cleanup (get.0, vec![], vec![]);
+                                    }
                                 }
                             }
+                            (0, vec![], vec![])
+                        };
+                        for u in &tail[..i] {
+                            unsafe { self.tail_mask.set_unchecked(u.0, true) };
                         }
+                        tup
+                    } else {
+                        (0, vec![], vec![])
                     }
-
-                    (0, vec![], vec![])
                 }
             };
 
