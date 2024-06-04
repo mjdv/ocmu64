@@ -68,7 +68,9 @@ vertex or the union of an interval of vertices), it most hold that:
 
 \begin{align}\label{eq:opt3}
 c(u,z,v) &\leq c(z,u,v),&
-c(u,z,v) &\leq c(v,z,u).\\
+c(u,z,v) &\leq c(u,v,z).\\
+c(u,z,v) &\leq c(z,v,u),&
+c(u,z,v) &\leq c(v,u,z).
 \end{align}
 
 **Lemma O5.** (Strong order is optimal)
@@ -140,5 +142,8 @@ We try to fix each $u\in T$ as the next vertex. Can we prove that the cost of
 moving $u$ to the front increases as we iterate over all $u$?
 
 **Lemma X2.**
-If $u \pe v$ and $c(v, w) < 0$, then $c(u, w) < 0?
+If $u \pe v$ and $c(v, w) < 0$, then $c(u, w) < 0$?
+
 If $u \pe v$ and $c(v, w) < 0$, then $u \pe w$?
+
+**Lemma X3.**

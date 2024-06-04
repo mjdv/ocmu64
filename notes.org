@@ -200,6 +200,12 @@ Flags named =no_...= disable features that should just work and not give contrad
 - Call ~to_graph~ only once, or at least avoid computing edge crossings twice.
 - Store only critical part of the tail.
 - Remove all allocations from branch_and_bound and reuse a cache instead.
-- Handle inifinite coordinates in PDP knapsack.
+- Handle infinite coordinates in PDP knapsack.
 - More efficient initial merging, especially be careful around ties.
-- M
+- Replace binary searches by linear scans.
+- Try swapping chunks in initial solution, using cumulative sum matrix.
+- Continue glueing implementation
+- average tail suffix length
+- improve tail bound
+- linear/binary search optimal score
+- linear search instead of binary search the relevant ranges.
