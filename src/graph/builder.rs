@@ -476,7 +476,7 @@ impl GraphBuilder {
                     }
                 }
                 if v.0 == u.0 + 1 {
-                    eprintln!(
+                    debug!(
                         "{}<{}: {:?} {is_pdp:?} edges  {:?}  {:?}",
                         u.0, v.0, before[u][v], &self[u], &self[v]
                     );
@@ -610,16 +610,16 @@ impl Graph {
                         &mut self.knapsack_cache,
                     );
                     if is_pdp != IsPDP::Yes {
-                        eprintln!("{i}: {u:?}<{v:?} cr[uv]={} before[uv]={:?} not dominating & not practically dominating: {is_pdp:?}  {:?}  {:?}", self.cr(u,v), self.before[u][v], self[u], self[v]);
+                        info!("{i}: {u:?}<{v:?} cr[uv]={} before[uv]={:?} not dominating & not practically dominating: {is_pdp:?}  {:?}  {:?}", self.cr(u,v), self.before[u][v], self[u], self[v]);
                         continue;
                     } else {
-                        eprintln!("{i}: practically dominating.");
+                        info!("{i}: practically dominating.");
                     }
                 } else {
-                    eprintln!("{i}: dominating.");
+                    info!("{i}: dominating.");
                 }
             } else {
-                eprintln!("{i}: BEFORE");
+                info!("{i}: BEFORE");
             }
             if is_practically_glued_pair(
                 u,
@@ -633,10 +633,10 @@ impl Graph {
                 &mut self.knapsack_cache,
             ) == IsPDP::Yes
             {
-                eprintln!("{i}: GLUE!");
+                info!("{i}: GLUE!");
                 pairs_to_glue.push(i);
             } else {
-                eprintln!("{i}: NO GLUE!");
+                info!("{i}: NO GLUE!");
             }
         }
         info!(
@@ -836,7 +836,7 @@ impl GraphBuilder {
             let u = solution[target];
             let v = solution[i + 1];
 
-            eprintln!("{i}: Merge {v} into {u}");
+            info!("{i}: Merge {v} into {u}");
 
             let inv = std::mem::take(&mut self.inverse[v]);
             self.inverse[u].extend(inv);

@@ -123,9 +123,10 @@ impl Graph {
 
 pub type Solution = Vec<NodeB>;
 
-fn display_solution(g: &Graph, solution: &Solution, matrix: bool) -> String {
+fn display_solution(g: &Graph, solution: &mut Solution, matrix: bool) -> String {
+    initial_solution::sort_adjacent(g, solution);
     let mut s = String::new();
-    if log::log_enabled!(log::Level::Debug) {
+    if log::log_enabled!(log::Level::Info) {
         solution
             .chunk_by(|l, r| Step::forward(*l, 1) == *r)
             .for_each(|slice| {
@@ -146,7 +147,7 @@ fn display_solution(g: &Graph, solution: &Solution, matrix: bool) -> String {
         let line = &mut vec![];
         s.push_str(&format!("{}\n", draw_edge(line, &g[u]).bold()));
         s.push_str(&format!("{i:4} "));
-        for &v in solution {
+        for &v in &*solution {
             let c = g.cr(u, v) as i64;
             let color = match c {
                 ..=-1 => colored::Color::Red,
@@ -226,7 +227,6 @@ fn oscm_part(g: &mut Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
         info!("B&B States    : {:>9}", bb.states);
         info!("LB exceeded 1 : {:>9}", bb.lb_exceeded_1);
         info!("LB exceeded 2 : {:>9}", bb.lb_exceeded_2);
-        info!("LB updates    : {:>9}", bb.lb_updates);
         info!("Unique subsets: {:>9}", bb.tail_cache.len());
         info!("LB matching   : {:>9}", bb.lb_hit);
         info!("PDP yes       : {:>9}", bb.pdp_yes);
@@ -238,8 +238,9 @@ fn oscm_part(g: &mut Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
         info!("glue yes      : {:>9}", bb.glue_yes);
         info!("glue no       : {:>9}", bb.glue_no);
         info!("glue no calls : {:>9}", bb.glue_no_calls);
-        info!("tail update   : {:>9}", bb.tail_update);
         info!("tail insert   : {:>9}", bb.tail_insert);
+        info!("tail update   : {:>9}", bb.tail_update);
+        info!("tail excess up: {:>9}", bb.tail_excess_updates);
         info!("tail skip     : {:>9}", bb.tail_skip);
         info!("tail suffix   : {:>9}", bb.tail_suffix);
     }
@@ -256,7 +257,7 @@ fn oscm_part(g: &mut Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
 
     debug!(
         "Solution      : {}",
-        display_solution(g, &best_solution, true)
+        display_solution(g, &mut best_solution, true)
     );
     if let Some(bound) = bound
         && best_score > bound
@@ -289,12 +290,13 @@ pub fn one_sided_crossing_minimization(
             } else {
                 info!("{}", "BUILD PART".bold());
                 let mut g = gb.to_graph(true);
-                let Some((part_sol, part_score)) = oscm_part(&mut g, bound) else {
+                let Some((mut part_sol, part_score)) = oscm_part(&mut g, bound) else {
                     info!("No solution for part {i} of {num_parts}.");
                     break 'sol None;
                 };
 
                 info!("Part score: {part_score}");
+                info!("Part sol: {}", display_solution(&g, &mut part_sol, false));
 
                 debug_assert_eq!(part_score, g.score(&part_sol), "WRONG SCORE FOR PART");
                 // info!("{part_sol:?}");
@@ -324,7 +326,7 @@ pub fn one_sided_crossing_minimization(
             }
         }
         if let Some(g0) = g0.as_ref() {
-            info!("{}", display_solution(g0, &solution, false));
+            info!("{}", display_solution(g0, &mut solution, false));
             debug_assert_eq!(score, g0.score(&solution), "WRONG SCORE FOR FINAL SOLUTION");
         }
 
@@ -374,8 +376,6 @@ pub struct Bb<'a> {
     states: u64,
     /// The number of distinct solutions found.
     sols_found: u64,
-    /// The number of times a lower bound was updated in the hashmap.
-    lb_updates: u64,
     /// The number of times we return early because we found a solution with the same score as the lower bound.
     lb_hit: u64,
     lb_exceeded_1: u64,
@@ -398,15 +398,21 @@ pub struct Bb<'a> {
 impl<'a> Bb<'a> {
     pub fn new(g: &'a mut Graph, upper_bound: Option<u64>) -> Self {
         // Start with a greedy solution.
-        let initial_solution = (NodeB(0)..g.b).collect::<Vec<_>>();
+        let mut initial_solution = (NodeB(0)..g.b).collect::<Vec<_>>();
         let initial_score = g.score(&initial_solution);
 
         debug!(
-            "Initial solution      : {}",
-            display_solution(g, &initial_solution, true)
+            "Initial solution   : {}",
+            display_solution(g, &mut initial_solution, true)
         );
 
-        info!("Initial solution found, with score {initial_score}.");
+        info!("Initial solution : {initial_score}");
+
+        if let Some(upper_bound) = upper_bound
+            && upper_bound < initial_score
+        {
+            info!("Upper bound      : {upper_bound}");
+        }
 
         let score = g.self_crossings + g.min_crossings;
 
