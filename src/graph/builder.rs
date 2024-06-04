@@ -538,7 +538,7 @@ pub fn is_practically_dominating_pair(
         target -= P(1, 1);
     }
 
-    let strong_ks = get_flag("strong_ks");
+    let strong_ks = !get_flag("no_strong_ks");
 
     // We do not consider x that must be before u and v, or after u and v.
     let points = xs.iter().filter_map(|&x| {

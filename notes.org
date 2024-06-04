@@ -161,11 +161,11 @@ Flags named =no_...= disable features that should just work and not give contrad
 - ~no_lb_cache~: cache local before vec per tail.
 - ~no_glue2~: glue v to u if cr(v,x) <= 0 for all x in the tail.
 - ~no_tail_suffix~: Do not check suffixes of the tail for an improved lower bound.
+- ~no_strong_ks~: stronger filter for knapsack points.
 
 ** In progress
 - ~glue~: glue states that must be adjacent on-the-fly. Not on by default since
   it's slow.
-- ~strong_ks~: Disable stronger filter for knapsack points.
 - ~lazy_cr~: Fill prefix/suffix of ~cr~ matrix with +-INF.
 - ~initial_glue~: Join adjacent pairs.
 
