@@ -227,6 +227,7 @@ fn oscm_part(g: &mut Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
         info!("");
         info!("Sols found    : {:>9}", bb.sols_found);
         info!("B&B States    : {:>9}", bb.states);
+        info!("states aft bst: {:>9}", bb.states_since_best_sol);
         info!("LB exceeded 1 : {:>9}", bb.lb_exceeded_1);
         info!("LB exceeded 2 : {:>9}", bb.lb_exceeded_2);
         info!("Reuse tail    : {:>9}", bb.reuse_tail);
@@ -247,15 +248,15 @@ fn oscm_part(g: &mut Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
         info!("tail skip     : {:>9}", bb.tail_skip);
         info!("tail suffix   : {:>9}", bb.tail_suffix);
         info!("skip best     : {:>9}", bb.skip_best);
-        info!("set best     : {:>9}", bb.set_best);
+        info!("set best      : {:>9}", bb.set_best);
 
         let mut hist = bb.tail_excess_hist.iter().collect_vec();
         hist.sort();
         info!("Excess updates: {hist:?}",);
 
-        // let mut hist = bb.tail_suffix_hist.iter().collect_vec();
-        // hist.sort();
-        // info!("Suffix pos    : {hist:?}",);
+        let mut hist = bb.tail_suffix_hist.iter().collect_vec();
+        hist.sort();
+        info!("Suffix pos    : {hist:?}",);
     }
 
     let best_score = bb.best_score;
@@ -355,7 +356,7 @@ pub fn one_sided_crossing_minimization(
             }
         }
         if let Some(g0) = g0.as_ref() {
-            info!("{}", display_solution(g0, &mut solution, false));
+            // info!("{}", display_solution(g0, &mut solution, false));
             debug_assert_eq!(score, g0.score(&solution), "WRONG SCORE FOR FINAL SOLUTION");
         }
 
@@ -408,6 +409,7 @@ pub struct Bb<'a> {
 
     /// The number of states explored.
     states: u64,
+    states_since_best_sol: u64,
     /// The number of distinct solutions found.
     sols_found: u64,
     /// The number of times we return early because we found a solution with the same score as the lower bound.
@@ -559,6 +561,7 @@ impl<'a> Bb<'a> {
             tail_cache: HashMap::default(),
 
             states: 0,
+            states_since_best_sol: 0,
             sols_found: 0,
             lb_exceeded_1: 0,
             lb_exceeded_2: 0,
@@ -613,6 +616,7 @@ impl<'a> Bb<'a> {
     /// - the leftmost optimal insert position.
     pub fn branch_and_bound(&mut self) -> (bool, usize) {
         self.states += 1;
+        self.states_since_best_sol += 1;
 
         if self.score >= self.upper_bound {
             self.lb_exceeded_1 += 1;
@@ -634,6 +638,7 @@ impl<'a> Bb<'a> {
                     eprint!("Best score: {score:>9}\r");
                 }
                 assert!(score < self.best_score);
+                self.states_since_best_sol = 0;
                 self.best_score = score;
                 self.best_solution.clone_from(&self.solution);
                 self.implicit_solution = false;
@@ -642,6 +647,7 @@ impl<'a> Bb<'a> {
                 return (true, usize::MAX);
             } else if score < self.best_score {
                 self.best_score = score;
+                self.states_since_best_sol = 0;
                 return (false, usize::MAX);
             } else {
                 return (false, usize::MAX);
@@ -666,6 +672,7 @@ impl<'a> Bb<'a> {
                     let new_score = self.score + x.0;
                     self.implicit_solution = true;
                     if new_score < self.upper_bound {
+                        self.states_since_best_sol = 0;
                         self.sols_found += 1;
                         self.reuse_tail += 1;
                         self.best_score = new_score;
@@ -676,13 +683,14 @@ impl<'a> Bb<'a> {
                         // TODO: Update best solution.
                         return (true, usize::MAX);
                     } else if new_score < self.best_score {
+                        self.states_since_best_sol = 0;
                         self.sols_found += 1;
                         self.reuse_tail += 1;
                         self.best_score = new_score;
                         return (false, usize::MAX);
                     }
                 }
-                // *self.tail_suffix_hist.entry(0).or_default() += 1;
+                *self.tail_suffix_hist.entry(0).or_default() += 1;
                 // FIXME: Take the value instead of cloning it.
                 (x.0, x.1.clone(), x.2.clone())
             }
@@ -700,7 +708,7 @@ impl<'a> Bb<'a> {
                                     .get(&compress_tail_mask(&tail[i..], &self.tail_mask)
                                         as &dyn Key);
                             if let Some(get) = get {
-                                *self.tail_suffix_hist.entry(i + 1).or_default() += 1;
+                                *self.tail_suffix_hist.entry(i).or_default() += 1;
                                 if get_flag("tail_suffix_full") {
                                     break 'cleanup (get.0, vec![], get.2.clone());
                                     // TODO: This is broken, but a similar idea may work.
