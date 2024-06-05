@@ -531,9 +531,6 @@ pub fn is_practically_dominating_pair(
     if cr[v][u] < 0 {
         return IsPDP::Skip;
     }
-    if !allow_equality && cr[v][u] == 0 {
-        return IsPDP::Skip;
-    }
 
     // knapsack
     let mut target = P(cr[u][v] as i32, cr[u][v] as i32);
