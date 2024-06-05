@@ -168,6 +168,8 @@ Flags named =no_...= disable features that should just work and not give contrad
   it's slow.
 - ~lazy_cr~: Fill prefix/suffix of ~cr~ matrix with +-INF.
 - ~initial_glue~: Join adjacent pairs.
+- ~dp~: Do a width-15 DP on the initial solution. Doesn't give much benefit.
+  - TODO: Do it again after gluing?
 
 ** Disabled
 - ~tc~: take the transitive closure of the =before= matrix.
