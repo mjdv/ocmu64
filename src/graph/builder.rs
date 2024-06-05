@@ -193,8 +193,11 @@ impl GraphBuilder {
         let before = if full {
             let mut before = self.dominating_pairs();
             self.practical_dominating_pairs(&mut before, &cr);
+            if get_flag("tc") {
+                Self::transitive_closure(&mut before);
+            }
+            self.practical_dominating_pairs(&mut before, &cr);
             self.boundary_pairs(&mut before);
-            Self::transitive_closure(&mut before);
             before
         } else {
             VecB::new(self.b)
