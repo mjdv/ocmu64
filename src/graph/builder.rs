@@ -462,9 +462,11 @@ impl GraphBuilder {
 
         // For loop is reversed before is_pdp is more efficient with fixed v.
         for v in NodeB(0)..self.b {
-            for u in NodeB(0)..self.b {
+            for u in NodeB(0)..v {
                 let is_pdp = is_practically_dominating_pair(
-                    u, v, before, &cr, &xs, // FIXME: Can we allow cr[u][v]=0?
+                    u, v, before, &cr, &xs,
+                    // TODO: Investigate if equality is OK
+                    // Most of the time it is but it makes bugs :(
                     false, cache,
                 );
                 match is_pdp {
@@ -477,12 +479,6 @@ impl GraphBuilder {
                         before[u][v] = Before;
                         before[v][u] = After;
                     }
-                }
-                if v.0 == u.0 + 1 {
-                    debug!(
-                        "{}<{}: {:?} {is_pdp:?} edges  {:?}  {:?}",
-                        u.0, v.0, before[u][v], &self[u], &self[v]
-                    );
                 }
             }
         }
@@ -569,10 +565,6 @@ pub fn is_practically_dominating_pair(
         if cr[u][x] <= 0 && cr[v][x] >= 0 {
             return None;
         }
-        // eprintln!(
-        //     "{u} {v} {x} {} {} {:?} {:?}",
-        //     cr[u][x], cr[v][x], before[u][x], before[v][x]
-        // );
         Some(P(-cr[u][x] as i32, cr[v][x] as i32))
     });
 
