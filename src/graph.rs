@@ -125,6 +125,7 @@ impl Graph {
 
 pub type Solution = Vec<NodeB>;
 
+#[must_use]
 fn display_solution(g: &Graph, solution: &mut Solution, matrix: bool) -> String {
     initial_solution::sort_adjacent(g, solution);
     let mut s = String::new();
@@ -252,11 +253,15 @@ fn oscm_part(g: &mut Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
 
         let mut hist = bb.tail_excess_hist.iter().collect_vec();
         hist.sort();
-        info!("Excess updates: {hist:?}",);
+        info!("Excess updates: {hist:?}\n");
 
         let mut hist = bb.tail_suffix_hist.iter().collect_vec();
         hist.sort();
-        info!("Suffix pos    : {hist:?}",);
+        info!("Suffix pos    : {hist:?}\n");
+
+        let mut hist = bb.u_poss.iter().collect_vec();
+        hist.sort();
+        info!("#u-to-try     : {hist:?}\n");
     }
 
     let best_score = bb.best_score;
@@ -436,6 +441,7 @@ pub struct Bb<'a> {
     set_best: u64,
     skip_best: u64,
     tail_suffix_hist: HashMap<usize, usize>,
+    u_poss: HashMap<usize, usize>,
 }
 
 #[derive(Copy, Clone)]
@@ -585,6 +591,7 @@ impl<'a> Bb<'a> {
             set_best: 0,
             skip_best: 0,
             tail_suffix_hist: HashMap::default(),
+            u_poss: HashMap::default(),
         }
     }
 
@@ -936,6 +943,7 @@ impl<'a> Bb<'a> {
         // Try each of the tail nodes as next node.
         let mut last_i = self.solution_len;
         let mut best_u = None;
+        *self.u_poss.entry(u_to_try.len()).or_default() += 1;
         'u: for &(i, u) in &u_to_try {
             // Swap the next tail node to the front of the tail.
             self.solution.swap(self.solution_len, i);
