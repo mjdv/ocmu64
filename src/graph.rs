@@ -261,6 +261,22 @@ fn oscm_part(g: &mut Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
     let best_score = bb.best_score;
     info!("Best score: {best_score}");
     let mut best_solution = bb.best_solution;
+    if bb.implicit_solution {
+        let mut mask = MyBitVec::new(true, bb.g.b.0);
+        let mut tail = (NodeB(0)..bb.g.b).collect_vec();
+        best_solution.clear();
+        for _ in NodeB(0)..bb.g.b {
+            let u = bb
+                .tail_cache
+                .get(&compress_tail_mask(&tail, &mask) as &dyn Key)
+                .unwrap()
+                .3
+                .unwrap();
+            best_solution.push(u);
+            tail.remove(tail.iter().position(|x| *x == u).unwrap());
+            mask.set(u.0, false);
+        }
+    }
     debug_assert_eq!(g.score(&best_solution), best_score);
 
     if log::log_enabled!(log::Level::Debug) {
@@ -372,6 +388,8 @@ pub struct Bb<'a> {
     best_solution: Solution,
     /// The best solution score found so far.
     best_score: u64,
+    /// Indicates that the solution must be inferred from tail_cache.
+    implicit_solution: bool,
 
     /// This value is a lower bound on the score of the tail minus the trivial min(cuv,cvu) lower bound.
     /// TODO: Replace the key by a bitmask instead.
@@ -384,7 +402,9 @@ pub struct Bb<'a> {
     /// - a list of practically dominating pairs (v, u) for which v must come before u.
     /// - a list of u that are not practically dominated by any v.
     /// - Option. When set, an optimal solution for the tail is known and this is the next node to choose.
-    tail_cache: HashMap<(usize, MyBitVec), (u64, Vec<(NodeB, NodeB)>, Vec<NodeB>, Option<NodeB>)>,
+    /// - Bool. True when the tail excess is exact, without crossing optimal inserts.
+    tail_cache:
+        HashMap<(usize, MyBitVec), (u64, Vec<(NodeB, NodeB)>, Vec<NodeB>, Option<NodeB>, bool)>,
 
     /// The number of states explored.
     states: u64,
@@ -535,6 +555,7 @@ impl<'a> Bb<'a> {
             upper_bound: min(upper_bound.unwrap_or(u64::MAX), initial_score),
             best_solution: initial_solution,
             best_score: initial_score,
+            implicit_solution: false,
             tail_cache: HashMap::default(),
 
             states: 0,
@@ -615,6 +636,7 @@ impl<'a> Bb<'a> {
                 assert!(score < self.best_score);
                 self.best_score = score;
                 self.best_solution.clone_from(&self.solution);
+                self.implicit_solution = false;
                 // We found a solution of this score, so we are now looking for something strictly better.
                 self.upper_bound = score;
                 return (true, usize::MAX);
@@ -639,9 +661,10 @@ impl<'a> Bb<'a> {
             .get(&compress_tail_mask(tail, &self.tail_mask) as &dyn Key)
         {
             Some(x) => {
-                if x.3.is_some() {
+                if x.3.is_some() && x.4 {
                     // We already have a solution for this tail.
                     let new_score = self.score + x.0;
+                    self.implicit_solution = true;
                     if new_score < self.upper_bound {
                         self.sols_found += 1;
                         self.reuse_tail += 1;
@@ -669,7 +692,6 @@ impl<'a> Bb<'a> {
                     let tup = 'cleanup: {
                         for u in tail {
                             i += 1;
-                            // FIXME: Only store the 'interesting' part of the tail.
                             self.tail_suffix += 1;
                             unsafe { self.tail_mask.set_unchecked(u.0, false) };
 
@@ -1007,13 +1029,12 @@ states {}
                 solution = true;
 
                 leftmost_optimal_insert = u_leftmost_insert;
+                best_u = Some(u);
 
                 // No 'crossing' optimal insert happened.
                 if u_leftmost_insert >= self.solution_len - 1 {
-                    best_u = Some(u);
                     self.set_best += 1;
                 } else {
-                    best_u = None;
                     self.skip_best += 1;
                 }
             }
@@ -1101,7 +1122,6 @@ states {}
             Entry::Occupied(mut e) => {
                 self.tail_update += 1;
                 // We did a search without success so the value must grow.
-                // FIXME: THIS IS FAILING
                 assert!(
                     solution || tail_excess > e.get().0,
                     "solution {solution} new excess {tail_excess} old excess {}",
@@ -1120,9 +1140,6 @@ states {}
                     e.get_mut().1 = local_before;
                 }
                 if best_u.is_some() {
-                    if e.get_mut().3.is_some() {
-                        assert_eq!(tail_excess, e.get().0);
-                    }
                     // FIXME: For some not understood reason, best_u can change over time.
                     // Must have to do with optimal_inset.
                     // assert!(
@@ -1134,14 +1151,34 @@ states {}
                     //     best_u
                     // );
                     e.get_mut().3 = best_u;
+                    if crossing {
+                        assert!(!e.get().4);
+                    } else {
+                        e.get_mut().4 = true;
+                        if e.get_mut().4 {
+                            assert_eq!(tail_excess, e.get().0);
+                        }
+                    }
                 }
             }
             Entry::Vacant(e) => {
                 self.tail_insert += 1;
                 if has_lb_cache {
-                    e.insert((tail_excess, local_before, not_dominated, best_u));
+                    e.insert((
+                        tail_excess,
+                        local_before,
+                        not_dominated,
+                        best_u,
+                        best_u.is_some() && !crossing,
+                    ));
                 } else {
-                    e.insert((tail_excess, vec![], vec![], best_u));
+                    e.insert((
+                        tail_excess,
+                        vec![],
+                        vec![],
+                        best_u,
+                        best_u.is_some() && !crossing,
+                    ));
                 }
             }
         }
