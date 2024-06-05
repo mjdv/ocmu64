@@ -2,6 +2,7 @@ use crate::{
     get_flag,
     graph::builder::{is_practically_dominating_pair, is_practically_glued_pair, IsPDP},
     knapsack::KnapsackCache,
+    max_with::MaxWith,
     node::*,
     pattern_search::pattern_search,
 };
@@ -228,6 +229,7 @@ fn oscm_part(g: &mut Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
         info!("B&B States    : {:>9}", bb.states);
         info!("LB exceeded 1 : {:>9}", bb.lb_exceeded_1);
         info!("LB exceeded 2 : {:>9}", bb.lb_exceeded_2);
+        info!("Reuse tail    : {:>9}", bb.reuse_tail);
         info!("Unique subsets: {:>9}", bb.tail_cache.len());
         info!("LB matching   : {:>9}", bb.lb_hit);
         info!("PDP yes       : {:>9}", bb.pdp_yes);
@@ -244,6 +246,8 @@ fn oscm_part(g: &mut Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
         info!("tail excess up: {:>9}", bb.tail_excess_updates);
         info!("tail skip     : {:>9}", bb.tail_skip);
         info!("tail suffix   : {:>9}", bb.tail_suffix);
+        info!("skip best     : {:>9}", bb.skip_best);
+        info!("set best     : {:>9}", bb.set_best);
 
         let mut hist = bb.tail_excess_hist.iter().collect_vec();
         hist.sort();
@@ -376,10 +380,11 @@ pub struct Bb<'a> {
     /// TODO: Make the score a u32 here?
     ///
     /// Elements:
-    /// - lower bound for score on tail on top of the trivial lower bound
+    /// - lower bound for excess score on tail on top of the trivial lower bound
     /// - a list of practically dominating pairs (v, u) for which v must come before u.
     /// - a list of u that are not practically dominated by any v.
-    tail_cache: HashMap<(usize, MyBitVec), (u64, Vec<(NodeB, NodeB)>, Vec<NodeB>)>,
+    /// - Option. When set, an optimal solution for the tail is known and this is the next node to choose.
+    tail_cache: HashMap<(usize, MyBitVec), (u64, Vec<(NodeB, NodeB)>, Vec<NodeB>, Option<NodeB>)>,
 
     /// The number of states explored.
     states: u64,
@@ -389,6 +394,7 @@ pub struct Bb<'a> {
     lb_hit: u64,
     lb_exceeded_1: u64,
     lb_exceeded_2: u64,
+    reuse_tail: u64,
     pdp_yes: u64,
     pdp_no: u64,
     pdp_computed_no: u64,
@@ -405,6 +411,8 @@ pub struct Bb<'a> {
     tail_insert: u64,
     tail_skip: u64,
     tail_suffix: u64,
+    set_best: u64,
+    skip_best: u64,
     tail_suffix_hist: HashMap<usize, usize>,
 }
 
@@ -455,6 +463,16 @@ impl<'a> Borrow<dyn Key + 'a> for (usize, MyBitVec) {
     fn borrow(&self) -> &(dyn Key + 'a) {
         self
     }
+}
+
+#[allow(unused)]
+fn compress_tail(mut b: NodeB, mut tail: &[NodeB]) -> &[NodeB] {
+    b = NodeB(b.0 - 1);
+    while tail.len() > 1 && tail.last() == Some(&b) && tail[tail.len() - 2] == NodeB(b.0 - 1) {
+        tail = tail.split_last().unwrap().1;
+        b = NodeB(b.0 - 1);
+    }
+    tail
 }
 
 fn compress_tail_mask<'a>(tail: &[NodeB], tail_mask: &'a MyBitVec) -> SmallKey<'a> {
@@ -523,6 +541,7 @@ impl<'a> Bb<'a> {
             sols_found: 0,
             lb_exceeded_1: 0,
             lb_exceeded_2: 0,
+            reuse_tail: 0,
             lb_hit: 0,
             pdp_yes: 0,
             pdp_no: 0,
@@ -539,6 +558,8 @@ impl<'a> Bb<'a> {
             tail_excess_hist: HashMap::default(),
             tail_skip: 0,
             tail_suffix: 0,
+            set_best: 0,
+            skip_best: 0,
             tail_suffix_hist: HashMap::default(),
         }
     }
@@ -562,12 +583,19 @@ impl<'a> Bb<'a> {
     /// fewer than `upper_bound` crossings, you can stop searching: this branch is
     /// not optimal.
     ///
-    pub fn branch_and_bound(&mut self) -> bool {
+    /// TODO: More input parameters, such as:
+    /// - TODO: position / length of prefix.
+    ///
+    /// TODO: Move more arguments to here, such as best score in subtree.
+    /// Returns:
+    /// - whether a solution was found;
+    /// - the leftmost optimal insert position.
+    pub fn branch_and_bound(&mut self) -> (bool, usize) {
         self.states += 1;
 
         if self.score >= self.upper_bound {
             self.lb_exceeded_1 += 1;
-            return false;
+            return (false, usize::MAX);
         }
 
         debug_assert_eq!(self.tail_mask.count_zeros(), self.solution_len);
@@ -589,12 +617,12 @@ impl<'a> Bb<'a> {
                 self.best_solution.clone_from(&self.solution);
                 // We found a solution of this score, so we are now looking for something strictly better.
                 self.upper_bound = score;
-                return true;
+                return (true, usize::MAX);
             } else if score < self.best_score {
                 self.best_score = score;
-                return false;
+                return (false, usize::MAX);
             } else {
-                return false;
+                return (false, usize::MAX);
             }
         }
 
@@ -605,14 +633,35 @@ impl<'a> Bb<'a> {
         // Additionally, if we already have a lower bound on how much the score
         // of the tail exceeds the trivial lower bound, use that.
 
+        // let mut original_excess = None;
         let (tail_excess, mut local_before, mut not_dominated) = match self
             .tail_cache
             .get(&compress_tail_mask(tail, &self.tail_mask) as &dyn Key)
         {
             Some(x) => {
+                if x.3.is_some() {
+                    // We already have a solution for this tail.
+                    let new_score = self.score + x.0;
+                    if new_score < self.upper_bound {
+                        self.sols_found += 1;
+                        self.reuse_tail += 1;
+                        self.best_score = new_score;
+                        self.upper_bound = new_score;
+                        if log::log_enabled!(log::Level::Info) {
+                            eprint!("Best score: {new_score:>9}\r");
+                        }
+                        // TODO: Update best solution.
+                        return (true, usize::MAX);
+                    } else if new_score < self.best_score {
+                        self.sols_found += 1;
+                        self.reuse_tail += 1;
+                        self.best_score = new_score;
+                        return (false, usize::MAX);
+                    }
+                }
                 // *self.tail_suffix_hist.entry(0).or_default() += 1;
                 // FIXME: Take the value instead of cloning it.
-                x.clone()
+                (x.0, x.1.clone(), x.2.clone())
             }
             None => {
                 if !get_flag("no_tail_suffix") {
@@ -656,7 +705,7 @@ impl<'a> Bb<'a> {
         // We can not find a solution of score < upper_bound.
         if self.upper_bound <= my_lower_bound {
             self.lb_exceeded_2 += 1;
-            return false;
+            return (false, usize::MAX);
         }
         assert!(my_lower_bound <= self.best_score);
 
@@ -851,10 +900,13 @@ impl<'a> Bb<'a> {
             }
         }
 
+        let mut leftmost_optimal_insert = usize::MAX;
+
         // If we skipped some children because of local pruning, do not update the lower bound for this tail.
         // Try each of the tail nodes as next node.
         let mut last_i = self.solution_len;
-        'u: for (i, u) in u_to_try {
+        let mut best_u = None;
+        'u: for &(i, u) in &u_to_try {
             // Swap the next tail node to the front of the tail.
             self.solution.swap(self.solution_len, i);
             // Make sure the tail remains sorted.
@@ -867,6 +919,8 @@ impl<'a> Bb<'a> {
             debug_assert!(
                 self.solution[(self.solution_len + 1).min(self.solution.len())..].is_sorted()
             );
+
+            let mut u_leftmost_insert = self.solution_len;
 
             // NOTE: Adjust the score as if u was inserted in the optimal place in the prefix.
             let mut best_delta = 0;
@@ -890,6 +944,7 @@ impl<'a> Bb<'a> {
                         best_i = i;
                     }
                 }
+                u_leftmost_insert.min_with(best_i);
                 if best_delta > 0 {
                     // warn!("best_delta: {}", best_delta);
                     // Rotate u into place.
@@ -922,7 +977,10 @@ impl<'a> Bb<'a> {
             debug_assert!(self.tail_mask[u.0]);
             unsafe { self.tail_mask.set_unchecked(u.0, false) };
 
-            if self.branch_and_bound() {
+            let (sol_found, sub_lefmost_insert) = self.branch_and_bound();
+            u_leftmost_insert.min_with(sub_lefmost_insert);
+
+            if sol_found {
                 // When moving u to the optimal insertion point, the optimal score can actually beat the known lower bound.
                 // This is OK though; inserting points in order of optimal
                 // solution will always append them at the back, and in that
@@ -947,6 +1005,17 @@ states {}
                 }
                 assert_eq!(self.upper_bound, self.best_score);
                 solution = true;
+
+                leftmost_optimal_insert = u_leftmost_insert;
+
+                // No 'crossing' optimal insert happened.
+                if u_leftmost_insert >= self.solution_len - 1 {
+                    best_u = Some(u);
+                    self.set_best += 1;
+                } else {
+                    best_u = None;
+                    self.skip_best += 1;
+                }
             }
             self.solution_len -= 1;
             debug_assert!(!self.tail_mask[u.0]);
@@ -954,8 +1023,11 @@ states {}
             // Rotate u back.
             self.solution[best_i..=self.solution_len].rotate_left(1);
 
+            // NOTE: Not true because there may be additional optimal inserts not accounted for.
+            // assert!(self.best_score >= my_lower_bound);
+
             // Early exit?
-            if my_lower_bound == self.best_score {
+            if self.best_score == my_lower_bound {
                 self.lb_hit += 1;
                 break 'u;
             }
@@ -980,15 +1052,48 @@ states {}
         debug_assert_eq!(self.tail_mask.count_zeros(), self.solution_len);
         self.solution[self.solution_len..=last_i].rotate_left(1);
         let tail = &self.solution[self.solution_len..];
+        // let ctail = compress_tail(self.g.b, tail).to_vec();
 
         assert!(old_score.min(self.best_score) <= self.upper_bound);
 
-        // FIXME: How does tail_excess interact with optimal insert?
+        // NOTE ON INTERACTION BETWEEN TAIL_EXCESS AND OPTIMAL INSERT.
+        // - old_score is the score of prefix+trivial commute_2 bound on tail,
+        //   i.e. full score apart from tail-tail intersection overhead.
+        // - When no optimal inserts happen:
+        //   - If a solution was found, the tail gets overhead=excess of best_score - old_score.
+        //   - If no solution was found at cost *less than* upper_bound, the excess is upper_bound-old_score.
+        // - When optimal inserts happen from the tail into the current prefix:
+        //   - If a solution was found, best_score will be lower than the 'true'
+        //     best_score for the tail, making the excess lower, which is fine.
+        //   - If no solution was found with 'cheating', for sure no better
+        //     solution will exist without optimal inserts.
+        let crossing = leftmost_optimal_insert < self.solution_len;
         let tail_excess = if solution {
-            self.best_score - old_score
+            if !crossing {
+                assert!(old_score <= self.best_score);
+            }
+            self.best_score.saturating_sub(old_score)
         } else {
+            if !crossing {
+                assert!(old_score <= self.upper_bound);
+            }
             self.upper_bound.saturating_sub(old_score)
         };
+
+        // eprintln!("Excess {tail_excess} solution {solution} cur best {} upper bound {} old {old_score} best_u {best_u:?} sol len {} leftmost insert {leftmost_optimal_insert}\n for {ctail:?}", self.best_score, self.upper_bound,self.solution_len);
+
+        // if let Some(new_score) = has_new_score {
+        //     if leftmost_optimal_insert >= self.solution_len {
+        //         assert_eq!(self.best_score, new_score, "Tail {ctail:?}");
+        //     } else {
+        //         assert!(self.best_score <= new_score, "Tail {ctail:?}");
+        //     }
+        //     assert!(solution);
+        // }
+
+        // NOTE ON INTERACTION BETWEEN OPTIMAL INSERT AND TAIL CACHING:
+        // - The exact score of a tail can only be cached if no optimal insert crossed into the prefix.
+        // - When a 'crossing' optimal insert did happen, the optimal move is not cached.
         match self
             .tail_cache
             .entry(compress_tail_mask(&tail, &self.tail_mask).to_owned())
@@ -996,7 +1101,13 @@ states {}
             Entry::Occupied(mut e) => {
                 self.tail_update += 1;
                 // We did a search without success so the value must grow.
-                debug_assert!(solution || tail_excess > e.get().0);
+                // FIXME: THIS IS FAILING
+                assert!(
+                    solution || tail_excess > e.get().0,
+                    "solution {solution} new excess {tail_excess} old excess {}",
+                    e.get().0
+                );
+
                 if tail_excess > e.get().0 {
                     *self
                         .tail_excess_hist
@@ -1008,17 +1119,34 @@ states {}
                 if has_lb_cache {
                     e.get_mut().1 = local_before;
                 }
+                if best_u.is_some() {
+                    if e.get_mut().3.is_some() {
+                        assert_eq!(tail_excess, e.get().0);
+                    }
+                    // FIXME: For some not understood reason, best_u can change over time.
+                    // Must have to do with optimal_inset.
+                    // assert!(
+                    //     e.get().3.is_none() || e.get().3 == best_u,
+                    //     "existing excess {} new excess {} original best {:?} new best {:?}",
+                    //     e.get().0,
+                    //     tail_excess,
+                    //     e.get().3,
+                    //     best_u
+                    // );
+                    e.get_mut().3 = best_u;
+                }
             }
             Entry::Vacant(e) => {
                 self.tail_insert += 1;
                 if has_lb_cache {
-                    e.insert((tail_excess, local_before, not_dominated));
+                    e.insert((tail_excess, local_before, not_dominated, best_u));
                 } else {
-                    e.insert((tail_excess, vec![], vec![]));
+                    e.insert((tail_excess, vec![], vec![], best_u));
                 }
             }
         }
-        solution
+
+        (solution, leftmost_optimal_insert)
     }
 }
 
