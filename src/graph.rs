@@ -48,7 +48,6 @@ type ReducedCrossings = VecB<VecB<CR>>;
 pub struct Graph {
     pub a: NodeA,
     pub b: NodeB,
-    pub connections_a: VecA<Vec<NodeB>>,
     pub connections_b: VecB<Vec<NodeA>>,
     pub b_permutation: VecB<NodeB>,
     /// Sum_{u,v} min(cuv, cvu)
@@ -79,7 +78,7 @@ pub type Graphs = Vec<Graph>;
 
 impl Graph {
     pub fn num_edges(&self) -> usize {
-        self.connections_a.iter().map(|x| x.len()).sum()
+        self.connections_b.iter().map(|x| x.len()).sum()
     }
 
     /// c(u,v) - c(v,u)
@@ -1224,20 +1223,6 @@ states {}
         }
 
         (solution, leftmost_optimal_insert)
-    }
-}
-
-impl Index<NodeA> for Graph {
-    type Output = Vec<NodeB>;
-
-    fn index(&self, index: NodeA) -> &Self::Output {
-        &self.connections_a[index]
-    }
-}
-
-impl IndexMut<NodeA> for Graph {
-    fn index_mut(&mut self, index: NodeA) -> &mut Self::Output {
-        &mut self.connections_a[index]
     }
 }
 

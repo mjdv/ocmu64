@@ -8,10 +8,10 @@ use std::{
 impl GraphBuilder {
     fn to_stream<W: Write>(&self, writer: W) -> Result<(), std::io::Error> {
         let mut writer = BufWriter::new(writer);
-        let edges = self.connections_a.iter().map(|x| x.len()).sum::<usize>();
+        let edges = self.num_edges();
         writeln!(writer, "p ocr {} {} {}", self.a.0, self.b.0, edges)?;
-        for i in NodeA(0)..self.a {
-            for j in &self.connections_a[i] {
+        for j in NodeB(0)..self.b {
+            for i in &self.connections_b[j] {
                 writeln!(writer, "{} {}", i.0 + 1, j.0 + self.a.0 + 1)?;
             }
         }

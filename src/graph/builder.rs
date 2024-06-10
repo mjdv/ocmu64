@@ -8,7 +8,6 @@ pub struct GraphBuilder {
     pub a_original: Option<NodeA>,
     pub a: NodeA,
     pub b: NodeB,
-    pub connections_a: VecA<Vec<NodeB>>,
     pub connections_b: VecB<Vec<NodeA>>,
     /// The number of crossings from merging twins.
     pub self_crossings: u64,
@@ -23,27 +22,12 @@ fn new_inverse(b: NodeB) -> Inverse {
     VecB::from((NodeB(0)..b).map(|x| vec![x]).collect())
 }
 
-impl Graph {
-    pub fn builder(&self) -> GraphBuilder {
-        GraphBuilder {
-            a_original: None,
-            a: self.a,
-            b: self.b,
-            connections_a: self.connections_a.clone(),
-            connections_b: self.connections_b.clone(),
-            self_crossings: self.self_crossings,
-            inverse: new_inverse(self.b),
-        }
-    }
-}
-
 impl GraphBuilder {
     pub fn with_sizes(a: NodeA, b: NodeB) -> Self {
         Self {
             a_original: None,
             a,
             b,
-            connections_a: VecA::new(a),
             connections_b: VecB::new(b),
             self_crossings: 0,
             inverse: new_inverse(b),
@@ -51,8 +35,8 @@ impl GraphBuilder {
     }
     /// Returns the id of the pushed node (not the length).
     pub fn push_node_a(&mut self) -> NodeA {
-        let id = self.connections_a.push();
-        self.a = self.connections_a.len();
+        let id = self.a;
+        self.a = Step::forward(self.a, 1);
         id
     }
 
@@ -104,7 +88,6 @@ impl GraphBuilder {
             a_original,
             a,
             b,
-            connections_a: Default::default(),
             connections_b,
             self_crossings: 0,
             inverse: VecB::from(inv.to_vec()),
@@ -205,7 +188,6 @@ impl GraphBuilder {
             a: self.a,
             b: self.b,
             b_permutation: Default::default(),
-            connections_a: self.connections_a.clone(),
             connections_b: self.connections_b.clone(),
             min_crossings,
             reduced_crossings: cr,
@@ -270,9 +252,6 @@ impl GraphBuilder {
     }
 
     fn sort_edges(&mut self) {
-        // for l in self.connections_a.iter_mut() {
-        //     l.sort_unstable();
-        // }
         for l in self.connections_b.iter_mut() {
             l.sort_unstable();
         }
@@ -296,9 +275,6 @@ impl GraphBuilder {
             self.inverse[NodeB(0)].extend(dropped);
         }
         self.connections_b.retain(|b| !b.is_empty());
-        // self.reconstruct_a();
-        // self.connections_a.retain(|a| !a.is_empty());
-        // self.reconstruct_b();
         self.b = self.connections_b.len();
         self.sort_edges();
         let da = Step::steps_between(&self.a, &a_old).unwrap();
@@ -347,18 +323,17 @@ impl GraphBuilder {
             "Merged {} twins; {self_crossings} self crossings",
             Step::steps_between(&self.connections_b.len(), &self.b).unwrap()
         );
-        // self.reconstruct_a();
     }
 
     /// Given two adjacent nodes (u,v) in A.
     /// If the nbs of u and v are *only* connected to u and v, then we can merge u and v, and we can merge their neighbours.
     fn merge_adjacent_edges(&mut self) {
-        self.reconstruct_a();
+        let connections_a = self.reconstruct_a();
         self.sort_edges();
 
         let mut merged = 0;
         for ((x, cl), (y, cr)) in (NodeA(0)..self.a)
-            .zip(self.connections_a.iter())
+            .zip(connections_a.iter())
             .filter(|(_, cl)| !cl.is_empty())
             .tuple_windows()
         {
@@ -808,35 +783,16 @@ impl GraphBuilder {
     }
 
     /// Reconstruct `connections_a`, given `connections_b`.
-    pub fn reconstruct_a(&mut self) {
+    pub fn reconstruct_a(&mut self) -> VecA<Vec<NodeB>> {
         self.a = self.connections_b.nb_len();
         self.b = self.connections_b.len();
-        for x in self.connections_a.iter_mut() {
-            x.clear();
-        }
-        self.connections_a.v.resize(self.a.0, vec![]);
-        // self.connections_a = VecA::new(self.a);
+        let mut connections_a: VecA<Vec<NodeB>> = VecA::new(self.a);
         for b in NodeB(0)..self.b {
             for &a in self.connections_b[b].iter() {
-                self.connections_a[a].push(b);
+                connections_a[a].push(b);
             }
         }
-    }
-
-    /// Reconstruct `connections_b`, given `connections_a`.
-    fn reconstruct_b(&mut self) {
-        self.a = self.connections_a.len();
-        self.b = self.connections_a.nb_len();
-        for x in self.connections_b.iter_mut() {
-            x.clear();
-        }
-        self.connections_b.v.resize(self.b.0, vec![]);
-        // self.connections_b = VecB::new(self.b);
-        for a in NodeA(0)..self.a {
-            for &b in self.connections_a[a].iter() {
-                self.connections_b[b].push(a);
-            }
-        }
+        connections_a
     }
 
     /// Permute the nodes of B such that the given solution is simply 0..b.
@@ -894,7 +850,6 @@ impl GraphBuilder {
         );
         assert_eq!(self.inverse.len(), self.connections_b.len());
         self.b = self.connections_b.len();
-        // self.reconstruct_a();
         self.sort_edges();
 
         score
