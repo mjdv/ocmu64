@@ -67,12 +67,11 @@ impl GraphBuilder {
     }
 
     pub fn push_edge(&mut self, a: NodeA, b: NodeB) {
-        self[a].push(b);
         self[b].push(a);
     }
 
     pub fn try_push_edge(&mut self, a: NodeA, b: NodeB) -> bool {
-        if self[a].contains(&b) {
+        if self[b].contains(&a) {
             false
         } else {
             self.push_edge(a, b);
@@ -101,7 +100,7 @@ impl GraphBuilder {
             1,
         );
         let b = connections_b.len();
-        let mut g = Self {
+        Self {
             a_original,
             a,
             b,
@@ -109,9 +108,7 @@ impl GraphBuilder {
             connections_b,
             self_crossings: 0,
             inverse: VecB::from(inv.to_vec()),
-        };
-        g.reconstruct_a();
-        g
+        }
     }
 
     /// Split into non-trivial graphs corresponding to disjoint intervals.
@@ -183,7 +180,7 @@ impl GraphBuilder {
     }
 
     pub fn num_edges(&self) -> usize {
-        self.connections_a.iter().map(|x| x.len()).sum::<usize>()
+        self.connections_b.iter().map(|x| x.len()).sum::<usize>()
     }
 
     pub fn to_graph(&mut self, full: bool) -> Graph {
@@ -207,7 +204,6 @@ impl GraphBuilder {
         Graph {
             a: self.a,
             b: self.b,
-            m: self.connections_a.iter().map(|x| x.len()).sum::<usize>(),
             b_permutation: Default::default(),
             connections_a: self.connections_a.clone(),
             connections_b: self.connections_b.clone(),
@@ -274,9 +270,9 @@ impl GraphBuilder {
     }
 
     fn sort_edges(&mut self) {
-        for l in self.connections_a.iter_mut() {
-            l.sort_unstable();
-        }
+        // for l in self.connections_a.iter_mut() {
+        //     l.sort_unstable();
+        // }
         for l in self.connections_b.iter_mut() {
             l.sort_unstable();
         }
@@ -300,9 +296,10 @@ impl GraphBuilder {
             self.inverse[NodeB(0)].extend(dropped);
         }
         self.connections_b.retain(|b| !b.is_empty());
-        self.reconstruct_a();
-        self.connections_a.retain(|a| !a.is_empty());
-        self.reconstruct_b();
+        // self.reconstruct_a();
+        // self.connections_a.retain(|a| !a.is_empty());
+        // self.reconstruct_b();
+        self.b = self.connections_b.len();
         self.sort_edges();
         let da = Step::steps_between(&self.a, &a_old).unwrap();
         let db = Step::steps_between(&self.b, &b_old).unwrap();
@@ -341,6 +338,7 @@ impl GraphBuilder {
             })
             .unzip();
         self.connections_b = VecB::from(new_b);
+        self.b = self.connections_b.len();
         self.inverse = VecB::from(new_inv);
         let new_inv_len = self.inverse.iter().flatten().count();
         assert_eq!(inv_len, new_inv_len);
@@ -349,12 +347,13 @@ impl GraphBuilder {
             "Merged {} twins; {self_crossings} self crossings",
             Step::steps_between(&self.connections_b.len(), &self.b).unwrap()
         );
-        self.reconstruct_a();
+        // self.reconstruct_a();
     }
 
     /// Given two adjacent nodes (u,v) in A.
     /// If the nbs of u and v are *only* connected to u and v, then we can merge u and v, and we can merge their neighbours.
     fn merge_adjacent_edges(&mut self) {
+        self.reconstruct_a();
         self.sort_edges();
 
         let mut merged = 0;
@@ -393,7 +392,7 @@ impl GraphBuilder {
             assert_eq!(self[*v][0], y);
 
             // Merge u into v.
-            assert!(self[y].len() == self[*v].len());
+            // assert!(self[y].len() == self[*v].len());
             let l = self[*u].len();
             self.connections_b[*u].clear();
             self.connections_b[*v].extend((0..l).map(|_| y));
@@ -407,7 +406,7 @@ impl GraphBuilder {
         }
 
         info!("Merged {merged} adjacent edges",);
-        self.reconstruct_a();
+        // self.reconstruct_a();
         self.drop_singletons();
     }
 
@@ -894,7 +893,8 @@ impl GraphBuilder {
                 .collect(),
         );
         assert_eq!(self.inverse.len(), self.connections_b.len());
-        self.reconstruct_a();
+        self.b = self.connections_b.len();
+        // self.reconstruct_a();
         self.sort_edges();
 
         score
@@ -1074,19 +1074,19 @@ impl GraphBuilder {
     }
 }
 
-impl Index<NodeA> for GraphBuilder {
-    type Output = Vec<NodeB>;
+// impl Index<NodeA> for GraphBuilder {
+//     type Output = Vec<NodeB>;
 
-    fn index(&self, index: NodeA) -> &Self::Output {
-        &self.connections_a[index]
-    }
-}
+//     fn index(&self, index: NodeA) -> &Self::Output {
+//         &self.connections_a[index]
+//     }
+// }
 
-impl IndexMut<NodeA> for GraphBuilder {
-    fn index_mut(&mut self, index: NodeA) -> &mut Self::Output {
-        &mut self.connections_a[index]
-    }
-}
+// impl IndexMut<NodeA> for GraphBuilder {
+//     fn index_mut(&mut self, index: NodeA) -> &mut Self::Output {
+//         &mut self.connections_a[index]
+//     }
+// }
 
 impl Index<NodeB> for GraphBuilder {
     type Output = Vec<NodeA>;

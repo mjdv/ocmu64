@@ -48,7 +48,6 @@ type ReducedCrossings = VecB<VecB<CR>>;
 pub struct Graph {
     pub a: NodeA,
     pub b: NodeB,
-    pub m: usize,
     pub connections_a: VecA<Vec<NodeB>>,
     pub connections_b: VecB<Vec<NodeA>>,
     pub b_permutation: VecB<NodeB>,
