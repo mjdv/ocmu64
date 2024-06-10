@@ -864,10 +864,7 @@ impl<'a> Bb<'a> {
                     }
 
                     // TODO: Store last positive cr per v.
-                    let vr = self.g.intervals[v].end;
-                    let idx = tail
-                        .binary_search_by(|x| self.g.suffix_min[*x].cmp(&vr))
-                        .unwrap_or_else(|x| x);
+                    let idx = self.g.cr_range[v].end.0 - self.solution_len;
                     for &x in &tail[..idx] {
                         if self.g.cr(v, x) > 0 {
                             // x wants to be before v.
