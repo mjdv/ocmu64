@@ -94,8 +94,29 @@ impl Graph {
         // exclude pairs with cost 0.
         // TODO: Invert solution permutation and iterate over i,j and their positions in the solution, rather than over the solution order itself.
         for (j, &b1) in solution.iter().enumerate() {
-            let end = self.cr_range[b1].end;
-            for &b2 in &solution[j + 1..end.0] {
+            // FIXME: This is broken.
+            // let end = self.cr_range[b1].end;
+            let end = solution.len();
+            for &b2 in &solution[j + 1..end] {
+                score += self.cr(b1, b2).max(0) as u64;
+            }
+        }
+        score
+    }
+
+    /// The score of a solution.
+    #[allow(unused)]
+    fn slice_score(&self, solution: &[NodeB]) -> u64 {
+        let mut score = 0;
+        // HOT: 10% of parameterized time is here.
+        // TODO: Compute rightmost edge of prefix and leftmost edge of suffix to
+        // exclude pairs with cost 0.
+        // TODO: Invert solution permutation and iterate over i,j and their positions in the solution, rather than over the solution order itself.
+        for (j, &b1) in solution.iter().enumerate() {
+            // FIXME: This is broken.
+            // let end = self.cr_range[b1].end;
+            let end = solution.len();
+            for &b2 in &solution[j + 1..end] {
                 score += self.cr(b1, b2).max(0) as u64;
             }
         }
@@ -262,36 +283,21 @@ fn oscm_part(g: &mut Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
 
     let best_score = bb.best_score;
     info!("Best score: {best_score}");
-    let mut best_solution = bb.best_solution;
+    let mut best_solution = std::mem::take(&mut bb.best_solution);
     if bb.implicit_solution {
-        let mut mask = MyBitVec::new(true, bb.g.b.0);
-        let mut tail = bb.g.b.from_zero().collect_vec();
-        best_solution.clear();
-        let mut prefix_max = NodeB(0);
-        for _ in bb.g.b.from_zero() {
-            let u = bb
-                .tail_cache
-                .get(&compress_tail_mask(&tail, &mask, prefix_max) as &dyn Key)
-                .unwrap()
-                .3
-                .unwrap();
-            prefix_max.max_with(u);
-            best_solution.push(u);
-            tail.remove(tail.iter().position(|x| *x == u).unwrap());
-            mask.set(u.0, false);
-        }
+        bb.reconstruct_solution(&mut best_solution);
     }
-    debug_assert_eq!(g.score(&best_solution), best_score);
 
     if log::log_enabled!(log::Level::Debug) {
+        let score_of_solution = g.score(&best_solution);
         initial_solution::sort_adjacent(g, &mut best_solution);
-        debug_assert_eq!(g.score(&best_solution), best_score);
+        debug!(
+            "Solution      : {}",
+            display_solution(g, &mut best_solution, true)
+        );
+        assert_eq!(score_of_solution, best_score);
     }
 
-    debug!(
-        "Solution      : {}",
-        display_solution(g, &mut best_solution, true)
-    );
     if let Some(bound) = bound {
         if best_score > bound {
             return None;
@@ -602,6 +608,26 @@ impl<'a> Bb<'a> {
             skip_best: 0,
             tail_suffix_hist: HashMap::default(),
             u_poss: HashMap::default(),
+        }
+    }
+
+    fn reconstruct_solution(&self, best_solution: &mut Vec<Node<BT>>) {
+        let mut mask = MyBitVec::new(true, self.g.b.0);
+        let mut tail = self.g.b.from_zero().collect_vec();
+        best_solution.clear();
+        let mut prefix_max = NodeB(0);
+        for _ in self.g.b.from_zero() {
+            let u = self
+                .tail_cache
+                .get(&compress_tail_mask(&tail, &mask, prefix_max) as &dyn Key)
+                .unwrap()
+                .3
+                .unwrap();
+            prefix_max.max_with(u);
+            best_solution.push(u);
+            self.optimal_insert(best_solution);
+            tail.remove(tail.iter().position(|x| *x == u).unwrap());
+            mask.set(u.0, false);
         }
     }
 
@@ -978,34 +1004,11 @@ impl<'a> Bb<'a> {
             let mut u_leftmost_insert = self.solution_len;
 
             // NOTE: Adjust the score as if u was inserted in the optimal place in the prefix.
-            let mut best_delta = 0;
-            let mut best_i = self.solution_len;
-            if !get_flag("no_optimal_insert") {
-                let mut cur_delta = 0i64;
-                let ul = self.g.intervals[u].start;
-                // TODO: Check for off-by-ones.
-                let idx = self.solution_prefix_max[..self.solution_len]
-                    .binary_search(&ul)
-                    .unwrap_or_else(|x| x);
-                for (i, v) in self.solution[..self.solution_len]
-                    .iter()
-                    .enumerate()
-                    .skip(idx)
-                    .rev()
-                {
-                    cur_delta -= self.g.cr(u, *v);
-                    if cur_delta > best_delta as i64 {
-                        best_delta = cur_delta as u64;
-                        best_i = i;
-                    }
-                }
-                u_leftmost_insert.min_with(best_i);
-                if best_delta > 0 {
-                    // warn!("best_delta: {}", best_delta);
-                    // Rotate u into place.
-                    self.solution[best_i..=self.solution_len].rotate_right(1);
-                }
-            }
+            // NOTE: We temporarily extract the solution.
+            let mut sol = std::mem::take(&mut self.solution);
+            let (best_delta, best_i) = self.optimal_insert(&mut sol[..=self.solution_len]);
+            self.solution = sol;
+            u_leftmost_insert.min_with(best_i);
 
             self.prefix_max = max(old_prefix_max, u);
             // eprintln!("Set max to {old_prefix_max} and {u} -> {}", self.prefix_max);
@@ -1221,6 +1224,36 @@ states {}
         }
 
         (solution, leftmost_optimal_insert)
+    }
+
+    /// Insert the last node of the solution slice optimally into the solution.
+    /// Returns the score improvement and the position of the optimal insert.
+    fn optimal_insert(&self, sol: &mut [NodeB]) -> (u64, usize) {
+        let u = *sol.last().unwrap();
+        let len = sol.len() - 1;
+        let mut best_delta = 0;
+        let mut best_i = len;
+        if !get_flag("no_optimal_insert") {
+            let mut cur_delta = 0i64;
+            let ul = self.g.intervals[u].start;
+            // TODO: Check for off-by-ones.
+            let idx = self.solution_prefix_max[..len]
+                .binary_search(&ul)
+                .unwrap_or_else(|x| x);
+            for (i, v) in sol[..len].iter().enumerate().skip(idx).rev() {
+                cur_delta -= self.g.cr(u, *v);
+                if cur_delta > best_delta as i64 {
+                    best_delta = cur_delta as u64;
+                    best_i = i;
+                }
+            }
+            if best_delta > 0 {
+                // warn!("best_delta: {}", best_delta);
+                // Rotate u into place.
+                sol[best_i..=len].rotate_right(1);
+            }
+        }
+        (best_delta, best_i)
     }
 }
 
