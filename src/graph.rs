@@ -723,6 +723,9 @@ impl<'a> Bb<'a> {
                     let tup = 'cleanup: {
                         for u in tail {
                             i += 1;
+                            if i > self.tail_cache.len() {
+                                break 'cleanup (0, vec![], vec![]);
+                            }
                             self.tail_suffix += 1;
                             unsafe { self.tail_mask.set_unchecked(u.0, false) };
 
