@@ -5,7 +5,7 @@ run *args='':
     cargo run -r -- {{args}}
 alias r := run
 exact t='100':
-    @cargo run -r --quiet -- --input input/exact --timelimit {{t}}
+    @cargo run -r --quiet -F exact -- --input input/exact --timelimit {{t}}
 generate *args='':
     cargo run -r --bin generate -- {{args}}
 flame *args='':
