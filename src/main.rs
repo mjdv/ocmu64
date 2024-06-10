@@ -76,7 +76,7 @@ fn main() {
             solve_graph(g, &args);
         }
         (None, None) => {
-            init_log(args, true);
+            init_log(args, false);
             let g = GraphBuilder::from_stdin()
                 .expect("Did not get a graph in the correct format on stdin.");
             let a = g.a_original.unwrap();

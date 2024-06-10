@@ -535,32 +535,32 @@ pub fn is_practically_dominating_pair(
         target -= P(1, 1);
     }
 
-    let strong_ks = !get_flag("no_strong_ks");
+    // let strong_ks = !get_flag("no_strong_ks");
 
     // We do not consider x that must be before u and v, or after u and v.
     let points = xs.iter().filter_map(|&x| {
         if x == u || x == v {
             return None;
         }
-        if strong_ks {
-            // x must be left of v.
-            if before[v][x] == After {
-                return None;
-            }
-            // x must be right of u.
-            if before[u][x] == Before {
-                return None;
-            }
-        } else {
-            // x must be left of u and v.
-            if before[u][x] == After && before[v][x] == After {
-                return None;
-            }
-            // x must be right of u and v.
-            if before[u][x] == Before && before[v][x] == Before {
-                return None;
-            }
+        // if strong_ks {
+        // x must be left of v.
+        if before[v][x] == After {
+            return None;
         }
+        // x must be right of u.
+        if before[u][x] == Before {
+            return None;
+        }
+        // } else {
+        //     // x must be left of u and v.
+        //     if before[u][x] == After && before[v][x] == After {
+        //         return None;
+        //     }
+        //     // x must be right of u and v.
+        //     if before[u][x] == Before && before[v][x] == Before {
+        //         return None;
+        //     }
+        // }
 
         // x that want to be between u and v (as in uxv) are not useful here.
         if cr[u][x] <= 0 && cr[v][x] >= 0 {
@@ -968,7 +968,7 @@ impl GraphBuilder {
             let jl = NodeB(prefix_max.binary_search(&li).unwrap_or_else(|x| x));
 
             let jr = NodeB(suffix_min.binary_search(&ri).unwrap_or_else(|x| x));
-            if get_flag("lazy_cr") {
+            if !get_flag("no_lazy_cr") {
                 // Instead of computing the true value, we just put a large value, since i will never come before them anyway.
                 reduced_crossings[i].v[..jl.0].fill(CR::MAX / 2048);
                 // We do +1 so that `-cr[u][v]` fits in the CR type as well.

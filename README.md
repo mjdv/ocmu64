@@ -8,8 +8,12 @@ In particular, we solve the _one sided crossing minimization_ problem:
   lines, with vertices in $A$ at $(0, i)$ and vertices in $B$ at $(1, j)$.
 - The order of $A$ is fixed. The goal is to find an order of $B$ that minimizes
   the number of crossings.
+  
+This is an **exact solver**.
+- On the exact track, it solves around 75% of cases (given half an hour per case).
+- On the parameterized tack, is solves all 100 cases on optil.io in around 3 seconds total.
 
-## Algorithmic overview
+## Algorithm overview
 Our method uses branch and bound.
 - First, we find an initial solution using some simple local search (swapping
   adjacent elements and optimally inserting elements elsewhere).
