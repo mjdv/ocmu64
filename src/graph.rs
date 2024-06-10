@@ -325,7 +325,8 @@ pub fn one_sided_crossing_minimization(
     mut bound: Option<u64>,
 ) -> Option<(Solution, u64)> {
     // g0 is only used for verification and displaying.
-    let g0 = if log::log_enabled!(log::Level::Debug) {
+    let g0 = if log::log_enabled!(log::Level::Debug) || cfg!(debug_assertions) || get_flag("verify")
+    {
         Some(gb.to_graph(false))
     } else {
         None
@@ -380,7 +381,7 @@ pub fn one_sided_crossing_minimization(
         }
         if let Some(g0) = g0.as_ref() {
             // info!("{}", display_solution(g0, &mut solution, false));
-            debug_assert_eq!(score, g0.score(&solution), "WRONG SCORE FOR FINAL SOLUTION");
+            assert_eq!(score, g0.score(&solution), "WRONG SCORE FOR FINAL SOLUTION");
         }
 
         Some((solution, score))

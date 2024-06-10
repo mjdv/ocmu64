@@ -20,6 +20,10 @@ alias p := record_report
 
 
 # This requires `rustup target add x86_64-unknown-linux-musl`.
-submit:
+submit-parameterized:
     cargo build --profile submit --target=x86_64-unknown-linux-musl
+    ln -fns target/x86_64-unknown-linux-musl/submit/ocmu64 submit
+
+submit-exact:
+    cargo build --profile submit --target=x86_64-unknown-linux-musl -F exact
     ln -fns target/x86_64-unknown-linux-musl/submit/ocmu64 submit
