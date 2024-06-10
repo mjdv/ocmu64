@@ -8,7 +8,7 @@ use crate::{
 };
 use std::{
     borrow::Borrow,
-    cmp::{self, min},
+    cmp::{self, max, min},
     collections::{hash_map::Entry, BTreeMap, HashMap},
     iter::Step,
     ops::{Deref, DerefMut, Index, IndexMut, Range},
@@ -271,13 +271,15 @@ fn oscm_part(g: &mut Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
         let mut mask = MyBitVec::new(true, bb.g.b.0);
         let mut tail = (NodeB(0)..bb.g.b).collect_vec();
         best_solution.clear();
+        let mut prefix_max = NodeB(0);
         for _ in NodeB(0)..bb.g.b {
             let u = bb
                 .tail_cache
-                .get(&compress_tail_mask(&tail, &mask) as &dyn Key)
+                .get(&compress_tail_mask(&tail, &mask, prefix_max) as &dyn Key)
                 .unwrap()
                 .3
                 .unwrap();
+            prefix_max.max_with(u);
             best_solution.push(u);
             tail.remove(tail.iter().position(|x| *x == u).unwrap());
             mask.set(u.0, false);
@@ -412,6 +414,9 @@ pub struct Bb<'a> {
     tail_cache:
         HashMap<(usize, MyBitVec), (u64, Vec<(NodeB, NodeB)>, Vec<NodeB>, Option<NodeB>, bool)>,
 
+    /// Highest vertex in prefix.
+    prefix_max: NodeB,
+
     /// The number of states explored.
     states: u64,
     states_since_best_sol: u64,
@@ -503,16 +508,23 @@ fn compress_tail(mut b: NodeB, mut tail: &[NodeB]) -> &[NodeB] {
     tail
 }
 
-fn compress_tail_mask<'a>(tail: &[NodeB], tail_mask: &'a MyBitVec) -> SmallKey<'a> {
+fn compress_tail_mask<'a>(
+    tail: &[NodeB],
+    tail_mask: &'a MyBitVec,
+    prefix_max: NodeB,
+) -> SmallKey<'a> {
     if tail.is_empty() {
         return SmallKey(tail_mask.len(), tail_mask.0.as_raw_slice());
     }
     let start = tail[0].0;
-    let mut slice = &tail_mask.as_raw_slice()[start / 64..];
+    let range = start / 64..(prefix_max.0 as usize + 1).div_ceil(64);
+    // eprintln!("{start} {prefix_max} {range:?}");
+    debug_assert!(prefix_max.0 + 1 >= start);
+    let slice = &tail_mask.as_raw_slice()[range];
     // FIXME: This while loop can be made more efficient.
-    while slice.last() == Some(&usize::MAX) {
-        slice = &slice[..slice.len() - 1];
-    }
+    // while slice.last() == Some(&usize::MAX) {
+    //     slice = &slice[..slice.len() - 1];
+    // }
     // Find last missing element of tail.
     // let start = tail[0].0 / 64;
     // let mut i = 0;
@@ -565,6 +577,8 @@ impl<'a> Bb<'a> {
             best_score: initial_score,
             implicit_solution: false,
             tail_cache: HashMap::default(),
+
+            prefix_max: NodeB(0),
 
             states: 0,
             states_since_best_sol: 0,
@@ -661,6 +675,8 @@ impl<'a> Bb<'a> {
             }
         }
 
+        let old_prefix_max = self.prefix_max;
+
         // Compute a lower bound on the score as 3 parts of score:
         // 1. The true score of the head part.
         // 2. Crossings between the head and tail.
@@ -671,7 +687,7 @@ impl<'a> Bb<'a> {
         // let mut original_excess = None;
         let (tail_excess, mut local_before, mut not_dominated) = match self
             .tail_cache
-            .get(&compress_tail_mask(tail, &self.tail_mask) as &dyn Key)
+            .get(&compress_tail_mask(tail, &self.tail_mask, old_prefix_max) as &dyn Key)
         {
             Some(x) => {
                 if x.3.is_some() && x.4 {
@@ -710,10 +726,12 @@ impl<'a> Bb<'a> {
                             self.tail_suffix += 1;
                             unsafe { self.tail_mask.set_unchecked(u.0, false) };
 
-                            let get =
-                                self.tail_cache
-                                    .get(&compress_tail_mask(&tail[i..], &self.tail_mask)
-                                        as &dyn Key);
+                            let get = self.tail_cache.get(&compress_tail_mask(
+                                &tail[i..],
+                                &self.tail_mask,
+                                old_prefix_max.max(*u),
+                            )
+                                as &dyn Key);
                             if let Some(get) = get {
                                 *self.tail_suffix_hist.entry(i).or_default() += 1;
                                 if get_flag("tail_suffix_full") {
@@ -990,6 +1008,8 @@ impl<'a> Bb<'a> {
                 }
             }
 
+            self.prefix_max = max(old_prefix_max, u);
+            // eprintln!("Set max to {old_prefix_max} and {u} -> {}", self.prefix_max);
             self.score = old_score;
 
             let my_lower_bound = my_lower_bound - best_delta;
@@ -1015,6 +1035,7 @@ impl<'a> Bb<'a> {
             debug_assert!(self.tail_mask[u.0]);
             unsafe { self.tail_mask.set_unchecked(u.0, false) };
 
+            // eprintln!("RECURSE");
             let (sol_found, sub_lefmost_insert) = self.branch_and_bound();
             u_leftmost_insert.min_with(sub_lefmost_insert);
 
@@ -1036,7 +1057,8 @@ states {}
                         my_lower_bound,
                         &self.solution[self.solution_len - 1..],
                         self.tail_cache
-                            .get(&compress_tail_mask(&tail, &self.tail_mask) as &dyn Key)
+                            .get(&compress_tail_mask(&tail, &self.tail_mask, old_prefix_max)
+                                as &dyn Key)
                             .map(|x| x.0),
                         self.states
                     );
@@ -1133,7 +1155,7 @@ states {}
         // - When a 'crossing' optimal insert did happen, the optimal move is not cached.
         match self
             .tail_cache
-            .entry(compress_tail_mask(&tail, &self.tail_mask).to_owned())
+            .entry(compress_tail_mask(&tail, &self.tail_mask, old_prefix_max).to_owned())
         {
             Entry::Occupied(mut e) => {
                 self.tail_update += 1;
