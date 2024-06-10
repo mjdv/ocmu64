@@ -48,9 +48,10 @@ Some of the more interesting optimizations:
 - **Local dominating pairs**: Same as practical dominating pairs above, but recomputed in every new B&B state.
 - **On-the-fly gluing**: If there is a vertex $u$ in the tail such that all
   other $v$ in the tail are better (not worse) after $u$, then just _glue_ $u$ onto the prefix.
+
 There are some more optimizations that are disabled by default. See [notes.md](notes.md).
 
-Furthermore we do a number of algorithmic optimizations to implement everything
+We do a number of algorithmic optimizations to implement everything
 efficiently. Mostly we ensure that the tail always remains sorted, so that loops
 over it can often be reduced to only a small subset of it.
 
@@ -66,5 +67,6 @@ This solver is written in Rust.
     ```
     RUSTFLAGS="-Ctarget-cpu=native" cargo build --profile submit --features exact
     ```
+    This turns on some optimizations that require more heavy precomputation.
 - Find the binary at `target/submit/ocmu64`.
 - Run as `ocmu64 < input > output`.
