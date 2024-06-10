@@ -196,7 +196,8 @@ impl GraphBuilder {
             if get_flag("tc") {
                 Self::transitive_closure(&mut before);
             }
-            self.practical_dominating_pairs(&mut before, &cr);
+            // TODO: Do PDP twice.
+            // self.practical_dominating_pairs(&mut before, &cr);
             self.boundary_pairs(&mut before);
             before
         } else {
