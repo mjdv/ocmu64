@@ -923,6 +923,16 @@ impl GraphBuilder {
             }
             result += k as u64;
         }
+
+        // Marginally faster but less robust.
+        // for e1 in e1 {
+        //     for e2 in e2 {
+        //         if e2 < e1 {
+        //             result += 1;
+        //         }
+        //     }
+        // }
+
         result
     }
 

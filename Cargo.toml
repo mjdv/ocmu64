@@ -24,6 +24,7 @@ panic = 'abort'
 
 [features]
 exact = []
+# default = ['exact']
 
 [dependencies]
 assert2 = "0.3.11"
