@@ -191,7 +191,7 @@ impl GraphBuilder {
         let (min_crossings, cr, cr_range, prefix_max, suffix_min) = self.crossings();
 
         let before = if full {
-            let mut before = self.dominating_pairs();
+            let mut before = self.dominating_pairs(&cr_range);
             self.practical_dominating_pairs(&mut before, &cr);
             if get_flag("tc") {
                 Self::transitive_closure(&mut before);
@@ -412,9 +412,9 @@ impl GraphBuilder {
     }
 
     /// Find pairs (u,v) with equal degree and neighbours(u) <= neighbours(v).
-    fn dominating_pairs(&self) -> Before {
+    fn dominating_pairs(&self, cr_range: &VecB<Range<NodeB>>) -> Before {
         let mut before = Before::from(vec![VecB::from(vec![Unordered; self.b.0]); self.b.0]);
-        if get_flag("no_dominating_pairs)") {
+        if get_flag("no_dominating_pairs") {
             return before;
         }
 
@@ -422,7 +422,17 @@ impl GraphBuilder {
         let mut dominating_pairs = 0;
 
         for u in NodeB(0)..self.b {
-            for v in NodeB(0)..self.b {
+            let start = cr_range[u].start;
+            let end = cr_range[u].end;
+            for v in NodeB(0)..start {
+                before[u][v] = After;
+                disjoint_pairs += 1;
+            }
+            for v in end..self.b {
+                before[u][v] = Before;
+                disjoint_pairs += 1;
+            }
+            for v in start..end {
                 if u == v || self[u] == self[v] {
                     continue;
                 }
@@ -973,9 +983,30 @@ impl GraphBuilder {
             let li = *self[i].first().unwrap();
             let ri = *self[i].last().unwrap();
 
-            let jl = NodeB(prefix_max.binary_search(&li).unwrap_or_else(|x| x));
+            let jl = NodeB(
+                prefix_max
+                    .binary_search_by(|x| {
+                        if x < &li {
+                            std::cmp::Ordering::Less
+                        } else {
+                            std::cmp::Ordering::Greater
+                        }
+                    })
+                    .unwrap_or_else(|x| x),
+            );
 
-            let jr = NodeB(suffix_min.binary_search(&ri).unwrap_or_else(|x| x));
+            let jr = NodeB(
+                suffix_min
+                    .binary_search_by(|x| {
+                        if x <= &ri {
+                            std::cmp::Ordering::Less
+                        } else {
+                            std::cmp::Ordering::Greater
+                        }
+                    })
+                    .unwrap_or_else(|x| x),
+            );
+
             if !get_flag("no_lazy_cr") {
                 // Instead of computing the true value, we just put a large value, since i will never come before them anyway.
                 reduced_crossings[i].v[..jl.0].fill(CR::MAX / 2048);
