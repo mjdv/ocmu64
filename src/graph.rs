@@ -294,10 +294,10 @@ fn oscm_part(g: &mut Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
         "Solution      : {}",
         display_solution(g, &mut best_solution, true)
     );
-    if let Some(bound) = bound
-        && best_score > bound
-    {
-        return None;
+    if let Some(bound) = bound {
+        if best_score > bound {
+            return None;
+        }
     }
     Some((best_solution, best_score))
 }
@@ -547,10 +547,10 @@ impl<'a> Bb<'a> {
 
         info!("Initial solution : {initial_score}");
 
-        if let Some(upper_bound) = upper_bound
-            && upper_bound < initial_score
-        {
-            info!("Upper bound      : {upper_bound}");
+        if let Some(upper_bound) = upper_bound {
+            if upper_bound < initial_score {
+                info!("Upper bound      : {upper_bound}");
+            }
         }
 
         let score = g.self_crossings + g.min_crossings;

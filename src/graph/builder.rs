@@ -731,13 +731,13 @@ impl GraphBuilder {
                         pending = Some(u);
                     }
                 } else if self.one_node_crossings(u, v) < self.one_node_crossings(v, u) {
-                    if let Some(pending) = pending
-                        && eq_boundary_pairs
-                    {
-                        for u in pending..u {
-                            before[u][v] = Before;
-                            before[v][u] = After;
-                            boundary_pairs += 1;
+                    if let Some(pending) = pending {
+                        if eq_boundary_pairs {
+                            for u in pending..u {
+                                before[u][v] = Before;
+                                before[v][u] = After;
+                                boundary_pairs += 1;
+                            }
                         }
                     }
                     pending = None;
