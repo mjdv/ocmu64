@@ -94,7 +94,8 @@ impl Graph {
         // exclude pairs with cost 0.
         // TODO: Invert solution permutation and iterate over i,j and their positions in the solution, rather than over the solution order itself.
         for (j, &b1) in solution.iter().enumerate() {
-            for &b2 in &solution[j + 1..] {
+            let end = self.cr_range[b1].end;
+            for &b2 in &solution[j + 1..end.0] {
                 score += self.cr(b1, b2).max(0) as u64;
             }
         }
