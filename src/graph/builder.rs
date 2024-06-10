@@ -275,10 +275,10 @@ impl GraphBuilder {
 
     fn sort_edges(&mut self) {
         for l in self.connections_a.iter_mut() {
-            l.sort();
+            l.sort_unstable();
         }
         for l in self.connections_b.iter_mut() {
-            l.sort();
+            l.sort_unstable();
         }
     }
 
@@ -812,7 +812,11 @@ impl GraphBuilder {
     pub fn reconstruct_a(&mut self) {
         self.a = self.connections_b.nb_len();
         self.b = self.connections_b.len();
-        self.connections_a = VecA::new(self.a);
+        for x in self.connections_a.iter_mut() {
+            x.clear();
+        }
+        self.connections_a.v.resize(self.a.0, vec![]);
+        // self.connections_a = VecA::new(self.a);
         for b in NodeB(0)..self.b {
             for &a in self.connections_b[b].iter() {
                 self.connections_a[a].push(b);
@@ -824,7 +828,11 @@ impl GraphBuilder {
     fn reconstruct_b(&mut self) {
         self.a = self.connections_a.len();
         self.b = self.connections_a.nb_len();
-        self.connections_b = VecB::new(self.b);
+        for x in self.connections_b.iter_mut() {
+            x.clear();
+        }
+        self.connections_b.v.resize(self.b.0, vec![]);
+        // self.connections_b = VecB::new(self.b);
         for a in NodeA(0)..self.a {
             for &b in self.connections_a[a].iter() {
                 self.connections_b[b].push(a);

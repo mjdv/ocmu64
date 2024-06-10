@@ -252,15 +252,15 @@ fn oscm_part(g: &mut Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
         info!("set best      : {:>9}", bb.set_best);
 
         let mut hist = bb.tail_excess_hist.iter().collect_vec();
-        hist.sort();
+        hist.sort_unstable();
         info!("Excess updates: {hist:?}\n");
 
         let mut hist = bb.tail_suffix_hist.iter().collect_vec();
-        hist.sort();
+        hist.sort_unstable();
         info!("Suffix pos    : {hist:?}\n");
 
         let mut hist = bb.u_poss.iter().collect_vec();
-        hist.sort();
+        hist.sort_unstable();
         info!("#u-to-try     : {hist:?}\n");
     }
 
