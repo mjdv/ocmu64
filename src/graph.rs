@@ -85,6 +85,22 @@ impl Graph {
         self.reduced_crossings[u][v] as _
     }
 
+    /// The score of the trivial solution.
+    fn initial_score(&self) -> u64 {
+        let mut score = self.self_crossings + self.min_crossings;
+        // HOT: 10% of parameterized time is here.
+        // TODO: Compute rightmost edge of prefix and leftmost edge of suffix to
+        // exclude pairs with cost 0.
+        // TODO: Invert solution permutation and iterate over i,j and their positions in the solution, rather than over the solution order itself.
+        for (j, b1) in self.b.from_zero().enumerate() {
+            let end = self.cr_range[b1].end;
+            for b2 in self.b.from_zero().take(end.0).skip(j + 1) {
+                score += self.cr(b1, b2).max(0) as u64;
+            }
+        }
+        score
+    }
+
     /// The score of a solution.
     fn score(&self, solution: &Solution) -> u64 {
         assert_eq!(solution.len(), self.b.0, "Solution has wrong length.");
@@ -94,8 +110,7 @@ impl Graph {
         // exclude pairs with cost 0.
         // TODO: Invert solution permutation and iterate over i,j and their positions in the solution, rather than over the solution order itself.
         for (j, &b1) in solution.iter().enumerate() {
-            // FIXME: This is broken.
-            // let end = self.cr_range[b1].end;
+            // TODO: Shrink this range?
             let end = solution.len();
             for &b2 in &solution[j + 1..end] {
                 score += self.cr(b1, b2).max(0) as u64;
@@ -289,14 +304,13 @@ fn oscm_part(g: &mut Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
     }
 
     if log::log_enabled!(log::Level::Debug) {
-        let score_of_solution = g.score(&best_solution);
         initial_solution::sort_adjacent(g, &mut best_solution);
         debug!(
             "Solution      : {}",
             display_solution(g, &mut best_solution, true)
         );
-        assert_eq!(score_of_solution, best_score);
     }
+    debug_assert_eq!(g.score(&best_solution), best_score);
 
     if let Some(bound) = bound {
         if best_score > bound {
@@ -542,7 +556,7 @@ impl<'a> Bb<'a> {
     pub fn new(g: &'a mut Graph, upper_bound: Option<u64>) -> Self {
         // Start with a greedy solution.
         let mut initial_solution = g.b.from_zero().collect::<Vec<_>>();
-        let initial_score = g.score(&initial_solution);
+        let initial_score = g.initial_score();
 
         debug!(
             "Initial solution   : {}",
@@ -561,7 +575,7 @@ impl<'a> Bb<'a> {
 
         info!("Score lower bound: {score}");
 
-        assert!(
+        debug_assert!(
             score <= initial_score,
             "Score lower bound is more than initial solution!"
         );
