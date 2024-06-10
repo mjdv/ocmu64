@@ -646,7 +646,7 @@ impl<'a> Bb<'a> {
 
         let tail = &self.solution[self.solution_len..];
 
-        debug_assert!(tail.is_sorted());
+        debug_assert!(is_sorted(&tail));
 
         if self.solution_len == self.solution.len() {
             self.sols_found += 1;
@@ -872,7 +872,7 @@ impl<'a> Bb<'a> {
                 self.glue_no += 1;
             }
 
-            debug_assert!(not_dominated.is_sorted());
+            debug_assert!(is_sorted(&not_dominated));
 
             'u: for i in self.solution_len..self.solution_len + idx_intersect_least_end {
                 let u = self.solution[i];
@@ -973,9 +973,9 @@ impl<'a> Bb<'a> {
             last_i = i;
 
             debug_assert_eq!(self.solution[self.solution_len], u);
-            debug_assert!(
-                self.solution[(self.solution_len + 1).min(self.solution.len())..].is_sorted()
-            );
+            debug_assert!(is_sorted(
+                &self.solution[(self.solution_len + 1).min(self.solution.len())..]
+            ));
 
             let mut u_leftmost_insert = self.solution_len;
 
@@ -1444,7 +1444,7 @@ pub fn draw(connections: &[Vec<NodeA>], sort: bool) {
 
     if sort {
         connections.sort_by_key(|x| {
-            assert!(x.is_sorted());
+            assert!(is_sorted(&x));
             (
                 // First by length 0 and 1.
                 (x.last().unwrap().0 - x.first().unwrap().0).min(2),
@@ -1504,4 +1504,8 @@ fn draw_edge<'a>(line: &'a mut Vec<u8>, edge: &Vec<Node<AT>>) -> &'a str {
         };
     }
     std::str::from_utf8(line).unwrap()
+}
+
+fn is_sorted<T: Ord>(v: &[T]) -> bool {
+    v.iter().tuple_windows().all(|w: (&T, &T)| w.0 <= w.1)
 }
