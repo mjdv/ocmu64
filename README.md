@@ -42,6 +42,9 @@ Some of the more interesting optimizations:
   $B$. Sometimes $v$ could 'in theory' come before $u$, but we can prove that in
   practice this can never be optimal (or at least, not strictly better than
   having $u$ before $v$).
+  
+  (Note: this is disabled for the parameterized track as it takes a lot of time
+  to precompute for little gain.)
 - **Local dominating pairs**: Same as practical dominating pairs above, but recomputed in every new B&B state.
 - **On-the-fly gluing**: If there is a vertex $u$ in the tail such that all
   other $v$ in the tail are better (not worse) after $u$, then just _glue_ $u$ onto the prefix.
@@ -54,12 +57,14 @@ over it can often be reduced to only a small subset of it.
 ## Usage instructions
 This solver is written in Rust.
 - First, install Rust, e.g. using [rustup](https://rustup.rs/).
-- Then, install Rust `nightly`, using `rustup install nightly`, followed by
-  `rustup default nightly`.
 - Then build the binary for the '`submit`' profile.
   - For the parameterized track (the default):
-    `RUSTFLAGS="-Ctarget-cpu=native" cargo build --profile submit`
+    ```
+    RUSTFLAGS="-Ctarget-cpu=native" cargo build --profile submit
+    ```
   - For the exact track:
-    `RUSTFLAGS="-Ctarget-cpu=native" cargo build --profile submit --features exact`
+    ```
+    RUSTFLAGS="-Ctarget-cpu=native" cargo build --profile submit --features exact
+    ```
 - Find the binary at `target/submit/ocmu64`.
 - Run as `ocmu64 < input > output`.
