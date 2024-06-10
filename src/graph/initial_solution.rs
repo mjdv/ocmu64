@@ -9,7 +9,7 @@ use super::{Graph, NodeB, Solution};
 
 pub fn initial_solution(g: &Graph) -> Vec<NodeB> {
     info!("{}", "INITIAL SOLUTION".bold());
-    let mut initial_solution = (NodeB(0)..g.b).collect::<Vec<_>>();
+    let mut initial_solution = g.b.from_zero().collect::<Vec<_>>();
     sort_by_median(g, &mut initial_solution);
     commute_adjacent(g, &mut initial_solution);
     optimal_insert(g, &mut initial_solution);

@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::{
     fmt::{Debug, Display},
-    iter::Step,
     marker::PhantomData,
     ops::{Deref, DerefMut, Index, IndexMut},
 };
@@ -55,17 +54,31 @@ impl<NT: NodeTrait> Display for Node<NT> {
     }
 }
 
-impl<NT: NodeTrait> Step for Node<NT> {
-    fn steps_between(start: &Self, end: &Self) -> Option<usize> {
-        Step::steps_between(&start.0, &end.0)
+impl<NT: NodeTrait> Node<NT> {
+    pub fn next(&self) -> Self {
+        Node(self.0 + 1, PhantomData)
     }
-
-    fn forward_checked(start: Self, count: usize) -> Option<Self> {
-        usize::forward_checked(start.0, count).map(|x| Self(x, PhantomData))
+    pub fn prev(&self) -> Self {
+        Node(self.0 - 1, PhantomData)
     }
-
-    fn backward_checked(start: Self, count: usize) -> Option<Self> {
-        Step::backward_checked(start.0, count).map(|x| Self(x, PhantomData))
+    pub fn prev_checked(&self) -> Option<Self> {
+        if self.0 == 0 {
+            None
+        } else {
+            Some(Node(self.0 - 1, PhantomData))
+        }
+    }
+    pub fn steps_between(&self, end: &Self) -> Option<usize> {
+        end.0.checked_sub(self.0)
+    }
+    pub fn from_zero(&self) -> impl DoubleEndedIterator<Item = Self> {
+        (0..self.0).map(|i| Self(i, PhantomData))
+    }
+    pub fn to(&self, end: Self) -> impl Iterator<Item = Self> {
+        (self.0..end.0).map(|i| Self(i, PhantomData))
+    }
+    pub fn to_including(&self, end: Self) -> impl Iterator<Item = Self> {
+        (self.0..=end.0).map(|i| Self(i, PhantomData))
     }
 }
 
@@ -104,10 +117,11 @@ impl<NT: NodeTrait, T: Default + Clone> NodeVec<T, NT> {
 }
 impl<NT1: NodeTrait, NT2: NodeTrait> NodeVec<Vec<Node<NT2>>, NT1> {
     pub fn nb_len(&self) -> Node<NT2> {
-        Step::forward(
-            *self.iter().filter_map(|x| x.iter().max()).max().unwrap(),
-            1,
-        )
+        self.iter()
+            .filter_map(|x| x.iter().max())
+            .max()
+            .unwrap()
+            .next()
     }
 }
 

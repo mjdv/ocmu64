@@ -19,7 +19,7 @@ pub struct GraphBuilder {
 /// Maps the B indices of a solution for the reduced graph back to the original graph.
 type Inverse = VecB<Vec<NodeB>>;
 fn new_inverse(b: NodeB) -> Inverse {
-    VecB::from((NodeB(0)..b).map(|x| vec![x]).collect())
+    VecB::from(b.from_zero().map(|x| vec![x]).collect())
 }
 
 impl GraphBuilder {
@@ -36,7 +36,7 @@ impl GraphBuilder {
     /// Returns the id of the pushed node (not the length).
     pub fn push_node_a(&mut self) -> NodeA {
         let id = self.a;
-        self.a = Step::forward(self.a, 1);
+        self.a = self.a.next();
         id
     }
 
@@ -64,7 +64,9 @@ impl GraphBuilder {
     }
 
     pub fn new(a: NodeA, connections_b: VecB<Vec<NodeA>>) -> GraphBuilder {
-        let inv = (NodeB(0)..connections_b.len())
+        let inv = connections_b
+            .len()
+            .from_zero()
             .map(|x| vec![x])
             .collect_vec();
         Self::new_with_inv(Some(a), connections_b, &inv)
@@ -75,14 +77,12 @@ impl GraphBuilder {
         connections_b: VecB<Vec<NodeA>>,
         inv: &[Vec<NodeB>],
     ) -> GraphBuilder {
-        let a = Step::forward(
-            *connections_b
-                .iter()
-                .filter_map(|x| x.iter().max())
-                .max()
-                .unwrap(),
-            1,
-        );
+        let a = connections_b
+            .iter()
+            .filter_map(|x| x.iter().max())
+            .max()
+            .unwrap()
+            .next();
         let b = connections_b.len();
         Self {
             a_original,
@@ -269,7 +269,7 @@ impl GraphBuilder {
                 if !retain {
                     dropped.extend(inv);
                 }
-                b = Step::forward(b, 1);
+                b = b.next();
                 retain
             });
             self.inverse[NodeB(0)].extend(dropped);
@@ -277,8 +277,8 @@ impl GraphBuilder {
         self.connections_b.retain(|b| !b.is_empty());
         self.b = self.connections_b.len();
         self.sort_edges();
-        let da = Step::steps_between(&self.a, &a_old).unwrap();
-        let db = Step::steps_between(&self.b, &b_old).unwrap();
+        let da = Node::steps_between(&self.a, &a_old).unwrap();
+        let db = Node::steps_between(&self.b, &b_old).unwrap();
         if da > 0 || db > 0 {
             info!("Dropped {da} and {db} singletons",);
         }
@@ -287,7 +287,7 @@ impl GraphBuilder {
     /// Merge vertices with the same set of neighbours.
     fn merge_twins(&mut self) {
         self.sort_edges();
-        let mut perm = (NodeB(0)..self.b).collect_vec();
+        let mut perm = self.b.from_zero().collect_vec();
         perm.sort_by_key(|&x| &self.connections_b[x]);
         let inv_len = self.inverse.iter().flatten().count();
         let mut self_crossings = 0;
@@ -321,7 +321,7 @@ impl GraphBuilder {
         self.self_crossings += self_crossings;
         info!(
             "Merged {} twins; {self_crossings} self crossings",
-            Step::steps_between(&self.connections_b.len(), &self.b).unwrap()
+            Node::steps_between(&self.connections_b.len(), &self.b).unwrap()
         );
     }
 
@@ -332,7 +332,9 @@ impl GraphBuilder {
         self.sort_edges();
 
         let mut merged = 0;
-        for ((x, cl), (y, cr)) in (NodeA(0)..self.a)
+        for ((x, cl), (y, cr)) in self
+            .a
+            .from_zero()
             .zip(connections_a.iter())
             .filter(|(_, cl)| !cl.is_empty())
             .tuple_windows()
@@ -395,18 +397,18 @@ impl GraphBuilder {
         let mut disjoint_pairs = 0;
         let mut dominating_pairs = 0;
 
-        for u in NodeB(0)..self.b {
+        for u in self.b.from_zero() {
             let start = cr_range[u].start;
             let end = cr_range[u].end;
-            for v in NodeB(0)..start {
+            for v in start.from_zero() {
                 before[u][v] = After;
                 disjoint_pairs += 1;
             }
-            for v in end..self.b {
+            for v in end.to(self.b) {
                 before[u][v] = Before;
                 disjoint_pairs += 1;
             }
-            for v in start..end {
+            for v in start.to(end) {
                 if u == v || self[u] == self[v] {
                     continue;
                 }
@@ -451,11 +453,11 @@ impl GraphBuilder {
 
         let cache = &mut KnapsackCache::default();
 
-        let xs = (NodeB(0)..self.b).collect_vec();
+        let xs = self.b.from_zero().collect_vec();
 
         // For loop is reversed before is_pdp is more efficient with fixed v.
-        for v in NodeB(0)..self.b {
-            for u in NodeB(0)..v {
+        for v in self.b.from_zero() {
+            for u in v.from_zero() {
                 let is_pdp = is_practically_dominating_pair(
                     u, v, before, &cr, &xs,
                     // TODO: Investigate if equality is OK
@@ -716,12 +718,12 @@ impl GraphBuilder {
 
         let mut leftmost_red = self.b;
 
-        for v in (NodeB(0)..self.b).rev() {
+        for v in self.b.from_zero().rev() {
             leftmost_red = min(leftmost_red, v);
 
             let mut pending = None;
 
-            for u in NodeB(0)..leftmost_red {
+            for u in leftmost_red.from_zero() {
                 if before[v][u] != Unordered {
                     continue;
                 }
@@ -733,7 +735,7 @@ impl GraphBuilder {
                 } else if self.one_node_crossings(u, v) < self.one_node_crossings(v, u) {
                     if let Some(pending) = pending {
                         if eq_boundary_pairs {
-                            for u in pending..u {
+                            for u in pending.to(u) {
                                 before[u][v] = Before;
                                 before[v][u] = After;
                                 boundary_pairs += 1;
@@ -764,10 +766,10 @@ impl GraphBuilder {
         let mut transitive_pairs = 0;
         while changed {
             changed = false;
-            for i in NodeB(0)..before.len() {
-                for j in NodeB(0)..before.len() {
+            for i in before.len().from_zero() {
+                for j in before.len().from_zero() {
                     if before[i][j] == Before {
-                        for k in NodeB(0)..before.len() {
+                        for k in before.len().from_zero() {
                             if before[j][k] == Before && before[i][k] != Before {
                                 before[i][k] = Before;
                                 before[k][j] = After;
@@ -787,7 +789,7 @@ impl GraphBuilder {
         self.a = self.connections_b.nb_len();
         self.b = self.connections_b.len();
         let mut connections_a: VecA<Vec<NodeB>> = VecA::new(self.a);
-        for b in NodeB(0)..self.b {
+        for b in self.b.from_zero() {
             for &a in self.connections_b[b].iter() {
                 connections_a[a].push(b);
             }
@@ -948,7 +950,7 @@ impl GraphBuilder {
             // })
         };
 
-        for i in NodeB(0)..self.b {
+        for i in self.b.from_zero() {
             if self[i].is_empty() {
                 continue;
             }
@@ -986,17 +988,17 @@ impl GraphBuilder {
                 // We do +1 so that `-cr[u][v]` fits in the CR type as well.
                 reduced_crossings[i].v[jr.0..].fill((CR::MIN + 1) / 2048);
             } else {
-                for j in NodeB(0)..jl {
+                for j in jl.from_zero() {
                     reduced_crossings[i].v[j.0] = (self[i].len() * self[j].len()) as _;
                 }
-                for j in jr..self.b {
+                for j in jr.to(self.b) {
                     reduced_crossings[i].v[j.0] = -((self[i].len() * self[j].len()) as CR);
                 }
             }
 
             cr_range[i] = jl..jr;
 
-            for j in jl..jr {
+            for j in jl.to(jr) {
                 // HOT: 20% of time is spent on the inefficient memory access here.
                 let cij = self.one_node_crossings(i, j);
                 let cji = self.one_node_crossings(j, i);

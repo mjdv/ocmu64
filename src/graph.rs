@@ -10,7 +10,6 @@ use std::{
     borrow::Borrow,
     cmp::{self, max, min},
     collections::{hash_map::Entry, BTreeMap, HashMap},
-    iter::Step,
     ops::{Deref, DerefMut, Index, IndexMut, Range},
 };
 
@@ -128,15 +127,13 @@ fn display_solution(g: &Graph, solution: &mut Solution, matrix: bool) -> String 
     initial_solution::sort_adjacent(g, solution);
     let mut s = String::new();
     if log::log_enabled!(log::Level::Info) {
-        solution
-            .chunk_by(|l, r| Step::forward(*l, 1) == *r)
-            .for_each(|slice| {
-                if slice.len() == 1 {
-                    s.push_str(&format!("{} ", slice[0].0));
-                } else {
-                    s.push_str(&format!("{}-{} ", slice[0].0, slice.last().unwrap().0));
-                }
-            });
+        solution.chunk_by(|l, r| l.next() == *r).for_each(|slice| {
+            if slice.len() == 1 {
+                s.push_str(&format!("{} ", slice[0].0));
+            } else {
+                s.push_str(&format!("{}-{} ", slice[0].0, slice.last().unwrap().0));
+            }
+        });
         s.push('\n');
     }
 
@@ -200,7 +197,7 @@ pub fn extend_solution_recursive(g: &Graph, solution: &mut Solution) -> (u64, Ve
     }
     let mut best_score: u64 = u64::MAX;
     let mut best_extension: Vec<NodeB> = vec![];
-    for new_node in NodeB(0)..g.b {
+    for new_node in g.b.from_zero() {
         if !solution.contains(&new_node) {
             solution.push(new_node);
             let (new_score, new_extension) = extend_solution_recursive(g, solution);
@@ -267,10 +264,10 @@ fn oscm_part(g: &mut Graph, bound: Option<u64>) -> Option<(Solution, u64)> {
     let mut best_solution = bb.best_solution;
     if bb.implicit_solution {
         let mut mask = MyBitVec::new(true, bb.g.b.0);
-        let mut tail = (NodeB(0)..bb.g.b).collect_vec();
+        let mut tail = bb.g.b.from_zero().collect_vec();
         best_solution.clear();
         let mut prefix_max = NodeB(0);
-        for _ in NodeB(0)..bb.g.b {
+        for _ in bb.g.b.from_zero() {
             let u = bb
                 .tail_cache
                 .get(&compress_tail_mask(&tail, &mask, prefix_max) as &dyn Key)
@@ -537,7 +534,7 @@ fn compress_tail_mask<'a>(
 impl<'a> Bb<'a> {
     pub fn new(g: &'a mut Graph, upper_bound: Option<u64>) -> Self {
         // Start with a greedy solution.
-        let mut initial_solution = (NodeB(0)..g.b).collect::<Vec<_>>();
+        let mut initial_solution = g.b.from_zero().collect::<Vec<_>>();
         let initial_score = g.score(&initial_solution);
 
         debug!(
@@ -1434,7 +1431,7 @@ pub fn draw(connections: &[Vec<NodeA>], sort: bool) {
     let mut a = NodeA(0);
     for x in h.values_mut() {
         *x = a;
-        a = Step::forward(a, 1);
+        a = a.next();
     }
 
     let mut connections: Vec<Vec<NodeA>> = connections

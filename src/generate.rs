@@ -1,4 +1,4 @@
-use std::{cmp::min, iter::Step};
+use std::cmp::min;
 
 use crate::{graph::*, node::*};
 use rand::{seq::SliceRandom, Rng, SeedableRng};
@@ -89,10 +89,10 @@ pub fn stars(n: usize, k: usize, rng: &mut impl Rng) -> GraphBuilder {
     let b = NodeB(n);
     let mut g = GraphBuilder::with_sizes(a, b);
     // Shuffle the A nodes.
-    let mut a_nodes = (NodeA(0)..a).collect::<Vec<_>>();
+    let mut a_nodes = a.from_zero().collect::<Vec<_>>();
     a_nodes.shuffle(rng);
     // Each part of size k is a node of B.
-    for b in NodeB(0)..b {
+    for b in b.from_zero() {
         for j in 0..k {
             let a = a_nodes[b.0 * k + j];
             g.push_edge(a, b);
@@ -126,14 +126,14 @@ pub fn low_crossing_with_distribution<T: Distribution<usize>>(
         };
         if g.try_push_edge(a, b) {
             let mut new_crossings: i64 = 0;
-            for other_b in NodeB(0)..g.b {
+            for other_b in g.b.from_zero() {
                 for other_a in &g[other_b] {
                     if (other_b < b && *other_a > a) || (other_b > b && *other_a < a) {
                         new_crossings += 1;
                     }
                 }
             }
-            while let Some(prev_b) = Step::backward_checked(b, 1) {
+            while let Some(prev_b) = b.prev_checked() {
                 let cpb = g.one_node_crossings(prev_b, b);
                 let cbp = g.one_node_crossings(b, prev_b);
                 if cpb <= cbp {
@@ -144,8 +144,8 @@ pub fn low_crossing_with_distribution<T: Distribution<usize>>(
                 g.connections_b.swap(prev_b.0, b.0);
                 b = prev_b;
             }
-            while Step::forward(b, 1) < g.b {
-                let next_b = Step::forward(b, 1);
+            while b.next() < g.b {
+                let next_b = b.next();
                 let cnb = g.one_node_crossings(next_b, b);
                 let cbn = g.one_node_crossings(b, next_b);
                 if cbn <= cnb {

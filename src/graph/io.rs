@@ -10,7 +10,7 @@ impl GraphBuilder {
         let mut writer = BufWriter::new(writer);
         let edges = self.num_edges();
         writeln!(writer, "p ocr {} {} {}", self.a.0, self.b.0, edges)?;
-        for j in NodeB(0)..self.b {
+        for j in self.b.from_zero() {
             for i in &self.connections_b[j] {
                 writeln!(writer, "{} {}", i.0 + 1, j.0 + self.a.0 + 1)?;
             }
