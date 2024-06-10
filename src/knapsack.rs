@@ -86,7 +86,7 @@ pub fn knapsack(
 
     let points = &mut cache.points;
     points.clear();
-    points_it.filter(|&p| !(p <= P(0, 0))).collect_into(points);
+    points.extend(points_it.filter(|&p| !(p <= P(0, 0))));
 
     // the lowest point in Q2.
     let mut pq2 = P(0, 1);

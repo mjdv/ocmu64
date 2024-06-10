@@ -1,4 +1,4 @@
-#![feature(step_trait, is_sorted, iter_collect_into)]
+#![feature(step_trait, is_sorted)]
 pub mod database;
 pub mod generate;
 pub mod graph;
