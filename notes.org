@@ -155,7 +155,6 @@ Flags named =no_...= disable features that should just work and not give contrad
 - ~no_transform~: disable graph simplifications (merging nodes / splitting components)
 - ~no_split~: disable splitting the graph in small parts
 - ~no_dominating_pairs~: disable =u_i < v_{j*n/i}= check.
-- ~no_pd~: disable practical dominating pairs.
 - ~no_lpd~: enable local practical dominating
 - ~no_lb~: local before: update 'local before' with local practical dominating pairs.
 - ~no_lb_cache~: cache local before vec per tail.
@@ -164,6 +163,11 @@ Flags named =no_...= disable features that should just work and not give contrad
 - ~no_strong_ks~: stronger filter for knapsack points.
 - ~no_lazy_cr~: Fill prefix/suffix of ~cr~ matrix with +-INF; faster for
   parameterized track.
+
+- ~no_pd~: disable practical dominating pairs.
+  - PD is disabled for parameterized,
+  - PD is enabled for exact.
+
 
 ** In progress
 - ~glue~: glue states that must be adjacent on-the-fly. Not on by default since

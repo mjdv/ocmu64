@@ -414,6 +414,9 @@ impl GraphBuilder {
     /// Find pairs (u,v) with equal degree and neighbours(u) <= neighbours(v).
     fn dominating_pairs(&self) -> Before {
         let mut before = Before::from(vec![VecB::from(vec![Unordered; self.b.0]); self.b.0]);
+        if get_flag("no_dominating_pairs)") {
+            return before;
+        }
 
         let mut disjoint_pairs = 0;
         let mut dominating_pairs = 0;
@@ -449,7 +452,12 @@ impl GraphBuilder {
     }
 
     fn practical_dominating_pairs(&self, before: &mut Before, cr: &ReducedCrossings) {
-        if get_flag("no_pd") {
+        #[cfg(feature = "exact")]
+        let do_pd = !get_flag("no_pd");
+        #[cfg(not(feature = "exact"))]
+        let do_pd = get_flag("pd");
+
+        if !do_pd {
             info!("Found 0 practical dominating pairs (skipped)");
             return;
         }

@@ -56,7 +56,10 @@ This solver is written in Rust.
 - First, install Rust, e.g. using [rustup](https://rustup.rs/).
 - Then, install Rust `nightly`, using `rustup install nightly`, followed by
   `rustup default nightly`.
-- Then build the binary for the '`submit`' profile:
-  `RUSTFLAGS="-Ctarget-cpu=native" cargo build --profile submit`
+- Then build the binary for the '`submit`' profile.
+  - For the parameterized track (the default):
+    `RUSTFLAGS="-Ctarget-cpu=native" cargo build --profile submit`
+  - For the exact track:
+    `RUSTFLAGS="-Ctarget-cpu=native" cargo build --profile submit --features exact`
 - Find the binary at `target/submit/ocmu64`.
 - Run as `ocmu64 < input > output`.
