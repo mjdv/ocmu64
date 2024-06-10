@@ -982,7 +982,7 @@ impl GraphBuilder {
                     .unwrap_or_else(|x| x),
             );
 
-            if !get_flag("no_lazy_cr") {
+            if get_flag("lazy_cr") {
                 // Instead of computing the true value, we just put a large value, since i will never come before them anyway.
                 reduced_crossings[i].v[..jl.0].fill(CR::MAX / 2048);
                 // We do +1 so that `-cr[u][v]` fits in the CR type as well.

@@ -161,8 +161,6 @@ Flags named =no_...= disable features that should just work and not give contrad
 - ~no_glue2~: glue v to u if cr(v,x) <= 0 for all x in the tail.
 - ~no_tail_suffix~: Do not check suffixes of the tail for an improved lower bound.
 - ~no_strong_ks~: stronger filter for knapsack points.
-- ~no_lazy_cr~: Fill prefix/suffix of ~cr~ matrix with +-INF; faster for
-  parameterized track.
 
 - ~no_pd~: disable practical dominating pairs.
   - PD is disabled for parameterized,
@@ -170,6 +168,8 @@ Flags named =no_...= disable features that should just work and not give contrad
 
 
 ** In progress
+- ~lazy_cr~: Fill prefix/suffix of ~cr~ matrix with +-INF; faster for parameterized track.
+  Causes bugs in the final score, so disabled.
 - ~glue~: glue states that must be adjacent on-the-fly. Not on by default since
   it's slow.
 - ~initial_glue~: Join adjacent pairs.
