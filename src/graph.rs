@@ -561,7 +561,7 @@ impl<'a> Bb<'a> {
 
         info!("Score lower bound: {score}");
 
-        assert2::assert!(
+        assert!(
             score <= initial_score,
             "Score lower bound is more than initial solution!"
         );

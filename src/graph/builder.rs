@@ -139,7 +139,7 @@ impl GraphBuilder {
                 .into_option();
             if let Some(new_a_range) = new_a_range {
                 if let Some(last_a_range) = last_a_range {
-                    assert2::assert!(last_a_range.1 <= new_a_range.0);
+                    assert!(last_a_range.1 <= new_a_range.0);
                 }
                 last_a_range = Some(new_a_range);
             }
