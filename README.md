@@ -1,4 +1,4 @@
-# PACE 2024 - One sided crossing minimization - OCMU64
+# PACE 2024 - One sided crossing minimization - OCMu64
 
 This is a solution to the 2024 [PACE challenge](https://pacechallenge.org/), by
 @mjdv and @RagnarGrootKoerkamp.

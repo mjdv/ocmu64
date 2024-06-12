@@ -1,0 +1,2 @@
+build:
+    latexmk -pvc description.tex

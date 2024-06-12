@@ -1,0 +1,269 @@
+\documentclass[a4paper,UKenglish,cleveref, autoref, thm-restate]{lipics-v2021}
+%for section-numbered lemmas etc., use "numberwithinsect"
+%for enabling thm-restate support, use "thm-restate"
+
+\pdfoutput=1 %uncomment to ensure pdflatex processing (mandatatory e.g. to submit to arXiv)
+\hideLIPIcs  %uncomment to remove references to LIPIcs series (logo, DOI, ...), e.g. when preparing a pre-final version to be uploaded to arXiv or another public repository
+
+\graphicspath{{./fig/}}%helpful if your graphic files are in another directory
+
+\bibliographystyle{plainurl}% the mandatory bibstyle
+
+\title{OCMu64: a solver for One-sided Crossing Minimization} %TODO Please add
+
+%\titlerunning{Dummy short title} %TODO optional, please use if title is longer than one line
+
+\author{Ragnar {Groot Koerkamp}}{ETH Zurich, Switzerland}{ragnar.grootkoerkamp@gmail.com}{https://orcid.org/0000-0002-2091-1237}{}%TODO mandatory, please use full name; only 1 author per \author macro; first two parameters are mandatory, other parameters can be empty. Please provide at least the name of the affiliation and the country. The full address is optional. Use additional curly braces to indicate the correct name splitting when the last name consists of multiple name parts.
+
+\author{Mees de Vries}{}{}{}{}
+
+\authorrunning{R. Groot Koerkamp and M. de Vries} %TODO mandatory. First: Use abbreviated first/middle names. Second (only in severe cases): Use first author plus 'et al.'
+
+\Copyright{Ragnar Groot Koerkamp and Mees de Vries} %TODO mandatory, please use full first names. LIPIcs license is "CC-BY";  http://creativecommons.org/licenses/by/3.0/
+
+\ccsdesc[500]{Theory of computation~Mathematical optimization}
+\ccsdesc[300]{Theory of computation~Computational geometry}
+
+\keywords{Graph drawing, crossing number, branch and bound} %TODO mandatory; please add comma-separated list of keywords
+
+\category{} %optional, e.g. invited paper
+
+\relatedversion{} %optional, e.g. full version hosted on arXiv, HAL, or other respository/website
+%\relatedversiondetails[linktext={opt. text shown instead of the URL}, cite=DBLP:books/mk/GrayR93]{Classification (e.g. Full Version, Extended Version, Previous Version}{URL to related version} %linktext and cite are optional
+
+\supplement{}%optional, e.g. related research data, source code, ... hosted on a repository like zenodo, figshare, GitHub, ...
+\supplementdetails[subcategory={Source Code}]{Software}{https://github.com/mjdv/ocmu64} %linktext, cite, and subcategory are optional
+
+%\funding{(Optional) general funding statement \dots}%optional, to capture a funding statement, which applies to all authors. Please enter author specific funding statements as fifth argument of the \author macro.
+
+%% \acknowledgements{I want to thank \dots}%optional
+
+\nolinenumbers %uncomment to disable line numbering
+
+
+
+%Editor-only macros:: begin (do not touch as author)%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% \EventEditors{John Q. Open and Joan R. Access}
+%% \EventNoEds{2}
+%% \EventLongTitle{42nd Conference on Very Important Topics (CVIT 2016)}
+%% \EventShortTitle{CVIT 2016}
+%% \EventAcronym{CVIT}
+%% \EventYear{2016}
+%% \EventDate{December 24--27, 2016}
+%% \EventLocation{Little Whinging, United Kingdom}
+%% \EventLogo{}
+%% \SeriesVolume{42}
+%% \ArticleNo{23}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newcommand{\R}{\mathbb R}
+\renewcommand{\b}{\prec}
+\newcommand{\be}{\preceq}
+\newcommand{\g}{\sim}
+\renewcommand{\u}{\overline{u}}
+\renewcommand{\v}{\overline{v}}
+\newcommand{\w}{\overline{w}}
+
+\begin{document}
+
+\maketitle
+
+%TODO mandatory: add short abstract of the document
+\begin{abstract}
+  Given a bipartite graph $(A,B)$, the \emph{one-sided crossing minimization} (OCM) problem is to find an order of the
+  vertices of $B$ that minimizes the number
+  of edge crossings when drawn in the plane.
+
+  We prove a number of novel reductions, and apply these in our solver OCMu64 that
+  uses branch-and-bound on the order of the vertices of $B$.
+\end{abstract}
+
+\section{Introduction}
+
+The 2024 edition of PACE, an annual optimization challenge, considers the
+\emph{one-sided crossing minimization} problem, defined as follows.
+Given is a bipartite graph $(A, B)$ that is drawn in the plane at points
+$(0, i)$ and $(1,j)$ for components $A$ and $B$ respectively. The order of $A$
+is fixed, and the goal is the find an order of $B$ that minimizes the number of
+crossings when edges are drawn as straight lines.
+
+We introduce some new reductions and overview our algorithm. Proofs are brief or
+omitted due to lack of space.
+
+\section{Definitions}
+Since the order of $A$ is fixed, we set $A=\{0, \dots, [A]\}$ (where $[n]=\{0,\dots,n-1\}$) and draw the
+vertices in this order.
+Let $u, v\in B$ be two vertices in $B$. Then $N(u),N(v)\subseteq A$ are their sets of
+neighbours.
+We write $c(u,v)=\sum_{a\in N(u)}\sum_{b\in N(v)} [a>b]$ for the number of crossings between edges from $u$ and $v$
+when $u$ is drawn before $v$. For $X,Y\subseteq B$ we set
+$c(X,Y) = \sum_{x\in X}\sum_{y\in Y} c(x,y)$ for the cost of ordering all
+vertices of $X$ before all vertices of $Y$.
+More generally, $c(X,Y,Z) = c(X, Y) + c(X, Z) + c(Y, Z)$.
+We also consider the \emph{reduced cost} $r(X,Y) = c(X, Y) - c(Y, X)$, which is
+negative when $X$ is better \emph{before} $Y$ and positive when $X$ is better \emph{after} $Y$.
+
+We write $u\b v$ when $u$ must come before $v$ in all minimal solutions and
+$u\be v$ when there exist minimal solutions where $u$ comes before $v$, and we
+call such $(u,v)$ \emph{dominating pairs}.
+We write $u\g v$ when there is a minimal solution where $u$ and $v$ are
+consecutive, in that order.
+
+The following result is well known.
+
+% TODO: Citation
+\begin{observation}\label{lem:weak}
+  When all neighbours of $u$ come before all neighbours of $v$, then $u$ goes
+  before $v$. I.e., when $\max N(u) \leq \min N(v)$, then $u\be v$.
+  When additionally ${\min N(u) < \max N(v)}$, then $u\b v$.
+\end{observation}
+
+\section{Methods}
+\subsection{Reductions}
+\subparagraph{Dominating pairs}
+We give a much stronger version of \cref{lem:weak}. In fact, this
+lemma is as strong as can be when only considering $N(u)$ and $N(v)$.
+
+\begin{lemma}[Strong dominating pair]\label{lem:sdp}
+  Write $n:= |N(u)|$, $m:=|N(v)|$, and consider both sets as sorted lists.
+  When for all $i\in [n]$ we have
+  $ N(u)_i \leq N(v)_{\lfloor i\cdot m/n \rfloor} $,
+  then $u\be v$.
+  When there is an $i$ such that the inequality is strict, then $u\b v$.
+\end{lemma}
+
+%Note that the condition is equivalent to the symmetric version: for all $j\in [m]$:
+%$ U_{\lceil j\cdot n/m \rceil} \leq V_j $.
+
+\begin{proof}
+  Consider for each $u\in B$ the function $w_u: A\to \R_{\geq 0}$ that
+  assigns \emph{weight} $1$ to neighbours of $u$ and weight $0$ otherwise.
+  Let $W_u = \sum_{a\in A} w_u(A)$ be the total weight (degree) of $u$.
+  Then for any $u$ and $v$, $c(u,v) = \sum_{a,b\in A, a>b} w_u(a) \cdot w_v(b)$.
+  We can `shift' some weight $\delta$ of $w_u$ to the right from $a_1$ to $a_2>a_1$ by
+  decreasing $w_u(a_1)\geq \delta$ by $\delta$ and increasing $w_u(a_2)$ by
+  $\delta$.
+  This increases the value of
+  $c(u,v)$ by $\delta \cdot \sum_{a_1 < b \leq a_2} w_b(v)\geq 0$.
+
+  Consider \emph{scaled} functions $\w_u = w_u / W_u$ and $\w_v = w_v / W_v$.
+  We have $c(u,v) = W_u\cdot W_v\cdot c(\u, \v)$ and $c(v,u) = W_u\cdot
+  W_v\cdot c(\v, \u)$, so that the sign of $r(u,v) = W_u\cdot W_v\cdot
+  r(\w_u, \w_v)$ is independent of scaling.
+  The condition in the lemma holds if and only if $\w_u$ can be transformed into
+  $\w_v$ by shifting weight to the right.
+
+  Now suppose there is an optimal solution where $v$ occurs before $x$:
+  $(\dots, v, x_1, \dots, x_k, u, \dots)$.
+  We set $X=(x_1,\dots, x_k)$ and write $w_X=\sum_{i=1}^k w_i$ for the combined weight of the
+  neighbours of the $x_i$.
+  Since the solution is optimal, we have $r(v,X) \leq 0$ and $r(X, u) \leq 0$,
+  and hence $r(\v, X)\leq 0$ and $r(X, \u) \leq 0$.
+  Since we can go from $\w_u$ to $\w_v$ by shifting weight to the right, we have
+  $r(\u, X) \leq r(\v, X)$. We get $0 \leq -r(X, \u) = r(\u, X) \leq r(\v, X)
+  \leq 0$. Thus, all must equal $0$, and $(v, X, u)$ is as good as $(v, u, X)$. By a
+  similar argument we can swap $u$ and $v$ to obtain $(u, v, X)$. We conclude
+  $u\be v$.
+  When one of the inequalities in the condition is strict that implies $c(u,v) <
+  c(v,u)$ and we have $u\b v$.
+\end{proof}
+
+\begin{remark}
+  When the condition in \cref{lem:sdp} does not hold, there exists a multiset
+  $\mathcal X\subseteq A$ such that $v, \mathcal X, u$ is the optimal order.
+\end{remark}
+
+Although such a set $\mathcal X$ may exist in theory, it does not have to exist in
+practice, motivating the following definition.
+
+\begin{lemma}[Practical dominating pair]\label{pdp}
+  Suppose $r(u,v)\leq 0$.
+  A \emph{blocking} set $X\subseteq B-\{u,v\}$ is a set such that $c(v,X,u)$ is
+  stricly better than both $c(u,v,X)$ and $c(X,u,v)$.
+  If there is no blocking set, then $u\be v$.
+\end{lemma}
+
+In practice, such a set $X$ can be found, if one exists, using knapsack: for
+each $x\in B-\{u,v\}$, add a point $P_x = (r(v, x), r(x, u))$, and search for a
+subset summing to ${\leq{}(r(u, v), r(u, v))}$.
+
+Note that we do not require $(v, X, u)$ to be a true local minimum, since we do
+not consider interactions between vertices in $X$, as that would make finding
+such sets much harder.
+
+\subparagraph{Gluing}
+We now turn our attention to \emph{gluing}, i.e., proving that two vertices $u$
+and $v$ always go right next to each other. We start with a simple case of
+\emph{gluing to the front}.
+
+\begin{lemma}[Greedy]\label{greedy}
+  When $r(u, x)\leq 0$ for all $x\in B$, there is a solution that
+  starts with $u$.
+\end{lemma}
+
+\begin{remark}
+  Let $u$ and $v$ satisfy $r(u,v) \leq 0$.
+  When $N(u)=N(v)$ or more generally $\w_u=\w_v$, we can glue $u$ and $v$: $u\g v$.
+  Otherwise, there is a multiset $\mathcal X\subseteq A$ such that $(u, X, v)$ is
+  better than $(u,v,X)$ and $(X,u,v)$.
+\end{remark}
+This means that there is no `strong gluing'.
+\begin{lemma}[Practical gluing]\label{pg}
+  Let $u$ and $v$ satisfy $r(u,v)\leq 0$ and $u\be v$.
+  A subset $X\subseteq B-\{u,v\}$ is \emph{blocking} when $c(u, X, v)$ is strictly
+  better than $c(u,v,X)$ and $c(X,u,v)$.
+  If there is no blocking set, then $u \g v$.
+\end{lemma}
+Again such sets $X$ can be found or proven to not exist using a knapsack
+algorithm: add points $P_x = (r(u, x), r(x, v))$ and search for a non-empty
+set summing to $\leq{}(0,0)$.
+
+\begin{remark}[Tail variants]
+  Our branch-and-bound method fixes vertices of the
+solution from left to right. That means that at each step \cref{pg,pdp} can be applied to
+just the \emph{tail}.
+\end{remark}
+
+\subsection{Branch-and-bound}
+Our solver \texttt{OCMu64} is based on a standard branch-and-bound on the order the solution.
+We start with fixed prefix $P=()$ and tail $T=B$, and in each step we try (a
+subset of) all vertices in $T$ as the next vertex appended to $P$.
+In a preprocessing step we compute the trivial lower bound $S_0 =
+\sum_{u,v}\min(c(u,v),c(v,u))$ on the score.
+We keep track of the score $S_P$ of the prefix and $S_{PT}=c(P, T)$ of
+prefix-tail intersections, and abort when this score goes above the best
+solution found so far. The \emph{excess} of a tail is its optimal score above
+the trivial lower bound. We do a number of optimizations.
+
+\begin{description}
+  \item[Graph simplification] We drop degree-$0$ vertices, merge identical
+    vertices, and split the graph into \emph{independent} components when
+    possible. We find an initial solution using local search that tries to move
+    slices and optimally insert them, and re-label all nodes accordingly to make
+    memory accesses more efficient.
+  \item[Dominating pairs] We find all dominating pairs and store them. For the
+    exact track we also find practical dominating pairs. Instances for the parameterized
+    track are simple enough that the overhead was not worth it. Also for each
+    tail we search for new `tail-local' practical dominating pairs. In each state, we only
+    try vertices $u\in T$ not dominated by another $v\in T$.
+  \item[Gluing] We use the greedy strategy \cref{greedy}. Our implementation
+    of \cref{pg} contained a bug, so we did not use this. (Also benefits
+    seemed limited.)
+  \item[Tail cache] In each step, we search for the longest suffix of $T$ that
+    has been seen before, and reuse (the lower bound on) its excess. We also
+    cache the tail-local practical dominating pairs.
+  \item[Optimal insert] Instead of simply appending $u$ to the end of $P$, we
+    insert it in the optimal position.\footnote{The idea is simple, but the
+    implementation is tricky because it interacts in complicated ways with
+    the caching of results for each tail.}
+\end{description}
+
+\section{Discussion}
+\texttt{OCMu64} is a simple branch-and-bound method for solving one-sided
+crossing minimization that does not depend on advanced ILP or SAT solvers.
+
+This also seems to be its biggest limitation: while LP methods can use
+the dual-space, \texttt{OCMu64} only considers the primal space to find lower
+bounds on subproblems.
+
+\end{document}
