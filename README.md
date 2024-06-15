@@ -1,4 +1,6 @@
-# PACE 2024 - One sided crossing minimization - OCMu64
+# PACE 2024 - One sided crossing minimization - mjdv/OCMu64
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.11671980.svg)](https://zenodo.org/doi/10.5281/zenodo.11671980)
 
 This is a solution to the 2024 [PACE challenge](https://pacechallenge.org/), by
 @mjdv and @RagnarGrootKoerkamp.
