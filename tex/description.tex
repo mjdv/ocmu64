@@ -15,7 +15,7 @@
 
 \author{Ragnar {Groot Koerkamp}}{ETH Zurich, Switzerland}{ragnar.grootkoerkamp@gmail.com}{https://orcid.org/0000-0002-2091-1237}{}%TODO mandatory, please use full name; only 1 author per \author macro; first two parameters are mandatory, other parameters can be empty. Please provide at least the name of the affiliation and the country. The full address is optional. Use additional curly braces to indicate the correct name splitting when the last name consists of multiple name parts.
 
-\author{Mees de Vries}{}{}{}{}
+\author{Mees de Vries}{Unaffiliated, Netherlands}{meesdevries@protonmail.com}{}{}
 
 \authorrunning{R. Groot Koerkamp and M. de Vries} %TODO mandatory. First: Use abbreviated first/middle names. Second (only in severe cases): Use first author plus 'et al.'
 
@@ -63,6 +63,7 @@
 \renewcommand{\u}{\overline{u}}
 \renewcommand{\v}{\overline{v}}
 \newcommand{\w}{\overline{w}}
+\DeclareMathOperator{\supp}{supp}
 
 \begin{document}
 
@@ -83,39 +84,39 @@
 The 2024 edition of PACE, an annual optimization challenge, considers the
 \emph{one-sided crossing minimization} problem, defined as follows.
 Given is a bipartite graph $(A, B)$ that is drawn in the plane at points
-$(0, i)$ and $(1,j)$ for components $A$ and $B$ respectively. The order of $A$
-is fixed, and the goal is the find an order of $B$ that minimizes the number of
+$(i, 1)$ and $(j,0)$ for components $A$ and $B$ respectively. The ordering of $A$
+is fixed, and the goal is the find an ordering of $B$ that minimizes the number of
 crossings when edges are drawn as straight lines.
 
-We introduce some new reductions and overview our algorithm. Proofs are brief or
+We introduce some new reductions and give an overview of our algorithm. Proofs are brief or
 omitted due to lack of space.
 
 \section{Definitions}
-Since the order of $A$ is fixed, we set $A=\{0, \dots, [A]\}$ (where $[n]=\{0,\dots,n-1\}$) and draw the
-vertices in this order.
-Let $u, v\in B$ be two vertices in $B$. Then $N(u),N(v)\subseteq A$ are their sets of
-neighbours.
-We write $c(u,v)=\sum_{a\in N(u)}\sum_{b\in N(v)} [a>b]$ for the number of crossings between edges from $u$ and $v$
-when $u$ is drawn before $v$. For $X,Y\subseteq B$ we set
-$c(X,Y) = \sum_{x\in X}\sum_{y\in Y} c(x,y)$ for the cost of ordering all
-vertices of $X$ before all vertices of $Y$.
-More generally, $c(X,Y,Z) = c(X, Y) + c(X, Z) + c(Y, Z)$.
-We also consider the \emph{reduced cost} $r(X,Y) = c(X, Y) - c(Y, X)$, which is
-negative when $X$ is better \emph{before} $Y$ and positive when $X$ is better \emph{after} $Y$.
+We use $<$ to compare vertices in $A$ in their fixed ordering. We generalize to weighted graphs
+for the proof of \ref{lem:sdp}: a node $u \in B$ is taken to be a function $u: A \to \mathbb
+R^{\geq 0}$, where weight 0 is an absent edge. We write $c(u, v) = \sum_{(a, b) \in A^2}
+u(a)v(b)[a > b]$; in the unweighted case, this is the \emph{crossing number}, the number of
+crossings between edges incident to $u$ and $v$ when $u$ is drawn before $v$. 
 
-We write $u\b v$ when $u$ must come before $v$ in all minimal solutions and
-$u\be v$ when there exist minimal solutions where $u$ comes before $v$, and we
-call such $(u,v)$ \emph{dominating pairs}.
-We write $u\g v$ when there is a minimal solution where $u$ and $v$ are
+For $X,Y\subseteq B$ we set $c(X,Y) = \sum_{x\in X}\sum_{y\in Y} c(x,y)$ for the cost of
+ordering all vertices of $X$ before all vertices of $Y$. More generally, $c(X,Y,Z) = c(X, Y) +
+c(X, Z) + c(Y, Z)$. We also consider the \emph{reduced cost} $r(X,Y) = c(X, Y) - c(Y, X)$,
+which is negative when $X$ is better \emph{before} $Y$ and positive when $X$ is better
+\emph{after} $Y$.
+
+We write $u\b v$ when $u$ must come before $v$ in all minimal solutions, and say that $(u, v)$
+is a \emph{fixed} pair. When there exists a minimal solution where $u$ comes before $v$, we
+write $u \be v$ and call $(u, v)$ \emph{weakly fixed}.
+We write $u\g v$ when there exists a minimal solution where $u$ and $v$ are
 consecutive, in that order.
 
 The following result is well known.
 
 % TODO: Citation
 \begin{observation}\label{lem:weak}
-  When all neighbours of $u$ come before all neighbours of $v$, then $u$ goes
-  before $v$. I.e., when $\max N(u) \leq \min N(v)$, then $u\be v$.
-  When additionally ${\min N(u) < \max N(v)}$, then $u\b v$.
+  When all neighbours of $u$ come before all neighbours of $v$, then $u$ goes before $v$. That
+    is, when $\max \supp (u) \leq \min \supp (v)$, then $u\be v$, and in fact $u \b v$ holds
+    unless $u$ and $v$ are both connected to only one and the same node in $A$.
 \end{observation}
 
 \section{Methods}
