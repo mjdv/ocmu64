@@ -93,16 +93,17 @@ omitted due to lack of space.
 
 \section{Definitions}
 We use $<$ to compare vertices in $A$ in their fixed ordering. We generalize to weighted graphs
-for the proof of \ref{lem:sdp}: a node $u \in B$ is taken to be a function $u: A \to \mathbb
-R^{\geq 0}$, where weight 0 is an absent edge. We write $c(u, v) = \sum_{(a, b) \in A^2}
-u(a)v(b)[a > b]$; in the unweighted case, this is the \emph{crossing number}, the number of
-crossings between edges incident to $u$ and $v$ when $u$ is drawn before $v$. 
+for the proof of \ref{lem:sfp}: a node $u \in B$ is taken to be a function $u: A \to \mathbb
+R^{\geq 0}$, where weight 0 is an absent edge. We write $W_u = \sum_{a \in A}u(a)$ for the
+total weight of $u$, and set $\bar u = u/W_u$.
 
-For $X,Y\subseteq B$ we set $c(X,Y) = \sum_{x\in X}\sum_{y\in Y} c(x,y)$ for the cost of
-ordering all vertices of $X$ before all vertices of $Y$. More generally, $c(X,Y,Z) = c(X, Y) +
-c(X, Z) + c(Y, Z)$. We also consider the \emph{reduced cost} $r(X,Y) = c(X, Y) - c(Y, X)$,
-which is negative when $X$ is better \emph{before} $Y$ and positive when $X$ is better
-\emph{after} $Y$.
+We write $c(u, v) = \sum_{(a, b) \in A^2}
+u(a)v(b)[a > b]$; in the unweighted case, this is the \emph{crossing number}, the number of
+crossings between edges incident to $u$ and $v$ when $u$ is drawn before $v$.  For
+$X,Y\subseteq B$ we set $c(X,Y) = \sum_{x\in X}\sum_{y\in Y} c(x,y)$ for the cost of ordering
+all vertices of $X$ before all vertices of $Y$. More generally, $c(X,Y,Z) = c(X, Y) + c(X, Z) +
+c(Y, Z)$. We also consider the \emph{reduced cost} $r(X,Y) = c(X, Y) - c(Y, X)$, which is
+negative when $X$ is better \emph{before} $Y$ and positive when $X$ is better \emph{after} $Y$.
 
 We write $u\b v$ when $u$ must come before $v$ in all minimal solutions, and say that $(u, v)$
 is a \emph{fixed} pair. When there exists a minimal solution where $u$ comes before $v$, we
@@ -121,21 +122,29 @@ The following result is well known.
 
 \section{Methods}
 \subsection{Reductions}
-\subparagraph{Dominating pairs}
+\subparagraph{Fixed pairs}
 We give a much stronger version of \cref{lem:weak}. In fact, this
-lemma is as strong as can be when only considering $N(u)$ and $N(v)$.
+lemma is as strong as can be when only considering $u, v$ themselves. We begin with this
+abstract version, followed by a concrete corrolary.
 
-\begin{lemma}[Strong dominating pair]\label{lem:sdp}
-  Write $n:= |N(u)|$, $m:=|N(v)|$, and consider both sets as sorted lists.
-  When for all $i\in [n]$ we have
-  $ N(u)_i \leq N(v)_{\lfloor i\cdot m/n \rfloor} $,
-  then $u\be v$.
-  When there is an $i$ such that the inequality is strict, then $u\b v$.
+\begin{lemma}[Strong fixed pair]\label{lem:sfp}
+    Fix $u, v$. Suppose that for each $b \in A$ we have $\sum_{a \leq b} \bar u(a) \geq \sum_{a
+    \leq b} \bar v(a)$. Then, for any $w$, we have $r(w, \bar v) \leq r(w, \bar u)$.
 \end{lemma}
 
-%Note that the condition is equivalent to the symmetric version: for all $j\in [m]$:
-%$ U_{\lceil j\cdot n/m \rceil} \leq V_j $.
+\begin{proof}
+    If $\bar u \neq \bar v$, consider the least element $a_0 \in A$ such that $\bar u(a_0) \neq
+    \bar v(a_0)$. We must have $\bar u(a_0) > \bar v(a_0)$. Consider the transformation of
+    $\bar u$ which ``moves'' $\bar u(a_0) - \bar v(a_0)$ of weight from $a_0$ to its successor
+    $a_1$, and call this transformed function $\bar u'$. Then
+    \[
+        r(w, \bar u') = r(w, \bar u) - ... \leq r(w, \bar u).
+    \]
+    Since $\bar v$ can be obtained from $\bar u$ by a finite sequence of such transformations,
+    the inequality follows.
+\end{proof}
 
+% To do, fix everything from here.
 \begin{proof}
   Consider for each $u\in B$ the function $w_u: A\to \R_{\geq 0}$ that
   assigns \emph{weight} $1$ to neighbours of $u$ and weight $0$ otherwise.
@@ -170,7 +179,7 @@ lemma is as strong as can be when only considering $N(u)$ and $N(v)$.
 \end{proof}
 
 \begin{remark}
-  When the condition in \cref{lem:sdp} does not hold, there exists a multiset
+  When the condition in \cref{lem:sfp} does not hold, there exists a multiset
   $\mathcal X\subseteq A$ such that $v, \mathcal X, u$ is the optimal order.
 \end{remark}
 
