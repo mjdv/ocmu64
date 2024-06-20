@@ -124,13 +124,16 @@ The following result is well known.
 \subparagraph{Fixed pairs}
 We give a much stronger version of \cref{lem:weak}. In fact, \cref{lem:sfp} is the strongest
 generalization possible when only considering $u, v$ themselves (see \cref{rem:strongest}).
-\begin{definition}
+\begin{definition}[Strongly fixed pair]
     We call $u, v \in B$ a \emph{strongly fixed pair} if for every $b \in A$ we have ${\sum_{a
     \leq b} \bar u(a) \geq \sum_{a \leq b} \bar v(a)}$, and at least one of these inequalities
-    is strict. This implies $r(u, v) {<} 0$.
+    is strict. This implies $r(u, v) < 0$.
 \end{definition}
-\begin{lemma}[Strongly fixed pair]\label{lem:sfp} When $u, v$ is a strongly fixed pair,
-    then for any $w: A\to \mathbb R^{\geq 0}$ we have $r(w, \bar v) \leq r(w, \bar u)$.
+\begin{lemma}\label{lem:sfp} When $u, v$ is a strongly fixed pair,
+    then for any $w: A\to \mathbb R^{\geq 0}$ we have 
+    \[
+        r(w, \bar v) \leq r(w, \bar u).
+    \]
 \end{lemma}
 \begin{proof}
     Consider the least element $a_0 \in A$ such that $\bar u(a_0) \neq
@@ -149,23 +152,21 @@ generalization possible when only considering $u, v$ themselves (see \cref{rem:s
 \begin{proof}
     Suppose towards a contradiction that $v < x_0 < \cdots < x_k < u$ is part of an optimal
     solution. Write $X = \sum_i x_i$ for the combined function. Then by assumption $r(X, u)
-    \leq 0$, and therefore $r(X, v) = W_v r(X, \bar v) \leq W_v r(X, \bar u) = W_v / W_u r(X,
-    u) \leq 0$. But then $c(X, u, v) < c(X, v, u)\leq c(v, X, u)$, which
+    \leq 0$, and therefore $r(X, v) = W_v r(X, \bar v) \leq W_v r(X, \bar u) = W_v / W_u \cdot
+    r(X, u) \leq 0$. But then $c(X, u, v) < c(X, v, u)\leq c(v, X, u)$, which
     contradicts $(v,X,u)$ being optimal.
 \end{proof}
 
 \begin{remark}
     Consider $u \neq v$ from the original, unweighted problem, taking only values $0, 1$. Let 
     $n = |N(u)|, m = |N(v)|$, and consider both as ordered lists. Then $u, v$ are strongly
-    fixed if and only if for all $0 \leq i < n$,
-    \[
-        N(u)_i \leq N(v)_{\lfloor i\cdot m/n \rfloor},
-    \]
-    or equivalently for all $0 \leq j < m$, $N(u)_{\lceil j\cdot n/m \rceil} \leq N(v)_j$.
+    fixed if and only if for all $0 \leq i < n$, $N(u)_i \leq N(v)_{\lfloor i\cdot m/n
+    \rfloor}$, which is how we check in practice whether $u, v$ is strongly fixed.
 \end{remark}
 
 \begin{remark}\label{rem:strongest}
-    Suppose that $u \neq v$ are not strongly fixed, and let $b \in A$ be some element such
+    Suppose that $u, v \in B$ with $\bar u \neq \bar v$ are not strongly fixed, and let $b \in
+    A$ be some element such
     that $\sum_{a \leq b} \bar u(a) > \sum_{a \leq b} \bar v(a)$. By taking $X: A \to \mathbb
     R^{\geq 0}$ some function which assigns very high
     weight to $b$, we can obtain $c(v, X, u) < \min(c(X, u, v), c(u, v, X))$, showing that
