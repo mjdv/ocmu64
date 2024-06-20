@@ -178,21 +178,19 @@ pair}. Note that for such a pair, $r(u, v) < 0$.
 This remark motivates the following: although such a function $X$ may exist in theory, it does
 not have to exist in the actual set $B$, motivating the following definition.
 
-% todo from here
 \begin{lemma}[Practically fixed pair]\label{pfp}
   Suppose $r(u,v)\leq 0$.
-  A \emph{blocking} set $X\subseteq B-\{u,v\}$ is a set such that $c(v,X,u)$ is
-  stricly better than both $c(u,v,X)$ and $c(X,u,v)$.
-  If there is no blocking set, then $u\be v$.
+    A \emph{blocking set} $X\subseteq B-\{u,v\}$ is a set such that $c(v,X,u) < \min(c(v, u,
+    X), (X, v, u))$.  If there is no blocking set for $(u, v)$, then $u\b v$.
 \end{lemma}
 
-In practice, such a set $X$ can be found, if one exists, using knapsack: for
-each $x\in B-\{u,v\}$, add a point $P_x = (r(v, x), r(x, u))$, and search for a
-subset summing to ${\leq{}(r(u, v), r(u, v))}$.
+In practice, such a set $X$ can be found, if one exists, using a knapsack-like algorithm: for
+each $x\in B-\{u,v\}$, add a point $P_x = (r(v, x), r(x, u))$, and search for a subset summing
+to ${\leq{}(r(u, v), r(u, v))}$.
 
 Note that we do not require $(v, X, u)$ to be a true local minimum, since we do
-not consider interactions between vertices in $X$, as that would make finding
-such sets much harder.
+not consider interactions between vertices in $X$, as that would make ruling out the
+existence of such sets much harder.
 
 \subparagraph{Gluing}
 We now turn our attention to \emph{gluing}, i.e., proving that two vertices $u$
