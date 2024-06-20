@@ -215,11 +215,18 @@ Again such sets $X$ can be found or proven to not exist using a knapsack
 algorithm: add points $P_x = (r(u, x), r(x, v))$ and search for a non-empty
 set summing to $\leq{}(0,0)$.
 
+\begin{remark}[Weak variants]
+  It is also possible to consider \emph{weak} variants of the above lemmas that
+  only imply that $u<v$ or $u\g v$ in \emph{some} optimal solution. This requires careful
+  handling of cycles like $u\be v\be w\be u$ and $u\g v\g w\g u$.
+\end{remark}
+
 \begin{remark}[Tail variants]
   Our branch-and-bound method fixes vertices of the
 solution from left to right. That means that at each step \cref{pg,pfp} can be applied to
 just the \emph{tail}.
 \end{remark}
+
 
 \subsection{Branch-and-bound}
 Our solver \texttt{OCMu64} is based on a standard branch-and-bound on the order the solution.
