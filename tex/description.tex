@@ -128,14 +128,17 @@ We give a much stronger version of \cref{lem:weak}. In fact, this
 lemma is as strong as can be when only considering $u, v$ themselves. We begin with this
 abstract version, followed by a concrete corrolary.
 
-\begin{lemma}[Strongly fixed pair]\label{lem:sfp}
-    Fix $u, v$. Suppose that for each $b \in A$ we have $\sum_{a \leq b} \bar u(a) \geq \sum_{a
-    \leq b} \bar v(a)$. Then, for any $w$, we have $r(w, \bar v) \leq r(w, \bar u)$.
+\begin{definition}
+    If for every $b \in A$ we have $\sum_{a \leq b} \bar u(a) \geq \sum_{a
+    \leq b} \bar v(a)$, and at least one of these inequalities is strict, we call $(u, v)$ a
+    \emph{strongly fixed pair}. Note that in this case $r(u, v) < 0$.
+\end{definition}
+\begin{lemma}[Strongly fixed pair]\label{lem:sfp} Take $u, v \in B$ a strongly fixed pair.
+    Then, for any $w$ we have $r(w, \bar v) \leq r(w, \bar u)$.
 \end{lemma}
-
 \begin{proof}
-    If $\bar u \neq \bar v$, consider the least element $a_0 \in A$ such that $\bar u(a_0) \neq
-    \bar v(a_0)$. We must have $\bar u(a_0) > \bar v(a_0)$. Consider the transformation of
+    Consider the least element $a_0 \in A$ such that $\bar u(a_0) \neq
+    \bar v(a_0)$. We must have $\bar u(a_0) > \bar v(a_0)$. Now consider the transformation of
     $\bar u$ which ``moves'' $\delta := \bar u(a_0) - \bar v(a_0)$ of weight from $a_0$ to its
     successor $a_1 \in A$, and call this transformed function $\bar u'$. Then
     \[
@@ -144,18 +147,14 @@ abstract version, followed by a concrete corrolary.
     Since $\bar v$ can be obtained from $\bar u$ by a finite sequence of such transformations,
     the inequality follows.
 \end{proof}
-
-If $u \neq v$ satisfy the conditions of \ref{lem:sfp}, we call $(u, v)$ a \emph{strongly fixed
-pair}. Note that for such a pair, $r(u, v) < 0$.
-
 \begin{lemma}
-    If $(u, v)$ is a strongly fixed pair, then $u \b v$.
+    If $(u, v)$ is strongly fixed, then $u \b v$.
 \end{lemma}
 \begin{proof}
     Suppose towards a contradiction that $v < x_0 < \cdots < x_k < u$ is part of an optimal
     solution. Write $X = \sum_i x_i$ for the combined function. Then by assumption $r(X, u)
-    \leq 0$, and therefore $r(X, v) = W_v r(X, \bar v) \leq W_v r(X, u) \leq 0$. But then $c(v,
-    X, u) \leq c(X, v, u) < c(X, u, v)$, a contradiction.
+    \leq 0$, and therefore $r(X, v) = W_v r(X, \bar v) \leq W_v r(X, \bar u) = W_v / W_u r(X,
+    u) \leq 0$. But then $c(v, X, u) \leq c(X, v, u) < c(X, u, v)$, a contradiction.
 \end{proof}
 
 \begin{remark}
