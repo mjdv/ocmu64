@@ -154,7 +154,8 @@ abstract version, followed by a concrete corrolary.
     Suppose by contradiction that $v < x_0 < \cdots < x_k < u$ is part of an optimal
     solution. Write $X = \sum_i x_i$ for the combined function. Then by assumption $r(X, u)
     \leq 0$, and therefore $r(X, v) = W_v r(X, \bar v) \leq W_v r(X, \bar u) = W_v / W_u r(X,
-    u) \leq 0$. But then $c(v, X, u) \leq c(X, v, u) < c(X, u, v)$, a contradiction.
+    u) \leq 0$. But then $c(X, u, v) < c(X, v, u)\leq c(v, X, u)$, which
+    contradicts $(v,X,u)$ being optimal.
 \end{proof}
 
 \begin{remark}
