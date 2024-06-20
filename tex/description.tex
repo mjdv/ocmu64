@@ -228,8 +228,8 @@ just the \emph{tail}.
 
 
 \subsection{Branch-and-bound}
-Our solver \texttt{OCMu64} is based on a standard branch-and-bound on the order the solution.
-We start with fixed prefix $P=()$ and tail $T=B$, and in each step we try (a
+Our solver \texttt{OCMu64} is based on a standard branch-and-bound on the ordering of the
+solution.  We start with fixed prefix $P=()$ and tail $T=B$, and in each step we try (a
 subset of) all vertices in $T$ as the next vertex appended to $P$.
 In a preprocessing step we compute the trivial lower bound $S_0 =
 \sum_{u,v}\min(c(u,v),c(v,u))$ on the score.
@@ -268,5 +268,4 @@ crossing minimization that does not depend on advanced ILP or SAT solvers.
 This also seems to be its biggest limitation: while LP methods can use
 the dual-space, \texttt{OCMu64} only considers the primal space to find lower
 bounds on subproblems.
-
 \end{document}
