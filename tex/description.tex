@@ -161,7 +161,7 @@ generalization possible when only considering $u, v$ themselves (see \cref{rem:s
     Consider $u \neq v$ from the original, unweighted problem, taking only values $0, 1$. Let 
     $n = |N(u)|, m = |N(v)|$, and consider both as ordered lists. Then $u, v$ are strongly
     fixed if and only if for all $0 \leq i < n$, $N(u)_i \leq N(v)_{\lfloor i\cdot m/n
-    \rfloor}$, which is how we check in practice whether $u, v$ is strongly fixed.
+    \rfloor}$ and at least one of the inequalities is strict, which is how we check in practice whether $u, v$ is strongly fixed.
 \end{remark}
 
 \begin{remark}\label{rem:strongest}
@@ -176,7 +176,7 @@ Although such a function $X$ may exist in theory, it does
 not have to exist in the actual set $B$, motivating the following definition.
 
 \begin{lemma}\label{pfp}
-  Suppose $r(u,v)\leq 0$.
+  Suppose $r(u,v)< 0$.
     A \emph{blocking set} $X\subseteq B-\{u,v\}$ is a set such that $c(v,X,u) \leq \min(c(v, u,
     X), (X, v, u))$.  If there is no blocking set for $(u, v)$, we call it a
     \emph{practically fixed pair}, and $u\b v$.
