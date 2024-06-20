@@ -93,7 +93,7 @@ omitted due to lack of space.
 
 \section{Definitions}
 We use $<$ to compare vertices in $A$ in their fixed ordering. We generalize to weighted graphs
-for the proof of \ref{lem:sfp}: a node $u \in B$ is taken to be a function $u: A \to \mathbb
+for the proof of \cref{lem:sfp}: a node $u \in B$ is taken to be a function $u: A \to \mathbb
 R^{\geq 0}$, where weight 0 is an absent edge. We write $W_u = \sum_{a \in A}u(a)$ for the
 total weight of $u$, and set $\bar u = u/W_u$. Write $N(u) = \supp(u) \subseteq A$ for the
 set of neighbors of $u$.
@@ -172,10 +172,10 @@ abstract version, followed by a concrete corrolary.
     Suppose that $u \neq v$ are not strongly fixed, and let $a_0 \in A$ be some element such
     that $\sum_{a \leq a_0} \bar u(a) > \sum_{a \leq a_0} \bar v(a)$, and $a_1 \in A$ its
     successor. By taking $X: A \to \mathbb R^{\geq 0}$ some function which assigns very high
-    weight to $a_1$, we can obtain $c(v, X, u) < \min(c(X, u, v), c(u, v, X))$, showing that
-    \ref{lem:sfp} is optimal.
+    weight to $a_0$ and $a_1$, we can obtain $c(v, X, u) < \min(c(X, u, v), c(u, v, X))$, showing that
+    \cref{lem:sfp} is optimal.
 \end{remark}
-This remark motivates the following: although such a function $X$ may exist in theory, it does
+Although such a function $X$ may exist in theory, it does
 not have to exist in the actual set $B$, motivating the following definition.
 
 \begin{lemma}[Practically fixed pair]\label{pfp}
