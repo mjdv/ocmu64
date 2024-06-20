@@ -59,7 +59,7 @@
 \newcommand{\R}{\mathbb R}
 \renewcommand{\b}{\prec}
 \newcommand{\be}{\preceq}
-\newcommand{\g}{\sim}
+\newcommand{\g}{\bullet}
 \renewcommand{\u}{\overline{u}}
 \renewcommand{\v}{\overline{v}}
 \newcommand{\w}{\overline{w}}
@@ -107,18 +107,16 @@ c(Y, Z)$. We also consider the \emph{reduced cost} $r(X,Y) = c(X, Y) - c(Y, X)$,
 negative when $X$ is better \emph{before} $Y$ and positive when $X$ is better \emph{after} $Y$.
 
 We write $u\b v$ when $u$ must come before $v$ in all minimal solutions, and say that $(u, v)$
-is a \emph{fixed} pair. When there exists a minimal solution where $u$ comes before $v$, we
-write $u \be v$ and call $(u, v)$ \emph{weakly fixed}.
-We write $u\g v$ when there exists a minimal solution where $u$ and $v$ are
-consecutive, in that order.
+is a \emph{fixed} pair.
+We write $u\g v$ when $u$ and $v$ are consecutive in all minimal solutions.
 
 The following result is well known.
 
 % TODO: Citation
 \begin{observation}\label{lem:weak}
-  When all neighbours of $u$ come before all neighbours of $v$, then $u$ goes before $v$. That
-    is, when $\max N(u) \leq \min N(v)$, then $u\be v$, and in fact $u \b v$ holds
-    unless $u$ and $v$ are both connected to only one and the same node in $A$.
+  When all neighbours of $u$ come before all neighbours of $v$, then $u$ comes
+  before $v$ in any solution.
+  That is, when $\max N(u) \leq \min N(v)$ and $u\neq v$, then $u\b v$.
 \end{observation}
 
 \section{Methods}
@@ -210,9 +208,9 @@ and $v$ always go right next to each other. We start with a simple case of
 \end{remark}
 This means that there is no `strong gluing'.
 \begin{lemma}[Practical gluing]\label{pg}
-  Let $u$ and $v$ satisfy $r(u,v)\leq 0$ and $u\be v$.
-  A subset $X\subseteq B-\{u,v\}$ is \emph{blocking} when $c(u, X, v)$ is strictly
-  better than $c(u,v,X)$ and $c(X,u,v)$.
+  Let $u$ and $v$ satisfy $r(u,v)\leq 0$ and $u\b v$.
+  A subset $X\subseteq B-\{u,v\}$ is \emph{blocking} when $c(u, X, v)$ is at
+  least as good as $c(u,v,X)$ and $c(X,u,v)$.
   If there is no blocking set, then $u \g v$.
 \end{lemma}
 Again such sets $X$ can be found or proven to not exist using a knapsack
