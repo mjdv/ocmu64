@@ -95,7 +95,8 @@ omitted due to lack of space.
 We use $<$ to compare vertices in $A$ in their fixed ordering. We generalize to weighted graphs
 for the proof of \ref{lem:sfp}: a node $u \in B$ is taken to be a function $u: A \to \mathbb
 R^{\geq 0}$, where weight 0 is an absent edge. We write $W_u = \sum_{a \in A}u(a)$ for the
-total weight of $u$, and set $\bar u = u/W_u$.
+total weight of $u$, and set $\bar u = u/W_u$. Write $N(u) = \supp(u) \subseteq A$ for the
+set of neighbors of $u$.
 
 We write $c(u, v) = \sum_{(a, b) \in A^2}
 u(a)v(b)[a > b]$; in the unweighted case, this is the \emph{crossing number}, the number of
@@ -116,7 +117,7 @@ The following result is well known.
 % TODO: Citation
 \begin{observation}\label{lem:weak}
   When all neighbours of $u$ come before all neighbours of $v$, then $u$ goes before $v$. That
-    is, when $\max \supp (u) \leq \min \supp (v)$, then $u\be v$, and in fact $u \b v$ holds
+    is, when $\max N(u) \leq \min N(v)$, then $u\be v$, and in fact $u \b v$ holds
     unless $u$ and $v$ are both connected to only one and the same node in $A$.
 \end{observation}
 
@@ -127,7 +128,7 @@ We give a much stronger version of \cref{lem:weak}. In fact, this
 lemma is as strong as can be when only considering $u, v$ themselves. We begin with this
 abstract version, followed by a concrete corrolary.
 
-\begin{lemma}[Strong fixed pair]\label{lem:sfp}
+\begin{lemma}[Strongly fixed pair]\label{lem:sfp}
     Fix $u, v$. Suppose that for each $b \in A$ we have $\sum_{a \leq b} \bar u(a) \geq \sum_{a
     \leq b} \bar v(a)$. Then, for any $w$, we have $r(w, \bar v) \leq r(w, \bar u)$.
 \end{lemma}
@@ -135,58 +136,50 @@ abstract version, followed by a concrete corrolary.
 \begin{proof}
     If $\bar u \neq \bar v$, consider the least element $a_0 \in A$ such that $\bar u(a_0) \neq
     \bar v(a_0)$. We must have $\bar u(a_0) > \bar v(a_0)$. Consider the transformation of
-    $\bar u$ which ``moves'' $\bar u(a_0) - \bar v(a_0)$ of weight from $a_0$ to its successor
-    $a_1$, and call this transformed function $\bar u'$. Then
+    $\bar u$ which ``moves'' $\delta := \bar u(a_0) - \bar v(a_0)$ of weight from $a_0$ to its
+    successor $a_1 \in A$, and call this transformed function $\bar u'$. Then
     \[
-        r(w, \bar u') = r(w, \bar u) - ... \leq r(w, \bar u).
+        r(w, \bar u') = r(w, \bar u) - \delta w(a_0) - \delta w(a_1) \leq r(w, \bar u).
     \]
     Since $\bar v$ can be obtained from $\bar u$ by a finite sequence of such transformations,
     the inequality follows.
 \end{proof}
 
-% To do, fix everything from here.
+If $u \neq v$ satisfy the conditions of \ref{lem:sfp}, we call $(u, v)$ a \emph{strongly fixed
+pair}. Note that for such a pair, $r(u, v) < 0$.
+
+\begin{lemma}
+    If $(u, v)$ is a strongly fixed pair, then $u \b v$.
+\end{lemma}
 \begin{proof}
-  Consider for each $u\in B$ the function $w_u: A\to \R_{\geq 0}$ that
-  assigns \emph{weight} $1$ to neighbours of $u$ and weight $0$ otherwise.
-  Let $W_u = \sum_{a\in A} w_u(A)$ be the total weight (degree) of $u$.
-  Then for any $u$ and $v$, $c(u,v) = \sum_{a,b\in A, a>b} w_u(a) \cdot w_v(b)$.
-  We can `shift' some weight $\delta$ of $w_u$ to the right from $a_1$ to $a_2>a_1$ by
-  decreasing $w_u(a_1)\geq \delta$ by $\delta$ and increasing $w_u(a_2)$ by
-  $\delta$.
-  This increases the value of
-  $c(u,v)$ by $\delta \cdot \sum_{a_1 < b \leq a_2} w_b(v)\geq 0$.
-
-  Consider \emph{scaled} functions $\w_u = w_u / W_u$ and $\w_v = w_v / W_v$.
-  We have $c(u,v) = W_u\cdot W_v\cdot c(\u, \v)$ and $c(v,u) = W_u\cdot
-  W_v\cdot c(\v, \u)$, so that the sign of $r(u,v) = W_u\cdot W_v\cdot
-  r(\w_u, \w_v)$ is independent of scaling.
-  The condition in the lemma holds if and only if $\w_u$ can be transformed into
-  $\w_v$ by shifting weight to the right.
-
-  Now suppose there is an optimal solution where $v$ occurs before $x$:
-  $(\dots, v, x_1, \dots, x_k, u, \dots)$.
-  We set $X=(x_1,\dots, x_k)$ and write $w_X=\sum_{i=1}^k w_i$ for the combined weight of the
-  neighbours of the $x_i$.
-  Since the solution is optimal, we have $r(v,X) \leq 0$ and $r(X, u) \leq 0$,
-  and hence $r(\v, X)\leq 0$ and $r(X, \u) \leq 0$.
-  Since we can go from $\w_u$ to $\w_v$ by shifting weight to the right, we have
-  $r(\u, X) \leq r(\v, X)$. We get $0 \leq -r(X, \u) = r(\u, X) \leq r(\v, X)
-  \leq 0$. Thus, all must equal $0$, and $(v, X, u)$ is as good as $(v, u, X)$. By a
-  similar argument we can swap $u$ and $v$ to obtain $(u, v, X)$. We conclude
-  $u\be v$.
-  When one of the inequalities in the condition is strict that implies $c(u,v) <
-  c(v,u)$ and we have $u\b v$.
+    Suppose towards a contradiction that $v < x_0 < \cdots < x_k < u$ is part of an optimal
+    solution. Write $X = \sum_i x_i$ for the combined function. Then by assumption $r(X, u)
+    \leq 0$, and therefore $r(X, v) = W_v r(X, \bar v) \leq W_v r(X, u) \leq 0$. But then $c(v,
+    X, u) \leq c(X, v, u) < c(X, u, v)$, a contradiction.
 \end{proof}
 
 \begin{remark}
-  When the condition in \cref{lem:sfp} does not hold, there exists a multiset
-  $\mathcal X\subseteq A$ such that $v, \mathcal X, u$ is the optimal order.
+    Consider $u \neq v$ from the original, unweighted problem, taking only values $0, 1$. Let 
+    $n = |N(u)|, m = |N(v)|$, and consider both as ordered lists. Then $u, v$ are strongly
+    fixed if and only if for all $0 \leq i < n$,
+    \[
+        N(u)_i \leq N(v)_{\lfloor i\cdot m/n \rfloor},
+    \]
+    or equivalently for all $0 \leq j < m$, $N(u)_{\lceil j\cdot n/m \rceil} \leq N(v)_j$.
 \end{remark}
 
-Although such a set $\mathcal X$ may exist in theory, it does not have to exist in
-practice, motivating the following definition.
+\begin{remark}
+    Suppose that $u \neq v$ are not strongly fixed, and let $a_0 \in A$ be some element such
+    that $\sum_{a \leq a_0} \bar u(a) > \sum_{a \leq a_0} \bar v(a)$, and $a_1 \in A$ its
+    successor. By taking $X: A \to \mathbb R^{\geq 0}$ some function which assigns very high
+    weight to $a_1$, we can obtain $c(v, X, u) < \min(c(X, u, v), c(u, v, X))$, showing that
+    \ref{lem:sfp} is optimal.
+\end{remark}
+This remark motivates the following: although such a function $X$ may exist in theory, it does
+not have to exist in the actual set $B$, motivating the following definition.
 
-\begin{lemma}[Practical dominating pair]\label{pdp}
+% todo from here
+\begin{lemma}[Practically fixed pair]\label{pfp}
   Suppose $r(u,v)\leq 0$.
   A \emph{blocking} set $X\subseteq B-\{u,v\}$ is a set such that $c(v,X,u)$ is
   stricly better than both $c(u,v,X)$ and $c(X,u,v)$.
@@ -230,7 +223,7 @@ set summing to $\leq{}(0,0)$.
 
 \begin{remark}[Tail variants]
   Our branch-and-bound method fixes vertices of the
-solution from left to right. That means that at each step \cref{pg,pdp} can be applied to
+solution from left to right. That means that at each step \cref{pg,pfp} can be applied to
 just the \emph{tail}.
 \end{remark}
 
