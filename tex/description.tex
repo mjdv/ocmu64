@@ -237,7 +237,7 @@ In a preprocessing step we compute the trivial lower bound $S_0 =
 \sum_{u,v}\min(c(u,v),c(v,u))$ on the score.
 We keep track of the score $S_P$ of the prefix and $S_{PT}=c(P, T)$ of
 prefix-tail intersections, and abort when this score goes above the best
-solution found so far. The \emph{excess} of a tail is its optimal score above
+solution found so far. The \emph{excess} of a tail is its optimal score minus
 the trivial lower bound. We do a number of optimizations.
 
 \begin{description}
@@ -258,8 +258,8 @@ the trivial lower bound. We do a number of optimizations.
     was seen before, and reuse (the lower bound on) its excess. We also
     cache the tail-local practical fixed pairs.
   \item[Optimal insert] Instead of simply appending $u$ to $P$, we
-    insert it in the optimal position.\footnote{The idea is simple, but the
+    insert it in the optimal position. Note that the
     implementation is tricky because it interacts in complicated ways with
-    the caching of results for each tail.}
+    the caching of results for each tail.
 \end{description}
 \end{document}
