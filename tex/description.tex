@@ -238,18 +238,18 @@ the trivial lower bound. We do a number of optimizations.
     possible. We find an initial solution using local search that tries to move
     slices and optimally insert them, and re-label all nodes accordingly to make
     memory accesses more efficient.
-  \item[Dominating pairs] We find all dominating pairs and store them. For the
-    exact track we also find practical dominating pairs. Instances for the parameterized
+  \item[Fixed pairs] We find all strongly fixed pairs and store them. For the
+    exact track we also find practical fixed pairs. Instances for the parameterized
     track are simple enough that the overhead was not worth it. Also for each
-    tail we search for new `tail-local' practical dominating pairs. In each state, we only
-    try vertices $u\in T$ not dominated by another $v\in T$.
-  \item[Gluing] We use the greedy strategy \cref{greedy}. Our implementation
+    tail we search for new `tail-local' practical fixed pairs. In each state, we only
+    try vertices $u\in T$ not fixed by another $v\in T$.
+  \item[Gluing] We use the greedy strategy of \cref{greedy}. Our implementation
     of \cref{pg} contained a bug, so we did not use this. (Also benefits
     seemed limited.)
   \item[Tail cache] In each step, we search for the longest suffix of $T$ that
-    has been seen before, and reuse (the lower bound on) its excess. We also
-    cache the tail-local practical dominating pairs.
-  \item[Optimal insert] Instead of simply appending $u$ to the end of $P$, we
+    was seen before, and reuse (the lower bound on) its excess. We also
+    cache the tail-local practical fixed pairs.
+  \item[Optimal insert] Instead of simply appending $u$ to $P$, we
     insert it in the optimal position.\footnote{The idea is simple, but the
     implementation is tricky because it interacts in complicated ways with
     the caching of results for each tail.}
