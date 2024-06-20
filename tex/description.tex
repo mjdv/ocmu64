@@ -201,14 +201,14 @@ and $v$ always go right next to each other. We start with a simple case of
 \end{lemma}
 
 \begin{remark}
-  Let $u$ and $v$ satisfy $r(u,v) \leq 0$.
+  Let $u$ and $v$ satisfy $r(u,v) < 0$.
   When $N(u)=N(v)$ or more generally $\w_u=\w_v$, we can glue $u$ and $v$: $u\g v$.
-  Otherwise, there is a multiset $\mathcal X\subseteq A$ such that $(u, X, v)$ is
+  Otherwise, there is an $X : A\to \mathbb R^{\geq 0}$ such that $(u, X, v)$ is
   better than $(u,v,X)$ and $(X,u,v)$.
 \end{remark}
 This means that there is no `strong gluing'.
 \begin{lemma}[Practical gluing]\label{pg}
-  Let $u$ and $v$ satisfy $r(u,v)\leq 0$ and $u\b v$.
+  Let $u$ and $v$ satisfy $u\b v$.
   A non-empty subset $X\subseteq B-\{u,v\}$ is \emph{blocking} when $c(u, X, v)$ is at
   least as good as $c(u,v,X)$ and $c(X,u,v)$.
   If there is no blocking set, then $u \g v$.
