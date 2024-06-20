@@ -70,12 +70,13 @@
 
 %TODO mandatory: add short abstract of the document
 \begin{abstract}
-  Given a bipartite graph $(A,B)$, the \emph{one-sided crossing minimization} (OCM) problem is to find an order of the
-  vertices of $B$ that minimizes the number
-  of edge crossings when drawn in the plane.
+  Given a bipartite graph $(A,B)$, the \emph{one-sided crossing minimization}
+  (OCM) problem is to find an order of the vertices of $B$ that minimizes the
+  number of edge crossings when drawn in the plane.
 
-  We prove a number of novel reductions, and apply these in our solver OCMu64 that
-  uses branch-and-bound on the order of the vertices of $B$.
+  We prove a number of novel reductions, and apply these in our solver OCMu64
+  that directly uses branch-and-bound on the order of the vertices of $B$ and
+  does not depend on ILP or SAT solvers.
 \end{abstract}
 
 \section{Introduction}
@@ -260,12 +261,4 @@ the trivial lower bound. We do a number of optimizations.
     implementation is tricky because it interacts in complicated ways with
     the caching of results for each tail.}
 \end{description}
-
-\section{Discussion}
-\texttt{OCMu64} is a simple branch-and-bound method for solving one-sided
-crossing minimization that does not depend on advanced ILP or SAT solvers.
-
-This also seems to be its biggest limitation: while LP methods can use
-the dual-space, \texttt{OCMu64} only considers the primal space to find lower
-bounds on subproblems.
 \end{document}
