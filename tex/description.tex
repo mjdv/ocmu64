@@ -62,7 +62,6 @@
 \newcommand{\g}{\bullet}
 \renewcommand{\u}{\overline{u}}
 \renewcommand{\v}{\overline{v}}
-\newcommand{\w}{\overline{w}}
 \DeclareMathOperator{\supp}{supp}
 
 \begin{document}
@@ -201,10 +200,9 @@ and $v$ always go right next to each other. We start with a simple case of
 \end{lemma}
 
 \begin{remark}
-  Let $u$ and $v$ satisfy $r(u,v) < 0$.
-  When $N(u)=N(v)$ or more generally $\w_u=\w_v$, we can glue $u$ and $v$: $u\g v$.
-  Otherwise, there is an $X : A\to \mathbb R^{\geq 0}$ such that $(u, X, v)$ is
-  better than $(u,v,X)$ and $(X,u,v)$.
+  When $N(u)=N(v)$ or more generally $\bar u=\bar v$, we can glue $u$ and $v$: $u\g v$.
+  Otherwise when $r(u,v)\leq 0$, there is an $X : A\to \mathbb R^{\geq 0}$ such that $(u, X, v)$ is
+  strictly better than $(u,v,X)$ and $(X,u,v)$.
 \end{remark}
 This means that there is no `strong gluing'.
 \begin{lemma}[Practical gluing]\label{pg}
