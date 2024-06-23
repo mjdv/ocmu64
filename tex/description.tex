@@ -107,10 +107,7 @@ c(Y, Z)$. We also consider the \emph{reduced cost} $r(X,Y) = c(X, Y) - c(Y, X)$,
 negative when $X$ is better \emph{before} $Y$ and positive when $X$ is better \emph{after} $Y$.
 
 We write $u\b v$ when $u$ must come before $v$ in all minimal solutions, and say that $(u, v)$
-is a \emph{fixed} pair.
-We write $u\g v$ when $u$ and $v$ are consecutive in all minimal solutions.
-
-The following result is well known.
+is a \emph{fixed} pair. The following result is well known.
 
 % TODO: Citation
 \begin{observation}\label{lem:weak}
@@ -146,7 +143,7 @@ generalization possible when only considering $u, v$ themselves (see \cref{rem:s
     Since $\bar v$ is obtained from $\bar u$ by a sequence of such transformations,
     the inequality follows.
 \end{proof}
-\begin{lemma}
+\begin{lemma}\label{lem:sfimplf}
     If $(u, v)$ is strongly fixed, then $u \b v$.
 \end{lemma}
 \begin{proof}
@@ -190,37 +187,38 @@ Note that we do not require $(v, X, u)$ to be a true local minimum, since we do
 not consider interactions between vertices in $X$, as that would make ruling out the
 existence of such sets much harder.
 
+\begin{remark}[Weak variants]
+  It is also possible to consider \emph{weak} variants of the above lemmas that
+  only imply that $u < v$ in \emph{some} optimal solution. This requires careful
+  handling of cycles like $u\be v\be w\be u$.
+\end{remark}
+
 \subparagraph{Gluing}
 We now turn our attention to \emph{gluing}, i.e., proving that two vertices $u$
-and $v$ always go right next to each other. We start with a simple case of
-\emph{gluing to the front}.
-
-\begin{lemma}[Greedy]\label{greedy}
-  When $r(u, x)\leq 0$ for all $x\in B$, there is a solution that
-  starts with $u$.
-\end{lemma}
+and $v$ always go right next to each other, and we can treat them as a single vertex. First,
+let us see that we cannot get an analogous result to \cref{lem:sfimplf}.
 
 \begin{remark}
-  When $N(u)=N(v)$ or more generally $\bar u=\bar v$, we can glue $u$ and $v$: $u\g v$.
+  When $N(u)=N(v)$ in the unweighted case, or more generally $\bar u=\bar v$, we can glue $u$
+    and $v$.
   Otherwise when $r(u,v)\leq 0$, there is an $X : A\to \mathbb R^{\geq 0}$ such that $(u, X, v)$ is
   strictly better than $(u,v,X)$ and $(X,u,v)$.
 \end{remark}
 This means that there is no `strong gluing'.
 \begin{lemma}[Practical gluing]\label{pg}
-  Let $u$ and $v$ satisfy $u\b v$.
-  A non-empty subset $X\subseteq B-\{u,v\}$ is \emph{blocking} when $c(u, X, v)$ is at
-  least as good as $c(u,v,X)$ and $c(X,u,v)$.
-  If there is no blocking set, then $u \g v$.
+    Let $u$ and $v$ satisfy $r(u, v) \leq 0$.
+    A non-empty subset $X\subseteq B-\{u,v\}$ is \emph{blocking} when $c(u, X, v) \leq
+    \min(c(u, v, X), c(X, u, v))$. If there is no blocking set, then we can glue $u, v$.
 \end{lemma}
 Again such sets $X$ can be found or proven to not exist using a knapsack
 algorithm: add points $P_x = (r(u, x), r(x, v))$ and search for a non-empty
 set summing to $\leq{}(0,0)$.
 
-\begin{remark}[Weak variants]
-  It is also possible to consider \emph{weak} variants of the above lemmas that
-  only imply that $u<v$ or $u\g v$ in \emph{some} optimal solution. This requires careful
-  handling of cycles like $u\be v\be w\be u$ and $u\g v\g w\g u$.
-\end{remark}
+Let us also mention this gluing-like reduction: \emph{gluing to the front}.
+\begin{lemma}[Greedy]\label{greedy}
+  When $r(u, x)\leq 0$ for all $x\in B$, there is a solution that
+  starts with $u$.
+\end{lemma}
 
 \begin{remark}[Tail variants]
   Our branch-and-bound method fixes vertices of the
