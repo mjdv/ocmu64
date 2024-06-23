@@ -116,7 +116,7 @@ The following result is well known.
 \begin{observation}\label{lem:weak}
   When all neighbours of $u$ come before all neighbours of $v$, then $u$ comes
   before $v$ in any solution.
-  That is, when $\max N(u) \leq \min N(v)$ and $u\neq v$, then $u\b v$.
+  That is, when $\max N(u) \leq \min N(v)$ and $\bar u\neq \bar v$, then $u\b v$.
 \end{observation}
 
 \section{Methods}
@@ -127,7 +127,7 @@ generalization possible when only considering $u, v$ themselves (see \cref{rem:s
 \begin{definition}[Strongly fixed pair]
     We call $u, v \in B$ a \emph{strongly fixed pair} if for every $b \in A$ we have ${\sum_{a
     \leq b} \bar u(a) \geq \sum_{a \leq b} \bar v(a)}$, and at least one of these inequalities
-    is strict. This implies $r(u, v) < 0$.
+    is strict. Note that this implies $r(u, v) < 0$.
 \end{definition}
 \begin{lemma}\label{lem:sfp} When $u, v$ is a strongly fixed pair,
     then for any $w: A\to \mathbb R^{\geq 0}$ we have 
