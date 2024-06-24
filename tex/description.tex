@@ -109,7 +109,7 @@ negative when $X$ is better \emph{before} $Y$ and positive when $X$ is better \e
 
 We write $u\b v$ when $u$ must come before $v$ in all minimal solutions, and say that $(u, v)$
 is a \emph{fixed} pair. The following result is well known \cite[Lemma
-  1]{dujmovic_2004}, \cite[RR1]{dujmovic_2008}.
+  1]{dujmovic_2004}, RR1 of \cite{dujmovic_2008}.
 
 % TODO: Citation
 \begin{observation}\label{lem:weak}
@@ -123,7 +123,7 @@ is a \emph{fixed} pair. The following result is well known \cite[Lemma
 \subparagraph{Fixed pairs}
 We give a much stronger version of \cref{lem:weak}. In fact, \cref{lem:sfp} is the strongest
 generalization possible when only considering $u, v$ themselves (see
-\cref{rem:strongest}). This generalizes \cite[RR3]{dujmovic_2008}.
+\cref{rem:strongest}). This also generalizes RR3 of \cite{dujmovic_2008}.
 \begin{definition}[Strongly fixed pair]
     We call $u, v \in B$ a \emph{strongly fixed pair} if for every $b \in A$ we have ${\sum_{a
     \leq b} \bar u(a) \geq \sum_{a \leq b} \bar v(a)}$, and at least one of these inequalities
@@ -174,7 +174,7 @@ generalization possible when only considering $u, v$ themselves (see
 \end{remark}
 Although such a function $X$ may exist in theory, it does
 not have to exist in the actual set $B$, motivating the following definition
-that generalizes \cite[RRLO2]{dujmovic_2008}.
+that generalizes RRLO2 of \cite{dujmovic_2008}.
 
 \begin{lemma}\label{pfp}
   Suppose $r(u,v)< 0$.
@@ -217,7 +217,8 @@ Again such sets $X$ can be found or proven to not exist using a knapsack
 algorithm: add points $P_x = (r(u, x), r(x, v))$ and search for a non-empty
 set summing to $\leq{}(0,0)$.
 
-Let us also mention this gluing-like reduction: \emph{gluing to the front} \cite[RRLO1]{dujmovic_2008}
+Let us also mention this gluing-like reduction: \emph{gluing to the front}, implied by RRL01 of
+\cite{dujmovic_2008}.
 \begin{lemma}[Greedy]\label{greedy}
   When $r(u, x)\leq 0$ for all $x\in B$, there is a solution that
   starts with $u$.
