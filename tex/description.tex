@@ -242,7 +242,8 @@ the trivial lower bound. We do a number of optimizations.
 
 \begin{description}
   \item[Graph simplification] We drop degree-$0$ vertices, merge identical
-    vertices, and split the graph into \emph{independent} components when
+    vertices, and split the graph into \emph{independent} components
+    \cite[Corollary 2]{dujmovic_2004} when
     possible. We find an initial solution using the median heuristic \cite{eades_median,eades_median_2} and a local search that tries to move
     slices and optimally insert them \cite{makinen_experiments,eades_heuristics}, and re-label all nodes accordingly to make
     memory accesses more efficient.
