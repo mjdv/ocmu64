@@ -107,7 +107,7 @@ c(Y, Z)$. We also consider the \emph{reduced cost} $r(X,Y) = c(X, Y) - c(Y, X)$,
 negative when $X$ is better \emph{before} $Y$ and positive when $X$ is better \emph{after} $Y$.
 
 We write $u\b v$ when $u$ must come before $v$ in all minimal solutions, and say that $(u, v)$
-is a \emph{fixed} pair. The following result is well known.
+is a \emph{fixed} pair. The following result is well known \cite[Fact 4]{dujmovic_2004}.
 
 % TODO: Citation
 \begin{observation}\label{lem:weak}
@@ -240,8 +240,8 @@ the trivial lower bound. We do a number of optimizations.
 \begin{description}
   \item[Graph simplification] We drop degree-$0$ vertices, merge identical
     vertices, and split the graph into \emph{independent} components when
-    possible. We find an initial solution using local search that tries to move
-    slices and optimally insert them, and re-label all nodes accordingly to make
+    possible. We find an initial solution using the median heuristic \cite{eades_median,eades_median_2} and a local search that tries to move
+    slices and optimally insert them \cite{makinen_experiments,eades_heuristcis}, and re-label all nodes accordingly to make
     memory accesses more efficient.
   \item[Fixed pairs] We find all strongly fixed pairs and store them. For the
     exact track we also find practically fixed pairs. Instances for the parameterized
@@ -259,4 +259,7 @@ the trivial lower bound. We do a number of optimizations.
     implementation is tricky because it interacts in complicated ways with
     the caching of results for each tail.
 \end{description}
+
+\bibliography{bibliography}
+
 \end{document}
