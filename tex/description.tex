@@ -107,7 +107,8 @@ c(Y, Z)$. We also consider the \emph{reduced cost} $r(X,Y) = c(X, Y) - c(Y, X)$,
 negative when $X$ is better \emph{before} $Y$ and positive when $X$ is better \emph{after} $Y$.
 
 We write $u\b v$ when $u$ must come before $v$ in all minimal solutions, and say that $(u, v)$
-is a \emph{fixed} pair. The following result is well known \cite[Fact 4]{dujmovic_2004}.
+is a \emph{fixed} pair. The following result is well known \cite[Lemma
+  1]{dujmovic_2004}, \cite[RR1]{dujmovic_2008}.
 
 % TODO: Citation
 \begin{observation}\label{lem:weak}
@@ -120,7 +121,8 @@ is a \emph{fixed} pair. The following result is well known \cite[Fact 4]{dujmovi
 \subsection{Reductions}
 \subparagraph{Fixed pairs}
 We give a much stronger version of \cref{lem:weak}. In fact, \cref{lem:sfp} is the strongest
-generalization possible when only considering $u, v$ themselves (see \cref{rem:strongest}).
+generalization possible when only considering $u, v$ themselves (see
+\cref{rem:strongest}). This generalizes \cite[RR3]{dujmovic_2008}.
 \begin{definition}[Strongly fixed pair]
     We call $u, v \in B$ a \emph{strongly fixed pair} if for every $b \in A$ we have ${\sum_{a
     \leq b} \bar u(a) \geq \sum_{a \leq b} \bar v(a)}$, and at least one of these inequalities
@@ -170,7 +172,8 @@ generalization possible when only considering $u, v$ themselves (see \cref{rem:s
     \cref{lem:sfp} is optimal.
 \end{remark}
 Although such a function $X$ may exist in theory, it does
-not have to exist in the actual set $B$, motivating the following definition.
+not have to exist in the actual set $B$, motivating the following definition
+that generalizes \cite[RRLO2]{dujmovic_2008}.
 
 \begin{lemma}\label{pfp}
   Suppose $r(u,v)< 0$.
@@ -213,7 +216,7 @@ Again such sets $X$ can be found or proven to not exist using a knapsack
 algorithm: add points $P_x = (r(u, x), r(x, v))$ and search for a non-empty
 set summing to $\leq{}(0,0)$.
 
-Let us also mention this gluing-like reduction: \emph{gluing to the front}.
+Let us also mention this gluing-like reduction: \emph{gluing to the front} \cite[RRLO1]{dujmovic_2008}
 \begin{lemma}[Greedy]\label{greedy}
   When $r(u, x)\leq 0$ for all $x\in B$, there is a solution that
   starts with $u$.
@@ -241,7 +244,7 @@ the trivial lower bound. We do a number of optimizations.
   \item[Graph simplification] We drop degree-$0$ vertices, merge identical
     vertices, and split the graph into \emph{independent} components when
     possible. We find an initial solution using the median heuristic \cite{eades_median,eades_median_2} and a local search that tries to move
-    slices and optimally insert them \cite{makinen_experiments,eades_heuristcis}, and re-label all nodes accordingly to make
+    slices and optimally insert them \cite{makinen_experiments,eades_heuristics}, and re-label all nodes accordingly to make
     memory accesses more efficient.
   \item[Fixed pairs] We find all strongly fixed pairs and store them. For the
     exact track we also find practically fixed pairs. Instances for the parameterized
