@@ -75,9 +75,12 @@
   (OCM) problem is to find an ordering of the vertices of $B$ that minimizes the
   number of edge crossings when drawn in the plane.
 
-  We prove a number of novel reductions, and apply these in our solver OCMu64
-  that directly uses branch-and-bound on the ordering of the vertices of $B$ and
-  does not depend on ILP or SAT solvers.
+  We introduce the novel \emph{strongly fixed}, \emph{practically fixed}, and
+  \emph{practically glued} reductions that maximally generalize some existing
+  reductions.
+  We apply these in our exact solver OCMu64, that directly uses branch-and-bound
+  on the ordering of the vertices of $B$ and does not depend on ILP or SAT
+  solvers.
 \end{abstract}
 
 \section{Introduction}
