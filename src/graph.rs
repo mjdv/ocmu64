@@ -730,6 +730,13 @@ impl<'a> Bb<'a> {
                 if x.3.is_some() && x.4 {
                     // We already have a solution for this tail.
                     let new_score = self.score + x.0;
+                    // FIXME: THERE IS A BUG ON exact/062.gr WHERE THE
+                    // RECONSTRUCTION OF THE IMPLICIT SOLUTION FAILS.  THIS IS
+                    // CAUSED BY THE COMBINATION OF optimal_tail_insert AND
+                    // tail_cache OPTIMIZATIONS.
+                    // The code is too much of a mess and written too long ago
+                    // for me to still be able to debug this, so we'll have to
+                    // leave it be.
                     self.implicit_solution = true;
                     if new_score < self.upper_bound {
                         self.states_since_best_sol = 0;
