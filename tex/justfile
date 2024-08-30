@@ -1,2 +1,4 @@
+poster:
+    latexmk -pvc poster.tex
 build:
     latexmk -pvc description.tex
