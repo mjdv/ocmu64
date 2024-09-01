@@ -2,3 +2,9 @@ poster:
     latexmk -pvc poster.tex
 build:
     latexmk -pvc description.tex
+
+pdf:
+	drawio --export --embed-diagram figs.drawio.svg -g 1..1 -o fig/simple.pdf
+	drawio --export --embed-diagram figs.drawio.svg -g 2..2 -o fig/strongly-fixed.pdf
+	drawio --export --embed-diagram figs.drawio.svg -g 3..3 -o fig/blocking-set.pdf
+	drawio --export --embed-diagram figs.drawio.svg -g 4..4 -o fig/gluing.pdf

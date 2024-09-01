@@ -108,19 +108,13 @@
     \separatorcolumn
     \begin{column}{\colwidth}
 
-      \begin{alertblock}{todo}
-        Figures.
-      \end{alertblock}
-
       \begin{block}{One-sided crossing minimizations}
         Given is a bipartite graph $(A, B)$ that is drawn in the plane at points
         $(i, 0)$ and $(j,1)$ for components $A$ and $B$ respectively. The ordering of $A$
         is fixed. The goal is the find an ordering of $B$ that minimizes the number of
         crossings when edges are drawn as straight lines.
 
-        \heading{Definitions}
         We use $<$ to compare vertices in $A$ in their fixed ordering.
-
         For $u\in B$, we write $N(u) \subseteq A$ for the set of its neighbours.
 
         The \textbf{crossing number} $c(u, v)$ is $\sum_{(a, b) \in A^2}
@@ -133,11 +127,12 @@
 
         We write $u\b v$ when $u$ must come before $v$ in \emph{all} minimal solutions, and say that $(u, v)$
         is a \textbf{fixed pair}.
-
-        A well known result is that when all neighbours of $u$ come before all
-        neighbours of $v$, then $u\b v$.
-
         We try to fix as many pairs as possible to speed up the search.
+        A well known result is that when $\max N(u) < \min N(v)$, then $u\b v$.
+
+        \vspace{-1em}
+        \centering
+        \includegraphics[scale=2]{fig/simple.pdf}
       \end{block}
 
       \begin{block}{Strongly fixed pairs}
@@ -160,6 +155,10 @@
           of the two?}, there exists some \emph{weighted} distribution $X$ over
         $\{l, m, r\}$ such that $c(v, X, u) < \min(c(X, u, v), c(u, v, X))$, so that
         $v$ may have to go before $u$.
+
+        \centering
+        \includegraphics[scale=1.5]{fig/strongly-fixed.pdf}
+
       \end{block}
 
       \begin{block}{Practically fixed pairs}
@@ -188,6 +187,8 @@
       %%   handling of cycles like $u\be v\be w\be u$.
       %% \end{block}
 
+        \centering
+        \includegraphics[scale=2]{fig/blocking-set.pdf}
     \end{column}
 
     \separatorcolumn
@@ -200,6 +201,11 @@
 
         \textbf{Gluing identical nodes:}
         When $u$ and $v$ have the same neighbours, we can glue $u$ and $v$.
+
+        \begin{center}
+          \vspace{-2em}
+        \includegraphics[scale=2]{fig/gluing.pdf}
+        \end{center}
 
         \textbf{Greedy gluing:}
         When $r(u, x)\leq 0$ for all $x\in B$, there is a solution that
