@@ -39,7 +39,7 @@
 % Title
 % ====================
 
-\title{OCMu64: a solver for One-sided Crossing Minimization}
+\title{PACE 2024: OCMu64, reductions and a branch-and-bound solver for\\ One-sided Crossing Minimization}
 
 \author{Ragnar {Groot Koerkamp} \inst{1} \and Mees de vries \inst{2}}
 
@@ -81,6 +81,8 @@
 \renewcommand{\v}{\overline{v}}
 \DeclareMathOperator{\supp}{supp}
 
+\newcommand{\mees}[1]{{\color{blue}[{\bf{Bryce:}} #1]}}
+\newcommand{\ragnar}[1]{{\color{orange}[{\bf{Ragnar:}} #1]}}
 
 % ====================
 % Body
@@ -98,177 +100,165 @@
 %     \end{tikzpicture}
 % }
 
-  % Try also: alertblock, exampleblock
-  % \heading
+% Try also: alertblock, exampleblock
+% \heading
 
 \begin{frame}[t]
-\begin{columns}[t]
-\separatorcolumn
-\begin{column}{\colwidth}
+  \begin{columns}[t]
+    \separatorcolumn
+    \begin{column}{\colwidth}
 
-  \begin{alertblock}{todo}
-    increase font size? Make lemmas inside blocks, not lemmas as blocks. Figures.
-  \end{alertblock}
+      \begin{alertblock}{todo}
+        Figures.
+      \end{alertblock}
 
-  \begin{block}{Problem statement}
-The 2024 edition of PACE, an annual optimization challenge, considers the
-\emph{one-sided crossing minimization} problem, defined as follows.
-Given is a bipartite graph $(A, B)$ that is drawn in the plane at points
-$(i, 1)$ and $(j,0)$ for components $A$ and $B$ respectively. The ordering of $A$
-is fixed, and the goal is the find an ordering of $B$ that minimizes the number of
-crossings when edges are drawn as straight lines.
+      \begin{block}{One-sided crossing minimizations}
+        Given is a bipartite graph $(A, B)$ that is drawn in the plane at points
+        $(i, 0)$ and $(j,1)$ for components $A$ and $B$ respectively. The ordering of $A$
+        is fixed. The goal is the find an ordering of $B$ that minimizes the number of
+        crossings when edges are drawn as straight lines.
 
-We introduce some new reductions and give an overview of our algorithm. Proofs are brief or
-omitted due to lack of space.
+        \heading{Definitions}
+        We use $<$ to compare vertices in $A$ in their fixed ordering.
 
-\heading{Definitions}
-We use $<$ to compare vertices in $A$ in their fixed ordering. We generalize to weighted graphs
-for the proof of \cref{lem:sfp}: a node $u \in B$ is taken to be a function $u: A \to \mathbb
-R^{\geq 0}$, where weight 0 represents an absent edge. We write $W_u = \sum_{a \in A}u(a)$ for
-the total weight of $u$, and set $\bar u = u/W_u$. Write $N(u) = \supp(u) \subseteq A$ for the
-set of neighbors of $u$.
+        For $u\in B$, we write $N(u) \subseteq A$ for the set of its neighbours.
 
-We write $c(u, v) = \sum_{(a, b) \in A^2}
-u(a)v(b)[a > b]$; in the unweighted case, this is the \emph{crossing number}, the number of
-crossings between edges incident to $u$ and $v$ when $u$ is drawn before $v$.  For
-$X,Y\subseteq B$ we set $c(X,Y) = \sum_{x\in X}\sum_{y\in Y} c(x,y)$ for the cost of ordering
-all vertices of $X$ before all vertices of $Y$. More generally, $c(X,Y,Z) = c(X, Y) + c(X, Z) +
-c(Y, Z)$. We also consider the \emph{reduced cost} $r(X,Y) = c(X, Y) - c(Y, X)$, which is
-negative when $X$ is better \emph{before} $Y$ and positive when $X$ is better \emph{after} $Y$.
+        The \textbf{crossing number} $c(u, v)$ is $\sum_{(a, b) \in A^2}
+        u(a)v(b)[a > b]$, the number of
+        crossings between edges incident to $u$ and $v$ when $u$ is drawn before $v$.  For
+        $X,Y\subseteq B$ we set $c(X,Y) = \sum_{x\in X}\sum_{y\in Y} c(x,y)$ for the cost of ordering
+        all vertices of $X$ before all vertices of $Y$. More generally, $c(X,Y,Z) = c(X, Y) + c(X, Z) +
+        c(Y, Z)$. We also consider the \emph{reduced cost} $r(X,Y) = c(X, Y) - c(Y, X)$, which is
+        negative when $X$ is better \emph{before} $Y$ and positive when $X$ is better \emph{after} $Y$.
 
-We write $u\b v$ when $u$ must come before $v$ in all minimal solutions, and say that $(u, v)$
-is a \emph{fixed} pair. The following result is well known \cite[Lemma
-  1]{dujmovic_2004}, RR1 of \cite{dujmovic_2008}.
-  \end{block}
+        We write $u\b v$ when $u$ must come before $v$ in \emph{all} minimal solutions, and say that $(u, v)$
+        is a \textbf{fixed pair}.
 
-\begin{block}{Strongly fixed pairs}
-    We call $u, v \in B$ a \emph{strongly fixed pair} if for every $b \in A$ we have ${\sum_{a
-    \leq b} \bar u(a) \geq \sum_{a \leq b} \bar v(a)}$, and at least one of these inequalities
-    is strict. Note that this implies $r(u, v) < 0$.
+        A well known result is that when all neighbours of $u$ come before all
+        neighbours of $v$, then $u\b v$.
 
+        We try to fix as many pairs as possible to speed up the search.
+      \end{block}
 
-    Consider $u \neq v$ from the original, unweighted problem, taking only values $0, 1$. Let
-    $n = |N(u)|, m = |N(v)|$, and consider both as ordered lists. Then $u, v$ are strongly
-    fixed if and only if for all $0 \leq i < n$, $N(u)_i \leq N(v)_{\lfloor i\cdot m/n
-    \rfloor}$ and at least one of the inequalities is strict, which is how we check in practice whether $u, v$ is strongly fixed.
+      \begin{block}{Strongly fixed pairs}
+        We call $u, v \in B$ a \textbf{strongly fixed pair} if their degrees are $n$
+        and $m$ and for all $0 \leq i < n$, $N(u)_i \leq N(v)_{\lfloor i\cdot m/n
+          \rfloor}$.
+        Intuitively, when \emph{the $x\%$'th neighbour of $u$ is left of the $x\%$'th
+        neighbour of $v$}. Additionally, at least one of these inequalities must be strict.
+        Note that this implies $r(u, v) < 0$.
 
-    \textbf{Main lemma:}
-    If $(u, v)$ is strongly fixed, then $u \b v$.
+        \textbf{Main result:}
+        If $(u, v)$ is strongly fixed, then $u \b v$.
 
-    \textbf{The lamma is optimal:}
-    Suppose that $u, v \in B$ with $\bar u \neq \bar v$ are not strongly fixed, and let $b \in
-    A$ be some element such
-    that $\sum_{a \leq b} \bar u(a) > \sum_{a \leq b} \bar v(a)$. By taking $X: A \to \mathbb
-    R^{\geq 0}$ some function which assigns very high
-    weight to $b$, we can obtain $c(v, X, u) < \min(c(X, u, v), c(u, v, X))$.
-\end{block}
+        \textbf{The lamma is optimal:}
+        Suppose that $u, v \in B$ with $N(u) \neq N(v)$ are not strongly fixed, and let $i$ be
+        such that $b:=N(u)_i > N(v)_{\lfloor i\cdot m/n\rfloor}=:a$.
+        Assuming there exists vertices $m$ in between $a$ and $b$, $l$ left of $\min
+        N(v)$ and $r$ right of $\max N(u)$ \ragnar{Is this strong enough? Do $u$ and $v$
+          need reversing? Or should we just say left of the min and right of the max
+          of the two?}, there exists some \emph{weighted} distribution $X$ over
+        $\{l, m, r\}$ such that $c(v, X, u) < \min(c(X, u, v), c(u, v, X))$, so that
+        $v$ may have to go before $u$.
+      \end{block}
 
-  \begin{block}{Practically fixed pairs}
-Although such a function $X$ may exist in theory, it does
-not have to exist in the actual set $B$, motivating the following definition
-that generalizes RRLO2 of \cite{dujmovic_2008}.
+      \begin{block}{Practically fixed pairs}
+        Although such a function $X$ may exist in theory, it does
+        not have to exist in the actual set $B$, motivating a more practical approach:
 
-\textbf{Blocking set:}
-  Suppose $r(u,v)< 0$.
-    A \emph{blocking set} $X\subseteq B-\{u,v\}$ is a set such that $c(v,X,u) \leq \min(c(v, u,
-    X), (X, v, u))$.  If there is no blocking set for $(u, v)$, we call it a
-    \emph{practically fixed pair}, and $u\b v$.
-  \end{block}
+        \textbf{Blocking set:}
+        Suppose $r(u,v)< 0$, i.e., $u$ wants to go left of $v$.
+        A \emph{blocking set} $X\subseteq B-\{u,v\}$ is a set such that $c(v,X,u) \leq \min(c(v, u,
+        X), (X, v, u))$.  If there is no blocking set for $(u, v)$, we call it a
+        \emph{practically fixed pair}, and $u\b v$.
+      \end{block}
 
-  \textbf{Finding blocking sets:}
-Such a set $X$ can be found, if one exists, using a knapsack-like algorithm: for
-each $x\in B-\{u,v\}$, add a point $P_x = (r(v, x), r(x, u))$, and search for a subset summing
-to ${\leq{}(r(u, v), r(u, v))}$.
+      \textbf{Finding blocking sets:}
+      Such a set $X$ can be found, if one exists, using a knapsack-like algorithm: for
+      each $x\in B-\{u,v\}$, add a point $P_x = (r(v, x), r(x, u))$, and search for a subset summing
+      to ${\leq{}(r(u, v), r(u, v))}$.
 
-Note that we do not require $(v, X, u)$ to be a true local minimum, since we do
-not consider interactions between vertices in $X$, as that would make ruling out the
-existence of such sets much harder.
+      %% Note that we do not require $(v, X, u)$ to be a true local minimum, since we do
+      %% not consider interactions between vertices in $X$, as that would make ruling out the
+      %% existence of such sets much harder.
 
-%% \begin{block}{Weak variants}
-%%   It is also possible to consider \emph{weak} variants of the above lemmas that
-%%   only imply that $u < v$ in \emph{some} optimal solution. This requires careful
-%%   handling of cycles like $u\be v\be w\be u$.
-%% \end{block}
+      %% \begin{block}{Weak variants}
+      %%   It is also possible to consider \emph{weak} variants of the above lemmas that
+      %%   only imply that $u < v$ in \emph{some} optimal solution. This requires careful
+      %%   handling of cycles like $u\be v\be w\be u$.
+      %% \end{block}
 
-\end{column}
+    \end{column}
 
-\separatorcolumn
+    \separatorcolumn
 
-\begin{column}{\colwidth}
-\begin{block}{Gluing}
-We now turn our attention to \emph{gluing}, i.e., proving that two vertices $u$
-and $v$ always go right next to each other, and we can treat them as a single vertex. First,
-let us see that we cannot get `strong gluing' result analogous to \cref{lem:sfimplf}.
+    \begin{column}{\colwidth}
+      \begin{block}{Gluing}
+        A second reduction strategy \emph{glues} vertices $u$ and $v$ together.
+        I.e., when $u$ and $v$ are consucutive in \emph{all} optimal solutions,
+        we \textbf{glue} them together and treat them as a single vertex.
 
-\textbf{Remark:}
-  When $N(u)=N(v)$ in the unweighted case, or more generally $\bar u=\bar v$, we can glue $u$
-    and $v$.
-  Otherwise when $r(u,v)\leq 0$, there is an $X : A\to \mathbb R^{\geq 0}$ such that $(u, X, v)$ is
-  strictly better than $(u,v,X)$ and $(X,u,v)$.
+        \textbf{Gluing identical nodes:}
+        When $u$ and $v$ have the same neighbours, we can glue $u$ and $v$.
 
-\textbf{Practical gluing lemma:}
-    Let $u$ and $v$ satisfy $r(u, v) \leq 0$.
-    A non-empty subset $X\subseteq B-\{u,v\}$ is \emph{blocking} when $c(u, X, v) \leq
-    \min(c(u, v, X), c(X, u, v))$. If there is no blocking set, then we can glue $u, v$.
+        \textbf{Greedy gluing:}
+        When $r(u, x)\leq 0$ for all $x\in B$, there is a solution that
+        starts with $u$.
 
-Again such sets $X$ can be found or proven to not exist using a knapsack
-algorithm: add points $P_x = (r(u, x), r(x, v))$ and search for a non-empty
-set summing to $\leq{}(0,0)$.
+        \textbf{Practical gluing lemma (unused):}
+        Let $u$ and $v$ satisfy $r(u, v) \leq 0$.
+        A non-empty subset $X\subseteq B-\{u,v\}$ is \emph{blocking} when $c(u, X, v) \leq
+        \min(c(u, v, X), c(X, u, v))$. If there is no blocking set, then we can glue $u, v$.
 
-\textbf{Greedy gluing}
-  When $r(u, x)\leq 0$ for all $x\in B$, there is a solution that
-  starts with $u$.
-\end{block}
+        Again such sets $X$ can be found or proven to not exist using a knapsack
+        algorithm: add points $P_x = (r(u, x), r(x, v))$ and search for a non-empty
+        set summing to $\leq{}(0,0)$.
+      \end{block}
 
-  \begin{block}{Solver}
+      \begin{block}{Solver}
+        Our solver \texttt{OCMu64} uses a standard \textbf{branch-and-bound on the ordering of the
+        solution}.  We start with fixed prefix $P=()$ and tail $T=B$, and in each step we try (a
+        subset of) all vertices in $T$ as the next vertex appended to $P$.
+        In a preprocessing step we compute the trivial lower bound $S_0 =
+        \sum_{u,v}\min(c(u,v),c(v,u))$ on the score.
+        %% We keep track of the score $S_P$ of the prefix and $S_{PT}=c(P, T)$ of
+        %% prefix-tail intersections, and abort when this score goes above the best
+        %% solution found so far.
 
-Our solver \texttt{OCMu64} is based on a standard branch-and-bound on the ordering of the
-solution.  We start with fixed prefix $P=()$ and tail $T=B$, and in each step we try (a
-subset of) all vertices in $T$ as the next vertex appended to $P$.
-In a preprocessing step we compute the trivial lower bound $S_0 =
-\sum_{u,v}\min(c(u,v),c(v,u))$ on the score.
-We keep track of the score $S_P$ of the prefix and $S_{PT}=c(P, T)$ of
-prefix-tail intersections, and abort when this score goes above the best
-solution found so far. The \emph{excess} of a tail is its optimal score minus
-the trivial lower bound. We do a number of optimizations.
+        \begin{description}
+        \item[Graph simplification] We drop degree-$0$ vertices, merge identical
+          vertices, and split the graph into \emph{independent} components.
+          The initial solution uses the median heuristic and a local search that tries to move
+          slices and optimally insert them. We then re-label all nodes in order to make
+          memory accesses more efficient.
+        \item[Fixed pairs] We find all strongly fixed pairs and store them. For the
+          exact track we also find practically fixed pairs.
+          For each tail we search for \emph{tail-local} practically fixed pairs. In each state, we only
+          try vertices $u\in T$ not fixed by another $v\in T$.
+        \item[Gluing] We use the greedy gluing strategy. Our implementation
+          of practical gluing contained a bug, so we did not use this.
+        \item[Tail cache] In each step, we search for the longest suffix of $T$ that
+          was seen before, and reuse (the lower bound on) its score. We also
+          cache the tail-local practically fixed pairs.
+        \item[Optimal insert] Instead of simply appending $u$ to $P$, we
+          insert it in the optimal position. The
+          implementation is tricky because it interacts in complicated ways with
+          the caching of results for each tail.
+        \end{description}
+      \end{block}
 
-\begin{description}
-  \item[Graph simplification] We drop degree-$0$ vertices, merge identical
-    vertices, and split the graph into \emph{independent} components
-    \cite[Corollary 2]{dujmovic_2004} when
-    possible. We find an initial solution using the median heuristic \cite{eades_median,eades_median_2} and a local search that tries to move
-    slices and optimally insert them \cite{makinen_experiments,eades_heuristics}, and re-label all nodes accordingly to make
-    memory accesses more efficient.
-  \item[Fixed pairs] We find all strongly fixed pairs and store them. For the
-    exact track we also find practically fixed pairs. Instances for the parameterized
-    track are simple enough that the overhead was not worth it. Also for each
-    tail we search for new `tail-local' practically fixed pairs. In each state, we only
-    try vertices $u\in T$ not fixed by another $v\in T$.
-  \item[Gluing] We use the greedy strategy of \cref{greedy}. Our implementation
-    of \cref{pg} contained a bug, so we did not use this. (Also benefits
-    seemed limited.)
-  \item[Tail cache] In each step, we search for the longest suffix of $T$ that
-    was seen before, and reuse (the lower bound on) its excess. We also
-    cache the tail-local practically fixed pairs.
-  \item[Optimal insert] Instead of simply appending $u$ to $P$, we
-    insert it in the optimal position. Note that the
-    implementation is tricky because it interacts in complicated ways with
-    the caching of results for each tail.
-\end{description}
-  \end{block}
+      \begin{block}{Performance}
 
-  \begin{block}{Performance}
-    \
-  \end{block}
+      \end{block}
 
-  %% \begin{block}{References (optional)}
-  %%   \nocite{*}
-  %%   \footnotesize{\bibliographystyle{plain}\bibliography{poster}}
-  %% \end{block}
+      %% \begin{block}{References (optional)}
+      %%   \nocite{*}
+      %%   \footnotesize{\bibliographystyle{plain}\bibliography{poster}}
+      %% \end{block}
 
-\end{column}
-\separatorcolumn
-\end{columns}
+    \end{column}
+    \separatorcolumn
+  \end{columns}
 \end{frame}
 
 \end{document}
