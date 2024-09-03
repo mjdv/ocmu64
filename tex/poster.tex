@@ -108,7 +108,7 @@
     \separatorcolumn
     \begin{column}{\colwidth}
 
-      \begin{block}{One-sided crossing minimizations}
+      \begin{block}{One-sided crossing minimization}
         Given is a bipartite graph $(A, B)$ that is drawn in the plane at points
         $(i, 0)$ and $(j,1)$ for components $A$ and $B$ respectively. The ordering of $A$
         is fixed. The goal is the find an ordering of $B$ that minimizes the number of
@@ -130,18 +130,25 @@
         We try to fix as many pairs as possible to speed up the search.
         A well known result is that when $\max N(u) < \min N(v)$, then $u\b v$.
 
-        \vspace{-1em}
+        \vspace{-1.5em}
         \centering
         \includegraphics[scale=2]{fig/simple.pdf}
       \end{block}
 
       \begin{block}{Strongly fixed pairs}
-        We call $u, v \in B$ a \textbf{strongly fixed pair} if their degrees are $n$
-        and $m$ and for all $0 \leq i < n$, $N(u)_i \leq N(v)_{\lfloor i\cdot m/n
-          \rfloor}$.
-        Intuitively, when \emph{the $x\%$'th neighbour of $u$ is left of the $x\%$'th
-        neighbour of $v$}. Additionally, at least one of these inequalities must be strict.
-        Note that this implies $r(u, v) < 0$.
+        We call $u, v \in B$ a \textbf{strongly fixed pair} if $N(u) \neq N(v)$
+        and their degrees are $n$
+        and $m$ and for all $0 \leq i < n$,
+        $$N(u)_i \leq N(v)_{\lfloor i\cdot m/n \rfloor}.$$
+        That is: for all $x$, \emph{the $x\%$'th neighbour of $u$ is left of the $x\%$'th
+        neighbour of $v$}.
+        %% Note that this implies $r(u, v) < 0$.
+
+        \begin{center}
+          \vspace{-2em}
+        \includegraphics[scale=1.5]{fig/strongly-fixed.pdf}
+          \vspace{-2em}
+        \end{center}
 
         \textbf{Main result:}
         If $(u, v)$ is strongly fixed, then $u \b v$.
@@ -151,13 +158,16 @@
           possible to prove $u \b v$ if $(u, v)$ is not strongly fixed.
         Suppose that $u, v \in B$ with $N(u) \neq N(v)$ are not strongly fixed, and let $i$ be
         such that $b:=N(u)_i > N(v)_{\lfloor i\cdot m/n\rfloor}=:a$. Now take sets of vertices $L, M,
-          R \subseteq A$ with $a < M < b$, with $L < \min(N(v))$ and with $R > \max(N(u))$.
-          Add a node $x \in B$ connected to $L, M, R$. With the correct numbers of vertices in
-          $L, M, R$ we can make it so that $c(v, x, u) < \min(c(x, u, v), c(u, v, x))$, so that
+          R \subseteq A$ with $a < M < b$, with $L < \min(N(v))$ and with
+          $\max(N(u)) < R$.
+          Add a node $x \in B$ connected to $L$, $M$, $R$. With the correct numbers of vertices in
+          $L$, $M$, $R$ we can make it so that $c(v, x, u) < \min(c(x, u, v), c(u, v, x))$, so that
         $v$ has to go before $u$.
 
         \centering
-        \includegraphics[scale=1.5]{fig/strongly-fixed.pdf}
+          \vspace{-0.5em}
+        \includegraphics[scale=2]{fig/blocking-set.pdf}
+          \vspace{-1em}
 
       \end{block}
 
@@ -186,24 +196,20 @@
       %%   only imply that $u < v$ in \emph{some} optimal solution. This requires careful
       %%   handling of cycles like $u\be v\be w\be u$.
       %% \end{block}
-
-        \centering
-        \includegraphics[scale=2]{fig/blocking-set.pdf}
     \end{column}
 
     \separatorcolumn
 
     \begin{column}{\colwidth}
       \begin{block}{Gluing}
-        A second reduction strategy \emph{glues} vertices $u$ and $v$ together.
-        I.e., when $u$ and $v$ are consucutive in \emph{all} optimal solutions,
+        When $u$ and $v$ are consecutive in \emph{all} optimal solutions,
         we \textbf{glue} them together and treat them as a single vertex.
 
-        \textbf{Gluing identical nodes:}
-        When $u$ and $v$ have the same neighbours, we can glue $u$ and $v$.
+        \textbf{Identical nodes:}
+        When $u$ and $v$ have the same neighbours, we glue them.
 
         \begin{center}
-          \vspace{-2em}
+          \vspace{-1em}
         \includegraphics[scale=2]{fig/gluing.pdf}
         \end{center}
 
@@ -231,17 +237,21 @@
         %% prefix-tail intersections, and abort when this score goes above the best
         %% solution found so far.
 
+        \ragnar{A figure of prefix and tail and optimal insert here would be
+          nice to make the section less boring.}
+
         \begin{description}
-        \item[Graph simplification] We drop degree-$0$ vertices, merge identical
-          vertices, and split the graph into \emph{independent} components.
-          The initial solution uses the median heuristic and a local search that tries to move
-          slices and optimally insert them. We then re-label all nodes in order to make
-          memory accesses more efficient.
+        \item[Graph simplification]
+          %% We drop degree-$0$ vertices, merge identical
+          %% vertices, and split the graph into \emph{independent} components.
+          The initial solution uses the median heuristic followed by a simple local search that tries to move
+          slices and optimally insert them.
+          We then re-label all nodes in order to make memory accesses more efficient.
         \item[Fixed pairs] We find all strongly fixed pairs and store them. For the
           exact track we also find practically fixed pairs.
           For each tail we search for \emph{tail-local} practically fixed pairs. In each state, we only
-          try vertices $u\in T$ not fixed by another $v\in T$.
-        \item[Gluing] We use the greedy gluing strategy. Our implementation
+          try vertices $u\in T$ not fixed after another $v\in T$.
+        \item[Gluing\quad] We use the greedy gluing strategy. Our implementation
           of practical gluing contained a bug, so we did not use this.
         \item[Tail cache] In each step, we search for the longest suffix of $T$ that
           was seen before, and reuse (the lower bound on) its score. We also
