@@ -147,14 +147,14 @@
         If $(u, v)$ is strongly fixed, then $u \b v$.
 
         \textbf{The lemma is optimal:}
+        Without further assumptions on $(A, <)$ or on the other elements of $B$, it is not
+          possible to prove $u \b v$ if $(u, v)$ is not strongly fixed.
         Suppose that $u, v \in B$ with $N(u) \neq N(v)$ are not strongly fixed, and let $i$ be
-        such that $b:=N(u)_i > N(v)_{\lfloor i\cdot m/n\rfloor}=:a$.
-        Assuming there exist vertices $m$ in between $a$ and $b$, $l$ left of $\min
-        N(v)$ and $r$ right of $\max N(u)$ \ragnar{Is this strong enough? Do $u$ and $v$
-          need reversing? Or should we just say left of the min and right of the max
-          of the two?}, there exists some \emph{weighted} distribution $X$ over
-        $\{l, m, r\}$ such that $c(v, X, u) < \min(c(X, u, v), c(u, v, X))$, so that
-        $v$ may have to go before $u$.
+        such that $b:=N(u)_i > N(v)_{\lfloor i\cdot m/n\rfloor}=:a$. Now take sets of vertices $L, M,
+          R \subseteq A$ with $a < M < b$, with $L < \min(N(v))$ and with $R > \max(N(u))$.
+          Add a node $X \in B$ connected to $L, M, R$. With the correct numbers of vertices in
+          $L, M, $ we can make it so that $c(v, X, u) < \min(c(X, u, v), c(u, v, X))$, so that
+        $v$ has to go before $u$.
 
         \centering
         \includegraphics[scale=1.5]{fig/strongly-fixed.pdf}
@@ -162,7 +162,7 @@
       \end{block}
 
       \begin{block}{Practically fixed pairs}
-        Although such a function $X$ may exist in theory, it does
+        Although such a node $X$ may exist in theory, it does
         not have to exist in the actual set $B$, motivating a more practical approach:
 
         \textbf{Blocking set:}
