@@ -179,12 +179,13 @@
         A \emph{blocking set} $X\subseteq B-\{u,v\}$ is a set such that $c(v,X,u) \leq \min(c(v, u,
         X), (X, v, u))$.  If there is no blocking set for $(u, v)$, we call it a
         \emph{practically fixed pair}, and $u\b v$.
-      \end{block}
 
-      \textbf{Finding blocking sets:}
-      Such a set $X$ can be found, if one exists, using a knapsack-like algorithm: for
-      each $x\in B-\{u,v\}$, add a point $P_x = (r(v, x), r(x, u))$, and search for a subset summing
-      to ${\leq{}(r(u, v), r(u, v))}$.
+        \textbf{Finding blocking sets:}
+        Such a set $X$ can be found, if one exists, using a knapsack-like algorithm: for
+        each $x\in B-\{u,v\}$, add a point $P_x = (r(v, x), r(x, u))$, and search for a subset summing
+        to ${\leq{}(r(u, v), r(u, v))}$.
+
+      \end{block}
 
       %% Note that we do not require $(v, X, u)$ to be a true local minimum, since we do
       %% not consider interactions between vertices in $X$, as that would make ruling out the
