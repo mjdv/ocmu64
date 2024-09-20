@@ -148,7 +148,7 @@ is a \emph{fixed} pair.
 To reduce the search space of all possible orderings of $B$, it is crucial to automatically
 find as many fixed pairs in $B$ as possible. Ideally, one would be able to determine whether $u
 \b v$ by inspecting only $u, v$. For example, the following result, shown in \cref{fig:simple} is well known \cite[Lemma
-  1]{dujmovic_2004}, RR1 of \cite{dujmovic_2008}.
+  1]{dujmovic_2004}, \cite[RR1]{dujmovic_2008}.
 
 % TODO: Citation
 \begin{observation}\label{lem:weak}
@@ -160,7 +160,7 @@ generalization possible when only considering $u$ and $v$ themselves, without fu
 $A$ or the other elements of $B$ (see \cref{rem:strongest}). This also generalizes RR3 of
 \cite{dujmovic_2008}.
 
-\begin{definition}[Strongly fixed pair]
+\begin{definition}[Strongly fixed pair]\label{def:sfp}
     We call $u, v \in B$ a \emph{strongly fixed pair} if for every $b \in A$ we have $F_{\bar
     u}(b) \geq F_{\bar v}(b)$, and at least one of these inequalities
     is strict. Note that this implies $r(u, v) < 0$.
@@ -288,7 +288,7 @@ Our solver \texttt{OCMu64} is based on a standard branch-and-bound on the orderi
 solution.  We start with fixed prefix $P=()$ and tail $T=B$, and in each step we try (a
 subset of) all vertices in $T$ as the next vertex appended to $P$.
 In a preprocessing step we compute the trivial lower bound $S_0 =
-\sum_{u,v}\min(c(u,v),c(v,u))$ on the score.
+\sum_{u,v}\min(c(u,v),c(v,u))$ \cite[Lemma 4]{eades_median_2}\cite[Fact 3]{dujmovic_2004} on the score.
 We keep track of the score $S_P$ of the prefix and $S_{PT}=c(P, T)$ of
 prefix-tail intersections, and abort when this score goes above the best
 solution found so far. The \emph{excess} of a tail is its optimal score minus
