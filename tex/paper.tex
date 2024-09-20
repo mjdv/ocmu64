@@ -267,11 +267,11 @@ Again such sets $X$ can be found or proven to not exist using a knapsack
 algorithm: add points $P_x = (r(u, x), r(x, v))$ and search for a non-empty
 set summing to $\leq{}(0,0)$.
 
-Let us also mention this gluing-like reduction: \emph{gluing to the front}, implied by RRL01 of
-\cite{dujmovic_2008}.
+Let us also mention this gluing-like reduction: \emph{gluing to the front}, implied by
+\cite[RRL01]{dujmovic_2008}.
 \begin{lemma}[Greedy]\label{greedy}
-  When $r(u, x)\leq 0$ for all $x\in B$, there is a solution that
-  starts with $u$.
+  \!\!When $r(u, x)\leq 0$ for all $x\in B$, there is a solution that
+  starts with $u$.\!\!
 \end{lemma}
 
 \begin{remark}[Tail variants]
@@ -315,8 +315,6 @@ the trivial lower bound. We do a number of optimizations.
     implementation is tricky because it interacts in complicated ways with
     the caching of results for each tail.
 \end{description}
-
-\newpage
 
 \bibliography{bibliography}
 
