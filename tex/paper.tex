@@ -146,7 +146,7 @@ is a \emph{fixed} pair.
 \subparagraph{Fixed pairs}
 To reduce the search space of all possible orderings of $B$, it is crucial to automatically
 find as many fixed pairs in $B$ as possible. Ideally, one would be able to determine whether $u
-\b v$ by inspecting only $u, v$. For example, the following result is well known \cite[Lemma
+\b v$ by inspecting only $u, v$. For example, the following result, shown in \cref{fig:simple} is well known \cite[Lemma
   1]{dujmovic_2004}, RR1 of \cite{dujmovic_2008}.
 
 % TODO: Citation
@@ -154,8 +154,8 @@ find as many fixed pairs in $B$ as possible. Ideally, one would be able to deter
   Let $u, v \in B$. When $\max N(u) \leq \min N(v)$ and $\bar u\neq \bar v$, then $u\b v$.
 \end{observation}
 
-We give a much stronger version of \cref{lem:weak}. In fact, \cref{lem:sfp} is the strongest
-generalization possible when only considering $u, v$ themselves, without further inspection of
+We give a much stronger version of \cref{lem:weak}, with some examples in \cref{fig:strongly-fixed}. In fact, \cref{lem:sfp} is the strongest
+generalization possible when only considering $u$ and $v$ themselves, without further inspection of
 $A$ or the other elements of $B$ (see \cref{rem:strongest}). This also generalizes RR3 of
 \cite{dujmovic_2008}.
 
@@ -247,9 +247,9 @@ that generalizes RRLO2 of \cite{dujmovic_2008}.
     \emph{practically fixed pair}, and $u\b v$.
 \end{lemma}
 
-In practice, such a set $X$ can be found, if one exists, using a knapsack-like algorithm: for
+In practice, such a blocking set $X$ can be found, if one exists, using a knapsack-like algorithm: for
 each $x\in B-\{u,v\}$, add a point $P_x = (r(v, x), r(x, u))$, and search for a subset summing
-to ${\leq{}(r(u, v), r(u, v))}$.
+to ${\leq{}(r(u, v), r(u, v))}$. \cref{fig:blocking} shows some examples.
 
 Note that we do not require $(v, X, u)$ to be a true local minimum, since we do
 not consider interactions between vertices in $X$, as that would make ruling out the
