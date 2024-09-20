@@ -78,7 +78,7 @@
   We introduce the novel \emph{strongly fixed}, \emph{practically fixed}, and
   \emph{practically glued} reductions that maximally generalize some existing
   reductions.
-  We apply these in our exact solver OCMu64, that directly uses branch-and-bound
+  We apply these in our exact solver \texttt{OCMu64}, that directly uses branch-and-bound
   on the ordering of the vertices of $B$ and does not depend on ILP or SAT
   solvers.
 \end{abstract}
@@ -88,7 +88,7 @@
 The 2024 edition of PACE, an annual optimization challenge, considers the
 \emph{one-sided crossing minimization} problem, defined as follows.
 Given is a bipartite graph $(A, B)$ that is drawn in the plane at points
-$(i, 1)$ and $(j,0)$ for components $A$ and $B$ respectively. The ordering of $A$
+$(i, 0)$ and $(j,1)$ for components $A$ and $B$ respectively. The ordering of $A$
 is fixed, and the goal is the find an ordering of $B$ that minimizes the number of
 crossings when edges are drawn as straight lines.
 
@@ -137,8 +137,8 @@ is a \emph{fixed} pair.
 %% \label{fig:gluing}
 %% }
 \caption{
-  Various examples where $u$ must come before $v$ ($u\b v$), where $u,v\in B$ can freely move around and
-  their neighbours in $A$ (on the dashed line) have fixed positions.}%
+  Various examples of $u, v \in B$, whose neighbors 
+  neighbours in $A$ (on the dashed line) have fixed positions.}%
 \label{fig}
 \end{figure}
 
