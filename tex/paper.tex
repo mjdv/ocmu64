@@ -98,9 +98,10 @@ omitted due to lack of space.
 \section{Definitions}
 We use $<$ to compare vertices in $A$ in their fixed ordering. We generalize to weighted graphs
 for the proof of \cref{lem:sfp}: a node $u \in B$ is taken to be a function $u: A \to \mathbb
-R^{\geq 0}$, where weight 0 represents an absent edge. We write $W_u = \sum_{a \in A}u(a)$ for
-the total weight of $u$, and set $\bar u = u/W_u$. Write $N(u) = \supp(u) \subseteq A$ for the
-set of neighbors of $u$.
+R^{\geq 0}$, where weight 0 represents an absent edge. Write $N(u) = \supp(u) \subseteq A$ for the
+set of neighbors of $u$. We write $W_u = \sum_{a \in A}u(a)$ for the total weight of $u$, and
+set $\bar u = u/W_u$. We think of $\bar u$ as a probability distribution, and also consider the
+cumulative distribution function $F_{\bar u}(b) = \sum_{a \leq b} \bar u(a)$.
 
 We write $c(u, v) = \sum_{(a, b) \in A^2}
 u(a)v(b)[a > b]$; in the unweighted case, this is the \emph{crossing number}, the number of
@@ -159,9 +160,9 @@ generalization possible when only considering $u$ and $v$ themselves, without fu
 $A$ or the other elements of $B$ (see \cref{rem:strongest}). This also generalizes RR3 of
 \cite{dujmovic_2008}.
 
-\begin{definition}[Strongly fixed pair]\label{def:sfp}
-    We call $u, v \in B$ a \emph{strongly fixed pair} if for every $b \in A$ we have ${\sum_{a
-    \leq b} \bar u(a) \geq \sum_{a \leq b} \bar v(a)}$, and at least one of these inequalities
+\begin{definition}[Strongly fixed pair]
+    We call $u, v \in B$ a \emph{strongly fixed pair} if for every $b \in A$ we have $F_{\bar
+    u}(b) \geq F_{\bar v}(b)$, and at least one of these inequalities
     is strict. Note that this implies $r(u, v) < 0$.
 \end{definition}
 \begin{lemma}\label{lem:sfp} When $u, v$ is a strongly fixed pair,
@@ -201,42 +202,27 @@ $A$ or the other elements of $B$ (see \cref{rem:strongest}). This also generaliz
 \end{remark}
 
 \begin{remark}\label{rem:strongest}
-    By inspecting only $u, v$, it is not possible to do better than \cref{lem:sfimplf}. If $u,
-    v$ with $\bar u \neq \bar v$ are not strongly fixed, and we can assume the existence of any
-    additional nodes in $A, B$, then we can conjure a situation where $v \b u$.
+    Suppose that $u, v$ with $\bar u \neq \bar v$ are not strongly fixed, and let $b \in A$ be
+    such that $F_{\bar u}(b) < F_{\bar v}(b)$. Furthermore suppose that there are nodes $l, m,
+    r \in A$, with $m$ sitting between $b$ and its successor in $A$, and $l < (\supp(u) \cup
+    \supp(v)) < r$. Then consider a node $X \in B$ which is connected to $l, m, r$. By choosing
+    the weights of $X$ appropriately, we can let both $r(X, v) = W_v r(X, \bar v)$ and $r(u, X)
+    = W_u r(\bar u, X)$ grow arbitrarily large. Since we can scale up the weights of $X$, it
+    suffices to make $r(X, \bar v)$ and $r(\bar u, X)$ simultaneously positive.
 
-    Suppose that $b \in A$ be some element such that $U := \sum_{a \leq b} \bar u(a) < \sum_{a \leq
-    b} \bar v(a) =: V$, and take $M \in A$ to be some element between $b$ and its succesor. Also,
-    take $L < \min(N(v))$ and $R > \max(N(u))$. Now consider a new element $X \in B$, which
-    connects only to $L, M, R$. We claim that by picking the right weights for $X$, we can
-    obtain $c(v, X, u) < \min(c(X, u, v), c(u, v, X))$, which establishes that in the presence
-    of $X$, $v \b u$.
-
-    We have that
+    Now $r(X, \bar v) = (2F_{\bar v}(b) - 1)X(m) + (X(r) - X(l))$, and $r(\bar u, X) = (1 -
+    2F_{\bar u}(b))X(m) - (X(r) - X(l))$. By choosing $X(r), X(l)$ appropriately, we can make
+    these two values equal, so it suffices if their \emph{average} is positive; and indeed 
     \[
-        c(X, u, v) - c(v, X, u) = r(u, v) + W_v(2VX(M) + X(R) - X(L) - X(M))
+        (r(X, \bar v) + r(\bar u, X))/2 = X(m)(F_{\bar v}(b) - F_{\bar u}(b)) > 0.
     \]
-    and
-    \[
-        c(u, v, X) - c(v, X, u) = r(u, v) + W_u(X(L) + (1-U)X(M) - X(R) - UX(M)),
-    \]
-    and if we can choose $X(L), X(M), X(R)$ so that both these values are positive, we are
-    done. We can always scale these values up, so we can ignore the $r(u, v)$ term in both
-    equations; we can also ignore $W_u, W_v$. Because we can choose $X(R), X(L)$ as we please,
-    it suffices if the sum of the remaining pairs of expressions, which is
-    \[
-        (2V - 1)X(M) - (2U - 1)X(M),
-    \]
-    is positive. But indeed it is, since by assumption $U < V$.
-
-    Suppose that $u, v \in B$ with $\bar u \neq \bar v$ are not strongly fixed, and let $b \in
-    A$ be some element such
-    that $\sum_{a \leq b} \bar u(a) > \sum_{a \leq b} \bar v(a)$. By taking $X: A \to \mathbb
-    R^{\geq 0}$ some function which assigns very high
-    weight to $b$, we can obtain $c(v, X, u) < \min(c(X, u, v), c(u, v, X))$, showing that
-    \cref{lem:sfp} is optimal.
+    Therefore, the right choice of weights of $X$ creates a situation where $c(v, X, u) <
+    \min(c(X, u, v), c(u, v, X))$. This demonstrates that if you want to show $u \b v$, and $u,
+    v$ are not strongly fixed, you must consider other features of the graph than $u, v$ and
+    their weights: \cref{lem:sfp} is optimal. Note: this also applies in the unweighted case,
+    by taking $l, m, r$ to be sets of nodes rather than single nodes.
 \end{remark}
-Although such a function $X$ may exist in theory, it does
+Although such a node $X$ may exist in theory, it does
 not have to exist in the actual set $B$, motivating the following definition
 that generalizes RRLO2 of \cite{dujmovic_2008}.
 
