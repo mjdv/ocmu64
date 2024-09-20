@@ -208,7 +208,7 @@ $A$ or the other elements of $B$ (see \cref{rem:strongest}). This also generaliz
     u, v), c(u, v, X))$, so that $v\b u$.
     Suppose that there are nodes $l, m,
     r \in A$, with $m$ sitting between $b$ and its successor in $A$, and $l < (\supp(u) \cup
-    \supp(v)) < r$. Then let $X$ be connected to $l, m, r$. By choosing
+    \supp(v)) < r$ (see \cref{fig:blocking}). Then let $X$ be connected to $l, m, r$. By choosing
     the weights of $X$ appropriately, we can let both $r(X, v) = W_v r(X, \bar v)$ and $r(u, X)
     = W_u r(\bar u, X)$ grow arbitrarily large. Since we can scale up the weights of $X$, it
     suffices to make $r(X, \bar v)$ and $r(\bar u, X)$ simultaneously positive.
@@ -220,8 +220,9 @@ $A$ or the other elements of $B$ (see \cref{rem:strongest}). This also generaliz
     This implies $c(v, X, u) < \min(c(X, u, v), c(u, v, X))$, and thus
     demonstrates that if one wants to show that $u \b v$, when $u,
     v$ are not strongly fixed, one must consider features of the graph other than $u, v$ and
-    their neighbours, so indeed \cref{lem:sfp} is optimal. Note that this also applies in the unweighted case,
-    by taking $l, m, r$ to be sets of nodes rather than weighted single nodes.
+    their neighbours. In other words, \cref{lem:sfp} is optimal. Note that this remark also
+    applies in the unweighted case, by taking $l, m, r$ to be sets of nodes rather than
+    weighted single nodes.
 \end{remark}
 
 Although such a node $X$ may exist in theory, it does
