@@ -1,7 +1,11 @@
-poster:
-    latexmk -pvc poster.tex
+paper:
+    latexmk -pvc paper.tex
+
 build:
     latexmk -pvc description.tex
+
+poster:
+    latexmk -pvc poster.tex
 
 pdf:
 	drawio --export --embed-diagram figs.drawio.svg -g 1..1 -o fig/simple.pdf

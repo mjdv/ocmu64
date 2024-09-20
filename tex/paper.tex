@@ -111,7 +111,35 @@ c(Y, Z)$. We also consider the \emph{reduced cost} $r(X,Y) = c(X, Y) - c(Y, X)$,
 negative when $X$ is better \emph{before} $Y$ and positive when $X$ is better \emph{after} $Y$.
 
 We write $u\b v$ when $u$ must come before $v$ in all minimal solutions, and say that $(u, v)$
-is a \emph{fixed} pair. 
+is a \emph{fixed} pair.
+
+\begin{figure}[t]
+\centering
+\hfill
+\subfloat[An instance of \cref{lem:weak}.]{
+\includegraphics[width=0.30\textwidth]{fig/simple.pdf}%
+\label{fig:simple}
+}
+\hfill
+\subfloat[Examples of blocking sets in blue.]{
+\includegraphics[width=0.6\textwidth]{fig/blocking-set.pdf}%
+\label{fig:blocking-set}
+}
+\hfill
+\\
+\subfloat[Examples of strongly fixed pairs.]{
+\includegraphics[width=0.9\textwidth]{fig/strongly-fixed.pdf}%
+\label{fig:strongly-fixed}
+}
+%% \subfloat[]{
+%% \includegraphics[width=0.33\textwidth]{fig/gluing.pdf}%
+%% \label{fig:gluing}
+%% }
+\caption{
+  Various examples where $u\b v$, where $u,v\in B$ can freely move around and
+  their neighbours in $A$ (on the dashed line) have fixed positions.}%
+\label{fig}
+\end{figure}
 
 \section{Methods}
 \subsection{Reductions}
