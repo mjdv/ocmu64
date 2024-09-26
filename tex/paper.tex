@@ -3,7 +3,7 @@
 %for enabling thm-restate support, use "thm-restate"
 
 \pdfoutput=1 %uncomment to ensure pdflatex processing (mandatatory e.g. to submit to arXiv)
-\hideLIPIcs  %uncomment to remove references to LIPIcs series (logo, DOI, ...), e.g. when preparing a pre-final version to be uploaded to arXiv or another public repository
+%% \hideLIPIcs  %uncomment to remove references to LIPIcs series (logo, DOI, ...), e.g. when preparing a pre-final version to be uploaded to arXiv or another public repository
 
 \graphicspath{{./fig/}}%helpful if your graphic files are in another directory
 
@@ -11,7 +11,7 @@
 
 \title{PACE Solver Description: OCMu64,\\ a solver for One-sided Crossing Minimization} %TODO Please add
 
-%\titlerunning{Dummy short title} %TODO optional, please use if title is longer than one line
+\titlerunning{OCMu64: a solver for One-sided Crossing Minimization}
 
 \author{Ragnar {Groot Koerkamp}}{ETH Zurich, Switzerland}{ragnar.grootkoerkamp@gmail.com}{https://orcid.org/0000-0002-2091-1237}{}%TODO mandatory, please use full name; only 1 author per \author macro; first two parameters are mandatory, other parameters can be empty. Please provide at least the name of the affiliation and the country. The full address is optional. Use additional curly braces to indicate the correct name splitting when the last name consists of multiple name parts.
 
@@ -26,7 +26,7 @@
 
 \keywords{Graph drawing, crossing number, branch and bound} %TODO mandatory; please add comma-separated list of keywords
 
-\category{} %optional, e.g. invited paper
+\category{PACE Solver Description}
 
 %% \relatedversion{\url{https://doi.org/10.5281/zenodo.11671980}} %optional, e.g. full version hosted on arXiv, HAL, or other respository/website
 %\relatedversiondetails[linktext={opt. text shown instead of the URL}, cite=DBLP:books/mk/GrayR93]{Classification (e.g. Full Version, Extended Version, Previous Version}{URL to related version} %linktext and cite are optional
@@ -41,21 +41,17 @@
 
 \nolinenumbers %uncomment to disable line numbering
 
-
-
-%Editor-only macros:: begin (do not touch as author)%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% \EventEditors{John Q. Open and Joan R. Access}
-%% \EventNoEds{2}
-%% \EventLongTitle{42nd Conference on Very Important Topics (CVIT 2016)}
-%% \EventShortTitle{CVIT 2016}
-%% \EventAcronym{CVIT}
-%% \EventYear{2016}
-%% \EventDate{December 24--27, 2016}
-%% \EventLocation{Little Whinging, United Kingdom}
-%% \EventLogo{}
-%% \SeriesVolume{42}
-%% \ArticleNo{23}
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\EventEditors{\'{E}douard Bonnet and Pawe\l{} Rz\k{a}\.{z}ewski}
+\EventNoEds{2}
+\EventLongTitle{19th International Symposium on Parameterized and Exact Computation (IPEC 2024)}
+\EventShortTitle{IPEC 2024}
+\EventAcronym{IPEC}
+\EventYear{2024}
+\EventDate{September 4--6, 2024}
+\EventLocation{Royal Holloway, University of London, Egham, United Kingdom}
+\EventLogo{}
+\SeriesVolume{321}
+\ArticleNo{35}
 
 \newcommand{\R}{\mathbb R}
 \renewcommand{\b}{\prec}
