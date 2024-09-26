@@ -87,7 +87,6 @@ Given is a bipartite graph $(A, B)$ that is drawn in the plane at points
 $(i, 0)$ and $(j,1)$ for components $A$ and $B$ respectively. The ordering of $A$
 is fixed, and the goal is the find an ordering of $B$ that minimizes the number of
 crossings when edges are drawn as straight lines.
-
 We introduce some new reductions and give an overview of our algorithm. Proofs are brief or
 omitted due to lack of space.
 
@@ -98,7 +97,7 @@ R^{\geq 0}$, where weight 0 represents an absent edge. Write $N(u) = \supp(u) \s
 set of neighbors of $u$. We write $W_u = \sum_{a \in A}u(a)$ for the total weight of $u$, and
 set $\bar u = u/W_u$. We think of $\bar u$ as a probability distribution, and also consider the
 cumulative distribution function $F_{\bar u}(b) = \sum_{a \leq b} \bar u(a)$.
-
+%%
 We write $c(u, v) = \sum_{(a, b) \in A^2}
 u(a)v(b)[a > b]$; in the unweighted case, this is the \emph{crossing number}, the number of
 crossings between edges incident to $u$ and $v$ when $u$ is drawn before $v$.  For
